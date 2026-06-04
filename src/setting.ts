@@ -61,7 +61,9 @@ export class ATOZSettingTab extends PluginSettingTab {
                 .setPlaceholder('@')
                 .setValue(this.plugin.settings.snippetTrigger)
                 .onChange(async (v) => {
-                    this.plugin.settings.snippetTrigger = v;
+                    const trigger = this.normalizeTrigger(v, DEFAULT_SETTINGS.snippetTrigger, '조각글');
+                    t.setValue(trigger);
+                    this.plugin.settings.snippetTrigger = trigger;
                     await this.plugin.saveSettings();
                 }));
 
@@ -76,7 +78,9 @@ export class ATOZSettingTab extends PluginSettingTab {
                 .setPlaceholder('~')
                 .setValue(this.plugin.settings.symbolTrigger)
                 .onChange(async (v) => {
-                    this.plugin.settings.symbolTrigger = v;
+                    const trigger = this.normalizeTrigger(v, DEFAULT_SETTINGS.symbolTrigger, '기호');
+                    t.setValue(trigger);
+                    this.plugin.settings.symbolTrigger = trigger;
                     await this.plugin.saveSettings();
                 }));
 
@@ -136,6 +140,14 @@ export class ATOZSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings();
         new Notice('설정을 기본값으로 초기화했습니다.');
         this.display();
+    }
+
+    private normalizeTrigger(value: string, fallback: string, label: string): string {
+        const trigger = value.trim();
+        if (trigger.length > 0) return trigger;
+
+        new Notice(`${label} 트리거 문자는 비워둘 수 없어 기본값을 사용합니다.`);
+        return fallback;
     }
 
     private addNumberSetting(

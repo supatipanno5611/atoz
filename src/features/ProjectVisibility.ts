@@ -1,23 +1,27 @@
 import { Notice } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 
-const STYLE_ID = 'atoz-project-visibility-style';
+const HIDDEN_CLASS = 'atoz-project-hidden';
 
 export class ProjectVisibility {
-    private styleEl: HTMLStyleElement | null = null;
+    private hiddenEls = new Set<HTMLElement>();
+    private installed = false;
 
     constructor(private plugin: ATOZVER6Plugin) {}
 
     install(): void {
-        this.styleEl = document.createElement('style');
-        this.styleEl.id = STYLE_ID;
-        document.head.appendChild(this.styleEl);
+        if (this.installed) return;
+
+        this.installed = true;
+        this.plugin.registerEvent(
+            this.plugin.app.workspace.on('layout-change', () => this.refresh()),
+        );
         this.refresh();
     }
 
     uninstall(): void {
-        this.styleEl?.remove();
-        this.styleEl = null;
+        this.clearHiddenElements();
+        this.installed = false;
     }
 
     async toggleProjectFolderHidden(): Promise<void> {
@@ -38,22 +42,35 @@ export class ProjectVisibility {
     refresh(): void {
         const { isProjectFolderHidden, projectPath } = this.plugin.settings;
 
-        if (!this.styleEl) return;
+        this.clearHiddenElements();
 
         if (!isProjectFolderHidden || !projectPath) {
-            this.styleEl.textContent = '';
             return;
         }
 
-        const path = CSS.escape(projectPath);
-        const childPath = CSS.escape(`${projectPath}/`);
+        const childPath = `${projectPath}/`;
+        document.querySelectorAll<HTMLElement>('.nav-folder-title[data-path]').forEach((titleEl) => {
+            const path = titleEl.dataset.path;
+            if (path !== projectPath && !path?.startsWith(childPath)) return;
 
-        this.styleEl.textContent = `
-.nav-folder-title[data-path="${path}"],
-.nav-folder-title[data-path^="${childPath}"],
-.nav-folder-title[data-path="${path}"] + .nav-folder-children,
-.nav-folder-title[data-path^="${childPath}"] + .nav-folder-children {
-    display: none;
-}`;
+            this.hideElement(titleEl);
+
+            const childrenEl = titleEl.nextElementSibling;
+            if (childrenEl instanceof HTMLElement && childrenEl.hasClass('nav-folder-children')) {
+                this.hideElement(childrenEl);
+            }
+        });
+    }
+
+    private hideElement(el: HTMLElement): void {
+        el.addClass(HIDDEN_CLASS);
+        this.hiddenEls.add(el);
+    }
+
+    private clearHiddenElements(): void {
+        for (const el of this.hiddenEls) {
+            el.removeClass(HIDDEN_CLASS);
+        }
+        this.hiddenEls.clear();
     }
 }

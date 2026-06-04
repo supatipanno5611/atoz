@@ -34,6 +34,10 @@
     display: none;
 }
 
+.atoz-project-hidden {
+    display: none;
+}
+
 /* cut-create-modal */
 .cut-create-error {
     color: var(--text-error);

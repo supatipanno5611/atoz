@@ -22,6 +22,8 @@ export function escapeRegex(s: string): string {
 }
 
 export function buildTriggerRegex(trigger: string): RegExp {
+    if (trigger.length === 0) return /(?!)/;
+
     const escaped = escapeRegex(trigger);
     const first = escaped[0];
     return new RegExp(`${escaped}([^${first}\\s]*)$`);
