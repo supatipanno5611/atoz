@@ -125,6 +125,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
         this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
+        this.addRibbonIcon('lucide-code', '특정 마크다운 파일 열기', () => void this.certainMd.openCertainMdFile());
     }
 
     registerCommands() {
