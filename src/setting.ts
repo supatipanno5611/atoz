@@ -3,7 +3,7 @@ import type ATOZVER6Plugin from './main';
 import { DEFAULT_SETTINGS } from './types';
 
 type JsonSettingKey = 'symbols' | 'symbolPairs';
-type NumberSettingKey = 'snippetLimit' | 'symbolLimit';
+type NumberSettingKey = 'snippetLimit' | 'symbolLimit' | 'clipboardHistoryLimit' | 'clipboardPreviewLength';
 
 export class ATOZSettingTab extends PluginSettingTab {
     plugin: ATOZVER6Plugin;
@@ -121,6 +121,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                     this.plugin.settings.workTimestampFormat = v;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl).setName('클립보드').setHeading();
+        this.addNumberSetting(containerEl, '히스토리 최대 개수', '저장할 클립보드 항목의 최대 개수입니다.', 'clipboardHistoryLimit');
+        this.addNumberSetting(containerEl, '미리보기 글자 수', '사이드바와 모달에서 표시할 최대 글자 수입니다.', 'clipboardPreviewLength');
 
         new Setting(containerEl).setName('초기화').setHeading();
         new Setting(containerEl)

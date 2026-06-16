@@ -1,5 +1,6 @@
 import { Editor, Notice, Plugin, TFile } from 'obsidian';
 import { CertainMdFeature } from './features/CertainMd';
+import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
@@ -35,6 +36,10 @@ export default class ATOZVER6Plugin extends Plugin {
     projectVisibility!: ProjectVisibility;
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
+    clipboard!: ClipboardFeature;
+
+    selectedClipboardText = '';
+    selectedClipboardId = '';
 
     topicCandidates: string[] = [];
     private saveTimer: number | null = null;
@@ -57,6 +62,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.projectVisibility = new ProjectVisibility(this);
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
+        this.clipboard = new ClipboardFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -65,6 +71,8 @@ export default class ATOZVER6Plugin extends Plugin {
 
         this.registerEditorSuggest(new SnippetsSuggestions(this));
         this.registerEditorSuggest(new SymbolSuggestions(this));
+
+        this.registerView(VIEW_TYPE_CLIPBOARD, (leaf) => new ClipboardView(leaf, this));
 
         this.app.workspace.onLayoutReady(() => {
             this.topicCandidates = this.collectTopicCandidates();
@@ -81,6 +89,7 @@ export default class ATOZVER6Plugin extends Plugin {
         }
         this.projectVisibility.uninstall();
         this.mobile.uninstall();
+        this.app.workspace.detachLeavesOfType(VIEW_TYPE_CLIPBOARD);
     }
 
     async loadSettings() {
@@ -175,6 +184,10 @@ export default class ATOZVER6Plugin extends Plugin {
             icon: 'lucide-brush-cleaning',
             callback: () => void this.backupAndClearWork(),
         });
+        this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드에서 가져온 텍스트 붙여넣기', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
+        this.addCommand({ id: 'open-clipboard-history', name: '클립보드 모달 열기', callback: () => new ClipboardModal(this).open() });
+        this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
+
     }
 
     private async backupAndClearWork(): Promise<void> {

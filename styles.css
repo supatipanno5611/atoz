@@ -68,3 +68,52 @@ body.notice-bottom .notice {
     margin-top: 10px;
     margin-bottom: 0px;
 }
+/* 클립보드 관련 */
+.atoz-clipboard-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.atoz-clipboard-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.atoz-clipboard-item:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-clipboard-selected {
+    background-color: var(--background-modifier-active-hover);
+}
+
+.atoz-clipboard-text {
+    flex: 1;
+    font-size: var(--font-ui-small);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.atoz-clipboard-delete {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0 2px;
+}
+
+.atoz-clipboard-delete:hover {
+    color: var(--text-normal);
+}
+
+.atoz-clipboard-empty {
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}

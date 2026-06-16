@@ -1,3 +1,8 @@
+export interface ClipboardEntry {
+    id: string;
+    text: string;
+}
+
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
@@ -15,6 +20,9 @@ export interface ATOZSettings {
     workFilePath: string;
     laterFilePath: string;
     workTimestampFormat: string;
+    clipboardHistory: ClipboardEntry[];
+    clipboardHistoryLimit: number;
+    clipboardPreviewLength: number;
 }
 
 export type SnippetsItem =
@@ -66,4 +74,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     workFilePath: 'work.md',
     laterFilePath: 'later.md',
     workTimestampFormat: 'MM/DD HH:mm:ss',
+    clipboardHistory: [],
+    clipboardHistoryLimit: 30,
+    clipboardPreviewLength: 50,
 };
