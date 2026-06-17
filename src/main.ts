@@ -135,6 +135,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-code', '특정 마크다운 파일 열기', () => void this.certainMd.openCertainMdFile());
+        this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
     }
 
     registerCommands() {
@@ -184,7 +185,9 @@ export default class ATOZVER6Plugin extends Plugin {
             icon: 'lucide-brush-cleaning',
             callback: () => void this.backupAndClearWork(),
         });
-        this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드에서 가져온 텍스트 붙여넣기', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
+        this.addCommand({ id: 'clipboard-select-prev', name: '클립보드 이전 항목 선택', callback: () => this.clipboard.selectPrev() });
+        this.addCommand({ id: 'clipboard-select-next', name: '클립보드 다음 항목 선택', callback: () => this.clipboard.selectNext() });
+        this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드 선택 항목 붙여넣기', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
         this.addCommand({ id: 'open-clipboard-history', name: '클립보드 모달 열기', callback: () => new ClipboardModal(this).open() });
         this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
 

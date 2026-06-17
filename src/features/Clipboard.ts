@@ -1,4 +1,4 @@
-import { Editor, ItemView, MarkdownView, SuggestModal, WorkspaceLeaf } from 'obsidian';
+import { Editor, ItemView, MarkdownView, setIcon, SuggestModal, WorkspaceLeaf } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { ClipboardEntry } from '../types';
 
@@ -23,7 +23,19 @@ export class ClipboardFeature {
     }
 
     removeEntry(id: string): void {
+        if (this.plugin.selectedClipboardId === id) {
+            this.plugin.selectedClipboardText = '';
+            this.plugin.selectedClipboardId = '';
+        }
         this.plugin.settings.clipboardHistory = this.plugin.settings.clipboardHistory.filter(e => e.id !== id);
+        this.plugin.debouncedSave();
+        this.refreshView();
+    }
+
+    clearHistory(): void {
+        this.plugin.selectedClipboardText = '';
+        this.plugin.selectedClipboardId = '';
+        this.plugin.settings.clipboardHistory = [];
         this.plugin.debouncedSave();
         this.refreshView();
     }
@@ -34,27 +46,64 @@ export class ClipboardFeature {
         editor.replaceSelection(text);
     }
 
+    selectPrev(): void {
+        this.selectByOffset(-1);
+    }
+
+    selectNext(): void {
+        this.selectByOffset(1);
+    }
+
+    private selectByOffset(offset: 1 | -1): void {
+        const history = this.plugin.settings.clipboardHistory;
+        if (history.length === 0) return;
+
+        const currentIndex = history.findIndex(e => e.id === this.plugin.selectedClipboardId);
+        let nextIndex: number;
+
+        if (currentIndex === -1) {
+            nextIndex = offset > 0 ? 0 : history.length - 1;
+        } else {
+            nextIndex = (currentIndex + offset + history.length) % history.length;
+        }
+
+        const entry = history[nextIndex];
+        if (!entry) return;
+
+        this.plugin.selectedClipboardText = entry.text;
+        this.plugin.selectedClipboardId = entry.id;
+        this.refreshHighlight();
+    }
+
     private refreshView(): void {
         this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD).forEach(leaf => {
             if (leaf.view instanceof ClipboardView) leaf.view.render();
         });
     }
 
-    async activateView(): Promise<void> {
-    const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD);
-    if (existing.length > 0) {
-        this.plugin.app.workspace.revealLeaf(existing[0]!);
-        return;
+    private refreshHighlight(): void {
+        this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD).forEach(leaf => {
+            if (leaf.view instanceof ClipboardView) leaf.view.updateHighlight(this.plugin.selectedClipboardId);
+        });
     }
-    const leaf = this.plugin.app.workspace.getRightLeaf(false);
-    if (!leaf) return;
-    await leaf.setViewState({ type: VIEW_TYPE_CLIPBOARD, active: true });
-    this.plugin.app.workspace.revealLeaf(leaf);
+
+    async activateView(): Promise<void> {
+        const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD);
+        if (existing.length > 0) {
+            this.plugin.app.workspace.revealLeaf(existing[0]!);
+            return;
+        }
+        const leaf = this.plugin.app.workspace.getRightLeaf(false);
+        if (!leaf) return;
+        await leaf.setViewState({ type: VIEW_TYPE_CLIPBOARD, active: true });
+        this.plugin.app.workspace.revealLeaf(leaf);
     }
 }
 
 export class ClipboardView extends ItemView {
     private selectedEl: HTMLElement | null = null;
+    private pendingDeleteId: string | null = null;
+    private itemEls = new Map<string, { item: HTMLElement; deleteBtn: HTMLElement }>();
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZVER6Plugin) {
         super(leaf);
@@ -69,11 +118,18 @@ export class ClipboardView extends ItemView {
 
     render(): void {
         const container = this.containerEl.children[1] as HTMLElement;
+        const prevScrollTop = container.scrollTop;
         container.empty();
         this.selectedEl = null;
+        this.pendingDeleteId = null;
+        this.itemEls.clear();
 
         const history = this.plugin.settings.clipboardHistory;
         const previewLength = this.plugin.settings.clipboardPreviewLength;
+
+        const toolbar = container.createEl('div', { cls: 'atoz-clipboard-toolbar' });
+        toolbar.createEl('button', { cls: 'atoz-clipboard-clear', text: '전체 삭제' })
+            .addEventListener('click', () => this.plugin.clipboard.clearHistory());
 
         if (history.length === 0) {
             container.createEl('div', { cls: 'atoz-clipboard-empty', text: '복사한 텍스트가 없습니다.' });
@@ -85,7 +141,6 @@ export class ClipboardView extends ItemView {
         for (const entry of history) {
             const item = list.createEl('li', { cls: 'atoz-clipboard-item' });
 
-            // 선택된 항목이면 하이라이트 복원
             if (entry.id === this.plugin.selectedClipboardId) {
                 item.addClass('atoz-clipboard-selected');
                 this.selectedEl = item;
@@ -99,19 +154,47 @@ export class ClipboardView extends ItemView {
 
             const deleteBtn = item.createEl('button', {
                 cls: 'atoz-clipboard-delete',
-                text: '✕',
                 attr: { 'aria-label': '삭제' },
             });
+            setIcon(deleteBtn, 'x');
+
+            this.itemEls.set(entry.id, { item, deleteBtn });
 
             item.addEventListener('click', (e) => {
                 if ((e.target as HTMLElement).closest('.atoz-clipboard-delete')) return;
+                if (this.pendingDeleteId !== null) {
+                    this.cancelPendingDelete();
+                    return;
+                }
                 this.selectEntry(entry, item);
             });
 
             deleteBtn.addEventListener('click', () => {
-                this.plugin.clipboard.removeEntry(entry.id);
+                if (this.pendingDeleteId === entry.id) {
+                    this.plugin.clipboard.removeEntry(entry.id);
+                    return;
+                }
+                this.cancelPendingDelete();
+                this.pendingDeleteId = entry.id;
+                deleteBtn.addClass('atoz-clipboard-delete-pending');
             });
         }
+
+        container.scrollTop = prevScrollTop;
+    }
+
+    updateHighlight(id: string | null): void {
+        this.selectedEl?.removeClass('atoz-clipboard-selected');
+        this.selectedEl = null;
+
+        if (!id) return;
+
+        const els = this.itemEls.get(id);
+        if (!els) return;
+
+        els.item.addClass('atoz-clipboard-selected');
+        this.selectedEl = els.item;
+        els.item.scrollIntoView({ block: 'nearest' });
     }
 
     private selectEntry(entry: ClipboardEntry, el: HTMLElement): void {
@@ -120,6 +203,13 @@ export class ClipboardView extends ItemView {
         this.plugin.selectedClipboardId = entry.id;
         el.addClass('atoz-clipboard-selected');
         this.selectedEl = el;
+    }
+
+    private cancelPendingDelete(): void {
+        if (this.pendingDeleteId === null) return;
+        const els = this.itemEls.get(this.pendingDeleteId);
+        els?.deleteBtn.removeClass('atoz-clipboard-delete-pending');
+        this.pendingDeleteId = null;
     }
 }
 
