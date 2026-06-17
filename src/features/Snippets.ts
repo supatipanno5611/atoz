@@ -1,13 +1,13 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, Notice, prepareFuzzySearch } from 'obsidian';
 import { SnippetsItem } from '../types';
 import { buildTriggerRegex } from '../utils';
 
 // EditorSuggest 를 상속해서 Obsidian suggestion 시스템에 연결
 export class SnippetsSuggestions extends EditorSuggest<SnippetsItem> {
-    plugin: ATOZVER6Plugin;
+    plugin: ATOZPlugin;
 
-    constructor(plugin: ATOZVER6Plugin) {
+    constructor(plugin: ATOZPlugin) {
         super(plugin.app);
         this.plugin = plugin;
     }

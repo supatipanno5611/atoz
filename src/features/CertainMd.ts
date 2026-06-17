@@ -1,8 +1,8 @@
 import { MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 export class CertainMdFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async openCertainMdFile(): Promise<void> {
         const { CertainMdPath } = this.plugin.settings;

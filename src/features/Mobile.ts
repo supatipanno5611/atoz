@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Notice, Platform } from 'obsidian';
 
 export class MobileFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     install(): void {
         if (Platform.isMobileApp) {

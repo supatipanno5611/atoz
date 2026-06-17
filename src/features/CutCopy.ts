@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor, Notice } from 'obsidian';
 
 export class CutCopyFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     // 문서 전체를 복사하는 메서드
     async copyAll(editor: Editor) {

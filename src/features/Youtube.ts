@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
 
@@ -32,7 +32,7 @@ function extractYoutubeId(input: string): string | null {
 }
 
 export class YoutubeFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     insertYoutubeProperties(): void {
         new YoutubeInputModal(this.plugin.app, (input) => {

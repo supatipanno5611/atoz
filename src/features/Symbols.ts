@@ -1,10 +1,10 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { MarkdownView, Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, prepareFuzzySearch } from 'obsidian';
 import { SymbolItem } from '../types';
 import { buildTriggerRegex } from '../utils';
 
 export class SymbolsFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     // 스마트 삭제 로직을 별도 메서드로 분리
     handleSmartBackspace(evt: KeyboardEvent) {
@@ -22,7 +22,10 @@ export class SymbolsFeature {
             const prevChar = line[cursor.ch - 1];
             const nextChar = line[cursor.ch];
 
-            if (prevChar && nextChar && this.plugin.settings.symbolPairs[prevChar] === nextChar) {
+            const pair = prevChar && this.plugin.settings.symbols.find(
+                s => s.symbol === prevChar && s.closing
+            );
+            if (pair && pair.closing === nextChar) {
                 editor.replaceRange("",
                     { line: cursor.line, ch: cursor.ch - 1 },
                     { line: cursor.line, ch: cursor.ch + 1 }
@@ -36,10 +39,10 @@ export class SymbolsFeature {
 
 // EditorSuggest 를 상속해서 Obsidian suggestion 시스템에 연결
 export class SymbolSuggestions extends EditorSuggest<SymbolItem> {
-    plugin: ATOZVER6Plugin;
+    plugin: ATOZPlugin;
     private autoInserted = false;
 
-    constructor(plugin: ATOZVER6Plugin) {
+    constructor(plugin: ATOZPlugin) {
         super(plugin.app);
         this.plugin = plugin;
     }

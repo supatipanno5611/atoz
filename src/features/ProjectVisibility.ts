@@ -1,5 +1,5 @@
 import { Notice } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 const HIDDEN_CLASS = 'atoz-project-hidden';
 
@@ -7,7 +7,7 @@ export class ProjectVisibility {
     private hiddenEls = new Set<HTMLElement>();
     private installed = false;
 
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     install(): void {
         if (this.installed) return;

@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, SuggestModal, TFile, TFolder } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 type MoveChoice =
     | { kind: 'move'; label: string }
@@ -22,7 +22,7 @@ function isValidFolderName(name: string): boolean {
 }
 
 export class MoveCurrentFileFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     moveCurrentFile(): void {
         const activeFile = this.plugin.app.workspace.getActiveFile();

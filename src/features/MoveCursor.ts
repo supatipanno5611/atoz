@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor, EditorPosition } from 'obsidian';
 
 export class MoveCursorFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     moveCursorToEnd(editor: Editor) {
         editor.focus();

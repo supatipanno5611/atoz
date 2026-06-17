@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
 
@@ -8,7 +8,7 @@ function isHttpUrl(value: string): boolean {
 }
 
 export class AudioFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     insertAudioProperties(): void {
         new AudioSrcModal(this.plugin.app, (src) => {

@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { MarkdownView, WorkspaceLeaf } from 'obsidian';
 
 export class CycleTabFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     cycleAllTabs(markdownOnly = false) {
         const { workspace } = this.plugin.app;

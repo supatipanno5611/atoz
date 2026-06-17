@@ -19,7 +19,7 @@ import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 
-export default class ATOZVER6Plugin extends Plugin {
+export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
     selection!: SelectionFeature;
     moveCursor!: MoveCursorFeature;

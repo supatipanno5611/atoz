@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, SuggestModal, TFile, TFolder, moment } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
 type PublishType = '일반 게시글' | '일상 게시글' | '목차 문서' | '시리즈 게시글';
@@ -42,7 +42,7 @@ function parentLinkForFile(file: TFile): string {
 }
 
 export class PublishNoteFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async editTopics(): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();

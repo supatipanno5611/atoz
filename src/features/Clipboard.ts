@@ -1,11 +1,11 @@
 import { Editor, ItemView, MarkdownView, Menu, Notice, SuggestModal, WorkspaceLeaf } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { ClipboardEntry } from '../types';
 
 export const VIEW_TYPE_CLIPBOARD = 'atoz-clipboard-view';
 
 export class ClipboardFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     addEntry(text: string): void {
         const history = this.plugin.settings.clipboardHistory;
@@ -122,7 +122,7 @@ export class ClipboardView extends ItemView {
     private selectedEl: HTMLElement | null = null;
     private itemEls = new Map<string, HTMLElement>();
 
-    constructor(leaf: WorkspaceLeaf, private plugin: ATOZVER6Plugin) {
+    constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
     }
 
@@ -208,7 +208,7 @@ export class ClipboardView extends ItemView {
 }
 
 export class ClipboardModal extends SuggestModal<ClipboardEntry> {
-    constructor(private plugin: ATOZVER6Plugin) {
+    constructor(private plugin: ATOZPlugin) {
         super(plugin.app);
         this.setPlaceholder('클립보드 히스토리에서 선택...');
     }

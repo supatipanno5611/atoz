@@ -1,8 +1,8 @@
 import { App, Editor, Modal, Notice, Setting, TFile, normalizePath } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 export class CutCreateNewMdFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async cutAndCreateNewMd(editor: Editor): Promise<void> {
         const hasSelection = editor.somethingSelected();

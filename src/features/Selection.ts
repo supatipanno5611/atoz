@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor } from 'obsidian';
 
 export class SelectionFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     expandLeftEnd(editor: Editor) {
         const selections = editor.listSelections().map(sel => ({

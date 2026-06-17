@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor, MarkdownView, MarkdownFileInfo, HeadingCache } from 'obsidian';
 
 export class HeadingNavigaterFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     moveHeading(editor: Editor, view: MarkdownView | MarkdownFileInfo, direction: 'prev' | 'next') {
         const file = view.file;

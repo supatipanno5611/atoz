@@ -1,8 +1,8 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { Editor, MarkdownView } from 'obsidian';
 
 export class CursorCenterFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async toggleCursorCenter() {
         // 상태 반전 및 저장

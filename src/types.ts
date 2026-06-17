@@ -15,7 +15,6 @@ export interface ATOZSettings {
     symbolTrigger: string;
     symbolLimit: number;
     symbols: SymbolItem[];
-    symbolPairs: Record<string, string>;
     recentSymbols: Record<string, number>;
     workFilePath: string;
     laterFilePath: string;
@@ -33,11 +32,6 @@ export interface SymbolItem {
     id: string;
     symbol: string;
     closing?: string;
-}
-
-export interface SwitcherItem {
-    display: string;
-    path: string;
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
@@ -64,12 +58,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
         { id: '(', symbol: '（', closing: '）' },
         { id: 'end)', symbol: '）' },
     ],
-    symbolPairs: {
-        '“': '”',
-        '‘': '’',
-        '《': '》',
-        '（': '）',
-    },
     recentSymbols: {},
     workFilePath: 'work.md',
     laterFilePath: 'later.md',

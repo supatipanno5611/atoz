@@ -1,9 +1,9 @@
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { MarkdownView, WorkspaceLeaf } from 'obsidian';
 import { pickMostRecentLeaf } from '../utils';
 
 export class ExecutesFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async focusRootLeaf() {
         const { workspace } = this.plugin.app;

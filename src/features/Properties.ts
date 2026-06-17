@@ -1,5 +1,5 @@
 import { Notice, moment } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 import { AudioFeature } from './Audio';
 import { PublishNoteFeature } from './PublishNote';
 import { YoutubeFeature } from './Youtube';
@@ -27,7 +27,7 @@ export class PropertiesFeature {
     private youtube: YoutubeFeature;
     private audio: AudioFeature;
 
-    constructor(private plugin: ATOZVER6Plugin) {
+    constructor(private plugin: ATOZPlugin) {
         this.publishNote = new PublishNoteFeature(plugin);
         this.youtube = new YoutubeFeature(plugin);
         this.audio = new AudioFeature(plugin);

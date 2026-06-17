@@ -1,8 +1,8 @@
 import { MarkdownView, Notice, TFile, WorkspaceLeaf, moment } from 'obsidian';
-import type ATOZVER6Plugin from '../main';
+import type ATOZPlugin from '../main';
 
 export class WorkFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    constructor(private plugin: ATOZPlugin) {}
 
     async cleanupTabs(): Promise<void> {
         const { workspace } = this.plugin.app;
