@@ -25,7 +25,7 @@ export class SnippetsSuggestions extends EditorSuggest<SnippetsItem> {
 
     getSuggestions(ctx: EditorSuggestContext): SnippetsItem[] {
         if (this.plugin.settings.snippetLimit < 1) return [];
-        const content = ctx.query.trim();
+        const content = ctx.query.trim().replace(/_/g, ' ');
         const query = content.toLowerCase();
         const fuzzy = prepareFuzzySearch(query);
 
@@ -68,16 +68,17 @@ export class SnippetsSuggestions extends EditorSuggest<SnippetsItem> {
 
     selectSuggestion(item: SnippetsItem) {
         if (!this.context) return;
-
+    
         const { editor, start, end } = this.context;
-        editor.replaceRange(item.content, start, end);
-
-        if (item.kind === 'add' && !this.plugin.settings.snippets.includes(item.content)) {
-            this.plugin.settings.snippets.push(item.content);
-            new Notice(`조각글 등록 완료: "${item.content}"`);
+        const content = item.content.replace(/_/g, ' ');
+        editor.replaceRange(content, start, end);
+    
+        if (item.kind === 'add' && !this.plugin.settings.snippets.includes(content)) {
+            this.plugin.settings.snippets.push(content);
+            new Notice(`조각글 등록 완료: "${content}"`);
         }
-
-        this.recordRecent(item.content);
+    
+        this.recordRecent(content);
     }
 
     private recordRecent(content: string) {
