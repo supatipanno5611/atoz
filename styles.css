@@ -87,7 +87,6 @@ body.notice-bottom .notice {
 .atoz-clipboard-item {
     display: flex;
     align-items: center;
-    gap: 4px;
     padding: 5px 8px;
     cursor: pointer;
     border-radius: var(--radius-s);
@@ -113,42 +112,4 @@ body.notice-bottom .notice {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-}
-
-/* ── 삭제 버튼 ── */
-.atoz-clipboard-delete {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    background: none;
-    border: none;
-    border-radius: var(--radius-s);
-    color: var(--text-faint);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 100ms, color 100ms, background 100ms;
-}
-
-.atoz-clipboard-delete svg {
-    width: 12px;
-    height: 12px;
-}
-
-.atoz-clipboard-item:hover .atoz-clipboard-delete {
-    opacity: 1;
-}
-
-.atoz-clipboard-delete:hover {
-    color: var(--text-error);
-    background: var(--background-modifier-error-hover);
-}
-
-/* ── 삭제 대기 상태 ── */
-.atoz-clipboard-delete.atoz-clipboard-delete-pending {
-    opacity: 1;
-    color: var(--text-error);
-    background: var(--background-modifier-error-hover);
 }

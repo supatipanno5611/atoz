@@ -1,4 +1,4 @@
-import { Editor, ItemView, MarkdownView, setIcon, SuggestModal, WorkspaceLeaf } from 'obsidian';
+import { Editor, ItemView, MarkdownView, Menu, Notice, SuggestModal, WorkspaceLeaf } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { ClipboardEntry } from '../types';
 
@@ -44,6 +44,24 @@ export class ClipboardFeature {
         const text = this.plugin.selectedClipboardText;
         if (!text) return;
         editor.replaceSelection(text);
+    }
+
+    deleteSelected(): void {
+        const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD);
+        const isOpen = leaves.length > 0;
+
+        if (!isOpen) {
+            new Notice('클립보드 사이드바가 열려 있을 때만 삭제할 수 있습니다.');
+            return;
+        }
+
+        const id = this.plugin.selectedClipboardId;
+        if (!id) {
+            new Notice('삭제할 항목이 선택되지 않았습니다.');
+            return;
+        }
+
+        this.removeEntry(id);
     }
 
     selectPrev(): void {
@@ -102,8 +120,7 @@ export class ClipboardFeature {
 
 export class ClipboardView extends ItemView {
     private selectedEl: HTMLElement | null = null;
-    private pendingDeleteId: string | null = null;
-    private itemEls = new Map<string, { item: HTMLElement; deleteBtn: HTMLElement }>();
+    private itemEls = new Map<string, HTMLElement>();
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZVER6Plugin) {
         super(leaf);
@@ -121,7 +138,6 @@ export class ClipboardView extends ItemView {
         const prevScrollTop = container.scrollTop;
         container.empty();
         this.selectedEl = null;
-        this.pendingDeleteId = null;
         this.itemEls.clear();
 
         const history = this.plugin.settings.clipboardHistory;
@@ -148,31 +164,20 @@ export class ClipboardView extends ItemView {
 
             item.createEl('span', { cls: 'atoz-clipboard-text', text: preview });
 
-            const deleteBtn = item.createEl('button', {
-                cls: 'atoz-clipboard-delete',
-                attr: { 'aria-label': '삭제' },
-            });
-            setIcon(deleteBtn, 'x');
+            this.itemEls.set(entry.id, item);
 
-            this.itemEls.set(entry.id, { item, deleteBtn });
-
-            item.addEventListener('click', (e) => {
-                if ((e.target as HTMLElement).closest('.atoz-clipboard-delete')) return;
-                if (this.pendingDeleteId !== null) {
-                    this.cancelPendingDelete();
-                    return;
-                }
+            item.addEventListener('click', () => {
                 this.selectEntry(entry, item);
             });
 
-            deleteBtn.addEventListener('click', () => {
-                if (this.pendingDeleteId === entry.id) {
-                    this.plugin.clipboard.removeEntry(entry.id);
-                    return;
-                }
-                this.cancelPendingDelete();
-                this.pendingDeleteId = entry.id;
-                deleteBtn.addClass('atoz-clipboard-delete-pending');
+            item.addEventListener('contextmenu', (e) => {
+                const menu = new Menu();
+                menu.addItem(menuItem => menuItem
+                    .setTitle('삭제')
+                    .setIcon('trash')
+                    .onClick(() => this.plugin.clipboard.removeEntry(entry.id))
+                );
+                menu.showAtMouseEvent(e);
             });
         }
 
@@ -185,12 +190,12 @@ export class ClipboardView extends ItemView {
 
         if (!id) return;
 
-        const els = this.itemEls.get(id);
-        if (!els) return;
+        const el = this.itemEls.get(id);
+        if (!el) return;
 
-        els.item.addClass('atoz-clipboard-selected');
-        this.selectedEl = els.item;
-        els.item.scrollIntoView({ block: 'nearest' });
+        el.addClass('atoz-clipboard-selected');
+        this.selectedEl = el;
+        el.scrollIntoView({ block: 'nearest' });
     }
 
     private selectEntry(entry: ClipboardEntry, el: HTMLElement): void {
@@ -199,13 +204,6 @@ export class ClipboardView extends ItemView {
         this.plugin.selectedClipboardId = entry.id;
         el.addClass('atoz-clipboard-selected');
         this.selectedEl = el;
-    }
-
-    private cancelPendingDelete(): void {
-        if (this.pendingDeleteId === null) return;
-        const els = this.itemEls.get(this.pendingDeleteId);
-        els?.deleteBtn.removeClass('atoz-clipboard-delete-pending');
-        this.pendingDeleteId = null;
     }
 }
 
