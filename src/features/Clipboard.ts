@@ -127,10 +127,6 @@ export class ClipboardView extends ItemView {
         const history = this.plugin.settings.clipboardHistory;
         const previewLength = this.plugin.settings.clipboardPreviewLength;
 
-        const toolbar = container.createEl('div', { cls: 'atoz-clipboard-toolbar' });
-        toolbar.createEl('button', { cls: 'atoz-clipboard-clear', text: '전체 삭제' })
-            .addEventListener('click', () => this.plugin.clipboard.clearHistory());
-
         if (history.length === 0) {
             container.createEl('div', { cls: 'atoz-clipboard-empty', text: '복사한 텍스트가 없습니다.' });
             return;
