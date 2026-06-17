@@ -190,6 +190,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드 선택 항목 붙여넣기', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
         this.addCommand({ id: 'open-clipboard-history', name: '클립보드 모달 열기', callback: () => new ClipboardModal(this).open() });
         this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
+        this.addCommand({ id: 'clipboard-clear-history', name: '클립보드 히스토리 전체 삭제', callback: () => this.clipboard.clearHistory() });
 
     }
 
