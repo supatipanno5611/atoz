@@ -106,7 +106,7 @@ body.notice-bottom .notice {
 /* ── 텍스트 미리보기 ── */
 .atoz-clipboard-text {
     flex: 1;
-    font-size: var(--font-smaller);
+    font-size: var(--font-normal);
     color: var(--text-normal);
     white-space: nowrap;
     overflow: hidden;
