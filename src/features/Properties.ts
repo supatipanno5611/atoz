@@ -70,6 +70,10 @@ export class PropertiesFeature {
                     toReview.add('audioSrc');
                 }
 
+                const sorted = Object.keys(fm).sort();
+                const values = sorted.map(k => fm[k]);
+                for (const key of Object.keys(fm)) delete fm[key];
+                sorted.forEach((k, i) => fm[k] = values[i]);
             });
 
             if (toReview.size > 0) {

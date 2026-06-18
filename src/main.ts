@@ -192,7 +192,22 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
         this.addCommand({ id: 'clipboard-clear-history', name: '클립보드 히스토리 전체 삭제', callback: () => this.clipboard.clearHistory() });
         this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', callback: () => this.clipboard.deleteSelected() });
-
+        this.addCommand({
+        	id: 'insert-check-emoji',
+        	name: 'Insert Check Emoji (✅)',
+        	icon: 'check-square', // 모바일 툴바에 표시될 아이콘
+        	editorCallback: (editor: Editor) => {
+        		editor.replaceSelection('✅');
+        	}
+        });
+        this.addCommand({
+        	id: 'insert-cross-emoji',
+        	name: 'Insert Cross Emoji (❎)',
+        	icon: 'x-square', // 모바일 툴바에 표시될 아이콘
+        	editorCallback: (editor: Editor) => {
+        		editor.replaceSelection('❎');
+        	}
+        });
     }
 
     private async backupAndClearWork(): Promise<void> {
