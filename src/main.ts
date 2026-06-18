@@ -187,11 +187,14 @@ export default class ATOZPlugin extends Plugin {
         });
         this.addCommand({ id: 'clipboard-select-prev', name: '클립보드 이전 항목 선택', callback: () => this.clipboard.selectPrev() });
         this.addCommand({ id: 'clipboard-select-next', name: '클립보드 다음 항목 선택', callback: () => this.clipboard.selectNext() });
-        this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드 선택 항목 붙여넣기', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
+        this.addCommand({ id: 'paste-clipboard-selected', name: '클립보드 선택 항목 붙여넣기', icon: 'lucide-clipboard-check', editorCallback: (editor) => this.clipboard.pasteSelected(editor) });
         this.addCommand({ id: 'open-clipboard-history', name: '클립보드 모달 열기', callback: () => new ClipboardModal(this).open() });
         this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
         this.addCommand({ id: 'clipboard-clear-history', name: '클립보드 히스토리 전체 삭제', callback: () => this.clipboard.clearHistory() });
-        this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', callback: () => this.clipboard.deleteSelected() });
+        this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', icon: 'lucide-clipboard-x', callback: () => this.clipboard.deleteSelected() });
+        this.addCommand({ id: 'clipboard-list-order-up', name: '클립보드 선택 항목 위로 이동', callback: () => this.clipboard.moveSelected('up') });
+        this.addCommand({ id: 'clipboard-list-order-down', name: '클립보드 선택 항목 아래로 이동', callback: () => this.clipboard.moveSelected('down') });
+        
         this.addCommand({
         	id: 'insert-check-emoji',
         	name: 'Insert Check Emoji (✅)',

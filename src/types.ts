@@ -1,6 +1,7 @@
 export interface ClipboardEntry {
     id: string;
     text: string;
+    pinned?: boolean;
 }
 
 export interface ATOZSettings {

@@ -103,6 +103,13 @@ body.notice-bottom .notice {
     outline-offset: -1px;
 }
 
+.atoz-clipboard-divider {
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 4px 8px;
+    list-style: none;
+}
+
 /* ── 텍스트 미리보기 ── */
 .atoz-clipboard-text {
     flex: 1;

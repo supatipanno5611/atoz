@@ -14,9 +14,12 @@ export class ClipboardFeature {
         history.unshift({ id: Date.now().toString(), text });
 
         const limit = this.plugin.settings.clipboardHistoryLimit;
-        if (history.length > limit) {
-            this.plugin.settings.clipboardHistory = history.slice(0, limit);
-        }
+        const pinned = history.filter(e => e.pinned);
+        const normal = history.filter(e => !e.pinned);
+        this.plugin.settings.clipboardHistory = [
+            ...pinned,
+            ...normal.slice(0, limit),
+        ];
 
         this.plugin.debouncedSave();
         this.refreshView();
@@ -48,20 +51,78 @@ export class ClipboardFeature {
 
     deleteSelected(): void {
         const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD);
-        const isOpen = leaves.length > 0;
-
-        if (!isOpen) {
+        if (leaves.length === 0) {
             new Notice('클립보드 사이드바가 열려 있을 때만 삭제할 수 있습니다.');
             return;
         }
-
         const id = this.plugin.selectedClipboardId;
         if (!id) {
             new Notice('삭제할 항목이 선택되지 않았습니다.');
             return;
         }
-
         this.removeEntry(id);
+    }
+
+    togglePin(id: string): void {
+        const history = this.plugin.settings.clipboardHistory;
+        const entry = history.find(e => e.id === id);
+        if (!entry) return;
+
+        if (entry.pinned) {
+            // 핀 해제: 일반 영역 맨 앞으로
+            entry.pinned = false;
+            const pinned = history.filter(e => e.pinned);
+            const normal = history.filter(e => !e.pinned);
+            this.plugin.settings.clipboardHistory = [...pinned, ...normal];
+        } else {
+            // 핀 고정: 핀 영역 맨 뒤로
+            entry.pinned = true;
+            const pinned = history.filter(e => e.pinned);
+            const normal = history.filter(e => !e.pinned);
+            this.plugin.settings.clipboardHistory = [...pinned, ...normal];
+        }
+
+        this.plugin.debouncedSave();
+        this.refreshView();
+    }
+
+    moveSelected(direction: 'up' | 'down'): void {
+        const id = this.plugin.selectedClipboardId;
+        if (!id) return;
+
+        const history = this.plugin.settings.clipboardHistory;
+        const index = history.findIndex(e => e.id === id);
+        if (index === -1) return;
+
+        const entry = history[index]!;
+
+        if (direction === 'up') {
+            if (index === 0) return;
+            const prev = history[index - 1]!;
+
+            // 일반 → 핀 영역으로 넘어가는 경우
+            if (!entry.pinned && prev.pinned) {
+                entry.pinned = true;
+            }
+
+            history.splice(index, 1);
+            history.splice(index - 1, 0, entry);
+        } else {
+            if (index === history.length - 1) return;
+            const next = history[index + 1]!;
+
+            // 핀 → 일반 영역으로 넘어가는 경우
+            if (entry.pinned && !next.pinned) {
+                entry.pinned = false;
+            }
+
+            history.splice(index, 1);
+            history.splice(index + 1, 0, entry);
+        }
+
+        this.plugin.debouncedSave();
+        this.refreshView();
+        this.refreshHighlight();
     }
 
     selectPrev(): void {
@@ -148,9 +209,12 @@ export class ClipboardView extends ItemView {
             return;
         }
 
+        const pinned = history.filter(e => e.pinned);
+        const normal = history.filter(e => !e.pinned);
+
         const list = container.createEl('ul', { cls: 'atoz-clipboard-list' });
 
-        for (const entry of history) {
+        const renderItem = (entry: ClipboardEntry) => {
             const item = list.createEl('li', { cls: 'atoz-clipboard-item' });
 
             if (entry.id === this.plugin.selectedClipboardId) {
@@ -163,15 +227,34 @@ export class ClipboardView extends ItemView {
                 : entry.text;
 
             item.createEl('span', { cls: 'atoz-clipboard-text', text: preview });
-
             this.itemEls.set(entry.id, item);
 
-            item.addEventListener('click', () => {
-                this.selectEntry(entry, item);
-            });
-
+            item.addEventListener('click', () => this.selectEntry(entry, item));
             item.addEventListener('contextmenu', (e) => {
                 const menu = new Menu();
+                menu.addItem(menuItem => menuItem
+                    .setTitle(entry.pinned ? '핀 해제' : '핀 고정')
+                    .setIcon(entry.pinned ? 'pin-off' : 'pin')
+                    .onClick(() => this.plugin.clipboard.togglePin(entry.id))
+                );
+                menu.addItem(menuItem => menuItem
+                    .setTitle('위로')
+                    .setIcon('arrow-up')
+                    .onClick(() => {
+                        this.plugin.selectedClipboardId = entry.id;
+                        this.plugin.selectedClipboardText = entry.text;
+                        this.plugin.clipboard.moveSelected('up');
+                    })
+                );
+                menu.addItem(menuItem => menuItem
+                    .setTitle('아래로')
+                    .setIcon('arrow-down')
+                    .onClick(() => {
+                        this.plugin.selectedClipboardId = entry.id;
+                        this.plugin.selectedClipboardText = entry.text;
+                        this.plugin.clipboard.moveSelected('down');
+                    })
+                );
                 menu.addItem(menuItem => menuItem
                     .setTitle('삭제')
                     .setIcon('trash')
@@ -179,7 +262,15 @@ export class ClipboardView extends ItemView {
                 );
                 menu.showAtMouseEvent(e);
             });
+        };
+
+        for (const entry of pinned) renderItem(entry);
+
+        if (pinned.length > 0 && normal.length > 0) {
+            list.createEl('li', { cls: 'atoz-clipboard-divider' });
         }
+
+        for (const entry of normal) renderItem(entry);
 
         container.scrollTop = prevScrollTop;
     }
