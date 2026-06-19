@@ -15,6 +15,9 @@ const ALLOWED_PROPERTIES = new Set([
     'youtubeId',
     'audioSrc',
     'audioTitle',
+    'cssclasses',
+    'aliases',
+    'tags',
 ]);
 
 function isEmptyProperty(value: unknown): boolean {

@@ -26,11 +26,23 @@ export class ClipboardFeature {
     }
 
     removeEntry(id: string): void {
-        if (this.plugin.selectedClipboardId === id) {
-            this.plugin.selectedClipboardText = '';
-            this.plugin.selectedClipboardId = '';
-        }
-        this.plugin.settings.clipboardHistory = this.plugin.settings.clipboardHistory.filter(e => e.id !== id);
+    	const history = this.plugin.settings.clipboardHistory;
+    	const index = history.findIndex(e => e.id === id);
+
+    	this.plugin.settings.clipboardHistory = history.filter(e => e.id !== id);
+
+    	const next = this.plugin.settings.clipboardHistory[index]
+    		?? this.plugin.settings.clipboardHistory[index - 1]
+    		?? null;
+
+    	if (next) {
+    		this.plugin.selectedClipboardText = next.text;
+    		this.plugin.selectedClipboardId = next.id;
+    	} else {
+    		this.plugin.selectedClipboardText = '';
+    		this.plugin.selectedClipboardId = '';
+    	}
+    	
         this.plugin.debouncedSave();
         this.refreshView();
     }
@@ -125,11 +137,11 @@ export class ClipboardFeature {
         this.refreshHighlight();
     }
 
-    selectPrev(): void {
+    selectNext(): void {
         this.selectByOffset(-1);
     }
 
-    selectNext(): void {
+    selectPrev(): void {
         this.selectByOffset(1);
     }
 
