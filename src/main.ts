@@ -194,23 +194,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', icon: 'lucide-clipboard-x', callback: () => this.clipboard.deleteSelected() });
         this.addCommand({ id: 'clipboard-list-order-up', name: '클립보드 선택 항목 위로 이동', callback: () => this.clipboard.moveSelected('up') });
         this.addCommand({ id: 'clipboard-list-order-down', name: '클립보드 선택 항목 아래로 이동', callback: () => this.clipboard.moveSelected('down') });
-        
-        this.addCommand({
-        	id: 'insert-check-emoji',
-        	name: 'Insert Check Emoji (✅)',
-        	icon: 'check-square', // 모바일 툴바에 표시될 아이콘
-        	editorCallback: (editor: Editor) => {
-        		editor.replaceSelection('✅');
-        	}
-        });
-        this.addCommand({
-        	id: 'insert-cross-emoji',
-        	name: 'Insert Cross Emoji (❎)',
-        	icon: 'x-square', // 모바일 툴바에 표시될 아이콘
-        	editorCallback: (editor: Editor) => {
-        		editor.replaceSelection('❎');
-        	}
-        });
     }
 
     private async backupAndClearWork(): Promise<void> {
