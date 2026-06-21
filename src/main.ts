@@ -13,6 +13,7 @@ import { MoveCursorFeature } from './features/MoveCursor';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
+import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
@@ -37,6 +38,7 @@ export default class ATOZPlugin extends Plugin {
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
     clipboard!: ClipboardFeature;
+    sidebarTabCycle!: SidebarTabCycleFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -63,6 +65,7 @@ export default class ATOZPlugin extends Plugin {
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.clipboard = new ClipboardFeature(this);
+        this.sidebarTabCycle = new SidebarTabCycleFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -194,6 +197,11 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', icon: 'lucide-clipboard-x', callback: () => this.clipboard.deleteSelected() });
         this.addCommand({ id: 'clipboard-list-order-up', name: '클립보드 선택 항목 위로 이동', callback: () => this.clipboard.moveSelected('up') });
         this.addCommand({ id: 'clipboard-list-order-down', name: '클립보드 선택 항목 아래로 이동', callback: () => this.clipboard.moveSelected('down') });
+
+        this.addCommand({ id: 'cycle-left-sidebar-next', name: '왼쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
+        this.addCommand({ id: 'cycle-left-sidebar-prev', name: '왼쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
+        this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
+        this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
     }
 
     private async backupAndClearWork(): Promise<void> {
