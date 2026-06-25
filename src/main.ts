@@ -12,6 +12,7 @@ import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
+import { QuickSlotFeature } from './features/QuickSlot';
 import { SelectionFeature } from './features/Selection';
 import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
@@ -37,6 +38,7 @@ export default class ATOZPlugin extends Plugin {
     clipboard!: ClipboardFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
     linePrefixSymbol!: LinePrefixSymbolFeature;
+    quickSlot!: QuickSlotFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -66,6 +68,7 @@ export default class ATOZPlugin extends Plugin {
         this.clipboard = new ClipboardFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.linePrefixSymbol = new LinePrefixSymbolFeature(this);
+        this.quickSlot = new QuickSlotFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -191,6 +194,9 @@ export default class ATOZPlugin extends Plugin {
         this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
+        for (let i = 1; i <= 4; i++) {
+        	this.addRibbonIcon(`lucide-dice-${i}`, `퀵 슬롯 ${i} 열기`, () => void this.quickSlot.openSlot(i));
+        }
     }
 
     registerCommands() {
@@ -251,6 +257,17 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'toggle-line-prefix-symbol', name: '현재 행 앞 기호 토글', editorCallback: (editor) => { this.linePrefixSymbol.toggle(editor); } });
         this.addCommand({ id: 'move-line-to-target', name: '현재 행을 파일로 이동', editorCallback: (editor) => void this.executes.moveLineToTarget(editor) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
+
+        this.addCommand({ id: 'open-quick-slot-assigner', name: '퀵 슬롯 지정 메뉴 열기', callback: () => this.quickSlot.openAssignModal() });
+        this.addCommand({ id: 'open-quick-slot-selector', name: '퀵 슬롯 파일 열기', callback: () => this.quickSlot.openSelectModal() });
+        this.addCommand({ id: 'clear-all-slots', name: '퀵 슬롯 초기화', callback: async () => {
+            this.settings.quickSlots = [null, null, null, null];
+            await this.saveSettings();
+            new Notice('모든 퀵 슬롯이 비워졌습니다.');
+        }});
+        for (let i = 1; i <= 4; i++) {
+            this.addCommand({ id: `open-quick-slot-${i}`, name: `퀵 슬롯 ${i} 파일 열기`, callback: () => void this.quickSlot.openSlot(i) });
+        }
     }
 
     private async backupAndClearWork(): Promise<void> {
@@ -283,6 +300,44 @@ export default class ATOZPlugin extends Plugin {
         this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
             this.symbols.handleSmartBackspace(evt);
         }, true);
+
+        this.registerEvent(
+            this.app.vault.on('rename', async (file, oldPath) => {
+                let changed = false;
+                for (let i = 0; i < this.settings.quickSlots.length; i++) {
+                    const slotPath = this.settings.quickSlots[i];
+                    if (slotPath === oldPath) {
+                        this.settings.quickSlots[i] = file.path;
+                        changed = true;
+                    } else if (slotPath?.startsWith(oldPath + '/')) {
+                        this.settings.quickSlots[i] = slotPath.replace(oldPath, file.path);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                	await this.saveSettings();
+                	new Notice('퀵 슬롯에 등록된 파일의 이름(경로)이 업데이트되었습니다.');
+                }
+            })
+        );
+
+        this.registerEvent(
+            this.app.vault.on('delete', async (file) => {
+                let changed = false;
+                for (let i = 0; i < this.settings.quickSlots.length; i++) {
+                    const slotPath = this.settings.quickSlots[i];
+                    if (slotPath === file.path || slotPath?.startsWith(file.path + '/')) {
+                        this.settings.quickSlots[i] = null;
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                	await this.saveSettings();
+                	new Notice('퀵 슬롯에 등록된 파일이 삭제되어 슬롯에서 제거되었습니다.');
+                }
+            })
+        );
+
     }
 
     private async copyWholeDocument(file: unknown): Promise<void> {

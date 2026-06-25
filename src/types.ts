@@ -6,6 +6,7 @@ export interface ClipboardEntry {
 
 export interface ATOZSettings {
 	linePrefixSymbol: string;
+	quickSlots: (string | null)[];
     isCursorCenterEnabled: boolean;
     projectPath: string;
     isProjectFolderHidden: boolean;
@@ -38,6 +39,7 @@ export interface SymbolItem {
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
 	linePrefixSymbol: '○ ',
+	quickSlots: [null, null, null, null],
     isCursorCenterEnabled: false,
     projectPath: '',
     isProjectFolderHidden: false,
