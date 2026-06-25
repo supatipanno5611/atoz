@@ -5,6 +5,7 @@ export interface ClipboardEntry {
 }
 
 export interface ATOZSettings {
+	linePrefixSymbol: string;
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
     projectPath: string;
@@ -36,6 +37,7 @@ export interface SymbolItem {
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
+	linePrefixSymbol: '○ ',
     CertainMdPath: '',
     isCursorCenterEnabled: false,
     projectPath: '',

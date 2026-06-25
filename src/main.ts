@@ -7,9 +7,9 @@ import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { CycleTabFeature } from './features/CycleTab';
 import { ExecutesFeature } from './features/Executes';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
+import { LinePrefixSymbolFeature } from './features/LinePrefixSymbol';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
-import { MoveCursorFeature } from './features/MoveCursor';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
@@ -23,7 +23,6 @@ import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
     selection!: SelectionFeature;
-    moveCursor!: MoveCursorFeature;
     executes!: ExecutesFeature;
     certainMd!: CertainMdFeature;
     cursorCenter!: CursorCenterFeature;
@@ -39,6 +38,7 @@ export default class ATOZPlugin extends Plugin {
     moveCurrentFile!: MoveCurrentFileFeature;
     clipboard!: ClipboardFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
+    linePrefixSymbol!: LinePrefixSymbolFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -50,7 +50,6 @@ export default class ATOZPlugin extends Plugin {
         await this.loadSettings();
 
         this.selection = new SelectionFeature(this);
-        this.moveCursor = new MoveCursorFeature(this);
         this.executes = new ExecutesFeature(this);
         this.certainMd = new CertainMdFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
@@ -66,6 +65,7 @@ export default class ATOZPlugin extends Plugin {
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.clipboard = new ClipboardFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
+        this.linePrefixSymbol = new LinePrefixSymbolFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -159,11 +159,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
         this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
 
-        this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
-        this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
-        this.addCommand({ id: 'go-to-line-start', name: '커서를 행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor) });
-        this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor) });
-
         this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
         this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
@@ -202,6 +197,8 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-left-sidebar-prev', name: '왼쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
         this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
+
+        this.addCommand({ id: 'toggle-line-prefix-symbol', name: '현재 행 앞 기호 토글', editorCallback: (editor) => { this.linePrefixSymbol.toggle(editor); } });
     }
 
     private async backupAndClearWork(): Promise<void> {

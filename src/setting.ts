@@ -14,6 +14,21 @@ export class ATOZSettingTab extends PluginSettingTab {
 
     getSettingDefinitions() {
         return [
+        	{
+        		type: 'group' as const,
+        		heading: '행 앞 기호',
+        		items: [
+        			{
+        				name: '행 앞 토글 기호',
+        				desc: '커서가 놓인 행 앞에 추가하거나 제거할 기호를 설정합니다.',
+        				control: {
+        					type: 'text' as const,
+        					key: 'linePrefixSymbol',
+        					placeholder: '○ '
+        				},
+        			},
+        		],
+        	},
             {
                 type: 'group' as const,
                 heading: '특정 마크다운',
