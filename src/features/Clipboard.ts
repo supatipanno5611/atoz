@@ -112,24 +112,26 @@ export class ClipboardFeature {
             if (index === 0) return;
             const prev = history[index - 1]!;
 
-            // 일반 → 핀 영역으로 넘어가는 경우
+            // 일반 → 핀 영역으로 넘어가는 경우 (상태만 변경, 위치 교환 X)
             if (!entry.pinned && prev.pinned) {
                 entry.pinned = true;
+            } else {
+                // 같은 영역 내 이동 (위치 교환 O)
+                history.splice(index, 1);
+                history.splice(index - 1, 0, entry);
             }
-
-            history.splice(index, 1);
-            history.splice(index - 1, 0, entry);
         } else {
             if (index === history.length - 1) return;
             const next = history[index + 1]!;
 
-            // 핀 → 일반 영역으로 넘어가는 경우
+            // 핀 → 일반 영역으로 넘어가는 경우 (상태만 변경, 위치 교환 X)
             if (entry.pinned && !next.pinned) {
                 entry.pinned = false;
+            } else {
+                // 같은 영역 내 이동 (위치 교환 O)
+                history.splice(index, 1);
+                history.splice(index + 1, 0, entry);
             }
-
-            history.splice(index, 1);
-            history.splice(index + 1, 0, entry);
         }
 
         this.plugin.debouncedSave();
