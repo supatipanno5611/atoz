@@ -3,7 +3,6 @@ import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } 
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
-import { CycleTabFeature } from './features/CycleTab';
 import { ExecutesFeature } from './features/Executes';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { LinePrefixSymbolFeature } from './features/LinePrefixSymbol';
@@ -27,7 +26,6 @@ export default class ATOZPlugin extends Plugin {
     headingNavigater!: HeadingNavigaterFeature;
     properties!: PropertiesFeature;
     cutCopy!: CutCopyFeature;
-    cycleTab!: CycleTabFeature;
     symbols!: SymbolsFeature;
     work!: WorkFeature;
     cutCreateNewMd!: CutCreateNewMdFeature;
@@ -53,7 +51,6 @@ export default class ATOZPlugin extends Plugin {
         this.headingNavigater = new HeadingNavigaterFeature(this);
         this.properties = new PropertiesFeature(this);
         this.cutCopy = new CutCopyFeature(this);
-        this.cycleTab = new CycleTabFeature(this);
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
@@ -146,8 +143,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'copy-to-clipboard', name: '복사하기', icon: 'copy', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
 
         this.addCommand({ id: 'cut-and-create-new-md', name: '내용을 잘라내어 새 노트 만들기', icon: 'lucide-file-input', editorCallback: (editor: Editor) => void this.cutCreateNewMd.cutAndCreateNewMd(editor) });
-        this.addCommand({ id: 'cycle-tabs', name: '탭 순환', callback: () => this.cycleTab.cycleAllTabs() });
-
+        
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => void this.executes.focusRootLeaf() });
 
