@@ -31,17 +31,6 @@ export class ATOZSettingTab extends PluginSettingTab {
         	},
             {
                 type: 'group' as const,
-                heading: '특정 마크다운',
-                items: [
-                    {
-                        name: '특정 마크다운 경로',
-                        desc: '"특정 마크다운 파일 열기" 명령으로 열 파일의 볼트 기준 경로입니다. 예: index.md, folder/note.md',
-                        control: { type: 'text' as const, key: 'CertainMdPath', placeholder: '예: index.md' },
-                    },
-                ],
-            },
-            {
-                type: 'group' as const,
                 heading: '커서 중앙 고정',
                 items: [
                     {

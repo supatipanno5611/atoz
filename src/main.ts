@@ -1,5 +1,4 @@
 import { Editor, Notice, Plugin, TFile } from 'obsidian';
-import { CertainMdFeature } from './features/CertainMd';
 import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
@@ -24,7 +23,6 @@ export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
     selection!: SelectionFeature;
     executes!: ExecutesFeature;
-    certainMd!: CertainMdFeature;
     cursorCenter!: CursorCenterFeature;
     headingNavigater!: HeadingNavigaterFeature;
     properties!: PropertiesFeature;
@@ -51,7 +49,6 @@ export default class ATOZPlugin extends Plugin {
 
         this.selection = new SelectionFeature(this);
         this.executes = new ExecutesFeature(this);
-        this.certainMd = new CertainMdFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
         this.headingNavigater = new HeadingNavigaterFeature(this);
         this.properties = new PropertiesFeature(this);
@@ -137,12 +134,10 @@ export default class ATOZPlugin extends Plugin {
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
         this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
-        this.addRibbonIcon('lucide-code', '특정 마크다운 파일 열기', () => void this.certainMd.openCertainMdFile());
         this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
     }
 
     registerCommands() {
-        this.addCommand({ id: 'open-certain-md', name: '특정 마크다운 파일 열기', callback: () => void this.certainMd.openCertainMdFile() });
         this.addCommand({ id: 'toggle-cursor-center', name: '커서 중앙 유지 토글', callback: () => this.cursorCenter.toggleCursorCenter() });
 
         this.addCommand({ id: 'copy-all-document', name: '문서 전체 복사', editorCallback: (editor) => this.cutCopy.copyAll(editor) });
