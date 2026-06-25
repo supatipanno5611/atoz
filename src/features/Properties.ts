@@ -72,6 +72,11 @@ export class PropertiesFeature {
                 if (fm.audioSrc === undefined && fm.audioTitle !== undefined) {
                     toReview.add('audioSrc');
                 }
+                if (Array.isArray(fm.topics)) {
+                	fm.topics = (fm.topics as unknown[]).map(v =>
+                		typeof v === 'string' && v.startsWith('.') ? v.slice(1) : v
+                	);
+                }
 
                 const sorted = Object.keys(fm).sort();
                 const values = sorted.map(k => fm[k]);
