@@ -1,4 +1,6 @@
-import { Editor, Notice, Plugin, TFile } from 'obsidian';
+import { Editor, Notice, Plugin, TFile, View } from 'obsidian';
+import { Extension } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
@@ -41,9 +43,13 @@ export default class ATOZPlugin extends Plugin {
 
     topicCandidates: string[] = [];
     private saveTimer: number | null = null;
+    private _koIme_isComposingState: boolean = false;
+    private _koIme_isFeatureActivated: boolean = false;
 
     async onload() {
         await this.loadSettings();
+
+        this.registerEditorExtension(this._koIme_generateCm6Extension());
 
         this.selection = new SelectionFeature(this);
         this.executes = new ExecutesFeature(this);
@@ -75,6 +81,58 @@ export default class ATOZPlugin extends Plugin {
             this.topicCandidates = this.collectTopicCandidates();
             this.projectVisibility.install();
             this.mobile.install();
+            this.app.workspace.onLayoutReady(() => {
+           		let _koIme_lastCheckedCount = -1;
+           		let _koIme_stableTickCounter = 0;
+            
+           		const _koIme_detectionIntervalId = window.setInterval(() => {
+           			try {
+           				// @ts-ignore
+           				const _koIme_targetPluginsObj = this.app.plugins;
+           				if (!_koIme_targetPluginsObj || !_koIme_targetPluginsObj.enabledPlugins || !_koIme_targetPluginsObj.plugins) {
+           					return; 
+           				}
+            
+           				const _koIme_totalEnabledCount = _koIme_targetPluginsObj.enabledPlugins.size;
+           				const _koIme_totalLoadedCount = Object.keys(_koIme_targetPluginsObj.plugins).length;
+            
+           				const _koIme_isWorkspacePopulated = !!this.app.workspace.getActiveViewOfType(View) || !!this.app.workspace.activeEditor;
+            
+           				if ((_koIme_totalLoadedCount >= _koIme_totalEnabledCount && _koIme_isWorkspacePopulated) || 
+           					(_koIme_totalLoadedCount === _koIme_lastCheckedCount && _koIme_stableTickCounter++ > 5)) {
+            						
+           					window.clearInterval(_koIme_detectionIntervalId);
+            
+           					let _koIme_isExecutionTriggered = false;
+            
+           					const _koIme_executeActivationSequence = () => {
+           						if (_koIme_isExecutionTriggered) return;
+           						_koIme_isExecutionTriggered = true;
+            							
+           						this._koIme_isFeatureActivated = true; 
+           						new Notice('옵시디언 준비 완료');
+           					};
+            
+           					window.requestAnimationFrame(() => {
+           						window.requestAnimationFrame(() => {
+           							window.setTimeout(() => {
+           								_koIme_executeActivationSequence();
+           							}, 150);
+           						});
+           					});
+           				} else {
+           					if (_koIme_totalLoadedCount !== _koIme_lastCheckedCount) {
+           						_koIme_lastCheckedCount = _koIme_totalLoadedCount;
+           						_koIme_stableTickCounter = 0;
+           					}
+           				}
+           			} catch (e) {
+           				window.clearInterval(_koIme_detectionIntervalId);
+           			}
+           		}, 200);
+           
+           		this.registerInterval(_koIme_detectionIntervalId);
+           	});
         });
     }
 
@@ -84,6 +142,7 @@ export default class ATOZPlugin extends Plugin {
             this.saveTimer = null;
             void this.saveSettings();
         }
+        this._koIme_isFeatureActivated = false;
         this.projectVisibility.uninstall();
         this.mobile.uninstall();
         this.app.workspace.detachLeavesOfType(VIEW_TYPE_CLIPBOARD);
@@ -190,6 +249,8 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
         this.addCommand({ id: 'toggle-line-prefix-symbol', name: '현재 행 앞 기호 토글', editorCallback: (editor) => { this.linePrefixSymbol.toggle(editor); } });
+        this.addCommand({ id: 'move-line-to-target', name: '현재 행을 파일로 이동', editorCallback: (editor) => void this.executes.moveLineToTarget(editor) });
+        this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
     }
 
     private async backupAndClearWork(): Promise<void> {
@@ -229,5 +290,39 @@ export default class ATOZPlugin extends Plugin {
         const content = await this.app.vault.read(file);
         await navigator.clipboard.writeText(content);
         new Notice(`${file.name}을(를) 복사했습니다.`);
+    }
+
+// this is for koIme
+    private _koIme_resetFeatureState() {
+    	this._koIme_isFeatureActivated = false;
+    	this._koIme_isComposingState = false;
+    
+    	setTimeout(() => {
+    		this._koIme_isFeatureActivated = true;
+    		new Notice('한글 입력 버그 픽스 기능이 재시작되었습니다.');
+    	}, 50);
+    }
+    
+    private _koIme_generateCm6Extension(): Extension {
+    	return EditorView.domEventHandlers({
+    		compositionstart: () => { this._koIme_isComposingState = true; },
+    		compositionend: () => { this._koIme_isComposingState = false; },
+    		mousedown: (event, view) => { this._koIme_interceptAndForceCommit(view.dom); },
+    		touchstart: (event, view) => { this._koIme_interceptAndForceCommit(view.dom); },
+    		keydown: (event, view) => {
+    			const _koIme_restrictedMoveKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
+    			if (_koIme_restrictedMoveKeys.includes(event.key)) {
+    				this._koIme_interceptAndForceCommit(view.dom);
+    			}
+    		}
+    	});
+    }
+    
+    private _koIme_interceptAndForceCommit(domElement: HTMLElement) {
+    	if (this._koIme_isFeatureActivated && this._koIme_isComposingState) {
+    		const _koIme_customCompositionEndEvent = new CompositionEvent('compositionend');
+    		domElement.dispatchEvent(_koIme_customCompositionEndEvent);
+    		this._koIme_isComposingState = false; 
+    	}
     }
 }

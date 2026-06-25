@@ -229,6 +229,18 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
+                heading: '행 이동',
+                items: [
+                    {
+                        name: '행 이동 파일 접미어',
+                        desc: '현재 파일 이름 뒤에 붙을 접미어입니다. (확장자 .md 포함 필수)',
+                        control: { type: 'text' as const, key: 'moveLineSuffix', placeholder: '_later.md' },
+                    },
+                ],
+            },
+
+            {
+                type: 'group' as const,
                 heading: '클립보드',
                 items: [
                     {

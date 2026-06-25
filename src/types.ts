@@ -23,6 +23,7 @@ export interface ATOZSettings {
     clipboardHistory: ClipboardEntry[];
     clipboardHistoryLimit: number;
     clipboardPreviewLength: number;
+    moveLineSuffix: string;
 }
 
 export type SnippetsItem =
@@ -66,4 +67,5 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     clipboardHistory: [],
     clipboardHistoryLimit: 30,
     clipboardPreviewLength: 50,
+    moveLineSuffix: '_later.md',
 };
