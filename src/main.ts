@@ -338,6 +338,10 @@ export default class ATOZPlugin extends Plugin {
             })
         );
 
+        this.registerEvent(
+            this.app.workspace.on('layout-change', () => this.mobile.checkSidebarState())
+        );
+
     }
 
     private async copyWholeDocument(file: unknown): Promise<void> {

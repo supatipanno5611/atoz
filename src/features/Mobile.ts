@@ -2,12 +2,40 @@ import type ATOZPlugin from '../main';
 import { Notice, Platform } from 'obsidian';
 
 export class MobileFeature {
+    private ribbonEl: HTMLElement | null = null;
+    private originalParent: HTMLElement | null = null;
+    private appContainer: HTMLElement | null = null;
+
     constructor(private plugin: ATOZPlugin) {}
 
     install(): void {
         if (Platform.isMobileApp) {
             if (window.screen.width < 800) {
                 document.body.classList.add('notice-bottom');
+            }
+
+            this.ribbonEl = document.querySelector('.workspace-drawer-ribbon');
+            this.originalParent = this.ribbonEl?.parentElement ?? null;
+            this.appContainer = document.querySelector('.app-container');
+            this.checkSidebarState();
+        }
+    }
+
+    checkSidebarState(): void {
+        if (!this.ribbonEl || !this.appContainer) return;
+
+        document.body.classList.add('plugin-tablet-sticky-ribbon');
+
+        const leftSplit = (this.plugin.app.workspace as any).leftSplit;
+        if (leftSplit?.collapsed) {
+            document.body.classList.add('is-left-sidebar-closed');
+            if (this.ribbonEl.parentElement !== this.appContainer) {
+                this.appContainer.appendChild(this.ribbonEl);
+            }
+        } else {
+            document.body.classList.remove('is-left-sidebar-closed');
+            if (this.originalParent && this.ribbonEl.parentElement !== this.originalParent) {
+                this.originalParent.insertBefore(this.ribbonEl, this.originalParent.firstChild);
             }
         }
     }
@@ -18,6 +46,10 @@ export class MobileFeature {
     }
 
     uninstall(): void {
-        document.body.classList.remove('mobile-toolbar-off', 'notice-bottom');
+        document.body.classList.remove('mobile-toolbar-off', 'notice-bottom', 'plugin-tablet-sticky-ribbon', 'is-left-sidebar-closed');
+
+        if (this.ribbonEl && this.originalParent) {
+            this.originalParent.appendChild(this.ribbonEl);
+        }
     }
 }
