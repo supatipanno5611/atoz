@@ -120,3 +120,28 @@ body.notice-bottom .notice {
     text-overflow: ellipsis;
     min-width: 0;
 }
+
+/* 사이드바가 닫혔을 때 최상위로 꺼내진 태블릿 리본 메뉴 디자인 */
+body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .app-container > .workspace-drawer-ribbon {
+    display: flex !important;
+    flex-direction: column;
+    
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 48px; 
+    
+    background-color: var(--background-secondary);
+    border-right: 1px solid var(--background-modifier-border);
+    z-index: 3;
+    
+    /* 태블릿 상단 노치나 상태바 영역 확보 */
+    padding-top: var(--safe-area-inset-top, 20px);
+    padding-bottom: var(--safe-area-inset-bottom, 20px);
+}
+
+/* 플러그인이 켜져있고 사이드바가 닫혔을 때만 워크스페이스 밀어주기 */
+body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
+    padding-left: 48px !important; 
+}
