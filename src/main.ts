@@ -10,7 +10,7 @@ import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { LinePrefixSymbolFeature } from './features/LinePrefixSymbol';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
-import { ProjectVisibility } from './features/ProjectVisibility';
+import { FolderVisibility } from './features/FolderVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { QuickSlotFeature, toPathArray, fromPathArray } from './features/QuickSlot';
 import { SelectionFeature } from './features/Selection';
@@ -32,7 +32,7 @@ export default class ATOZPlugin extends Plugin {
     symbols!: SymbolsFeature;
     work!: WorkFeature;
     cutCreateNewMd!: CutCreateNewMdFeature;
-    projectVisibility!: ProjectVisibility;
+    folderVisibility!: FolderVisibility;
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
     clipboard!: ClipboardFeature;
@@ -62,7 +62,7 @@ export default class ATOZPlugin extends Plugin {
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
-        this.projectVisibility = new ProjectVisibility(this);
+        this.folderVisibility = new FolderVisibility(this);
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.clipboard = new ClipboardFeature(this);
@@ -82,7 +82,7 @@ export default class ATOZPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             this.topicCandidates = this.collectTopicCandidates();
-            this.projectVisibility.install();
+            this.folderVisibility.install();
             this.mobile.install();
             this.app.workspace.onLayoutReady(() => {
            		let _koIme_lastCheckedCount = -1;
@@ -146,7 +146,7 @@ export default class ATOZPlugin extends Plugin {
             void this.saveSettings();
         }
         this._koIme_isFeatureActivated = false;
-        this.projectVisibility.uninstall();
+        this.folderVisibility.uninstall();
         this.mobile.uninstall();
         this.app.workspace.detachLeavesOfType(VIEW_TYPE_CLIPBOARD);
     }
@@ -191,7 +191,7 @@ export default class ATOZPlugin extends Plugin {
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
-        this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
+        this.addRibbonIcon('lucide-folder-open', '모든 폴더 숨김 토글', () => void this.folderVisibility.toggleAllFoldersHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
         for (let i = 1; i <= 4; i++) {
@@ -215,8 +215,8 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
         this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
 
-        this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
+        this.addCommand({ id: 'toggle-all-folders-visibility', name: '모든 폴더 숨김 토글', icon: 'lucide-folder-open', callback: () => void this.folderVisibility.toggleAllFoldersHidden() });
         this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
 
         this.addCommand({ id: 'configure-publish-note', name: '게시 노트 설정', icon: 'lucide-table-of-contents', callback: () => void this.properties.configurePublishNote() });

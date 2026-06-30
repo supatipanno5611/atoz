@@ -1,9 +1,9 @@
 import { Notice } from 'obsidian';
 import type ATOZPlugin from '../main';
 
-const HIDDEN_CLASS = 'atoz-project-hidden';
+const HIDDEN_CLASS = 'atoz-folder-hidden';
 
-export class ProjectVisibility {
+export class FolderVisibility {
     private hiddenEls = new Set<HTMLElement>();
     private installed = false;
 
@@ -24,35 +24,22 @@ export class ProjectVisibility {
         this.installed = false;
     }
 
-    async toggleProjectFolderHidden(): Promise<void> {
-        const nextValue = !this.plugin.settings.isProjectFolderHidden;
-
-        if (nextValue && !this.plugin.settings.projectPath) {
-            new Notice('프로젝트 폴더 경로가 설정되어 있지 않습니다. 설정에서 프로젝트 폴더 경로를 입력해주세요.');
-            return;
-        }
-
-        this.plugin.settings.isProjectFolderHidden = nextValue;
+    async toggleAllFoldersHidden(): Promise<void> {
+        this.plugin.settings.isAllFoldersHidden = !this.plugin.settings.isAllFoldersHidden;
         this.refresh();
         await this.plugin.saveSettings();
 
-        new Notice(nextValue ? '프로젝트 폴더가 숨겨졌습니다.' : '프로젝트 폴더가 표시됩니다.');
+        new Notice(this.plugin.settings.isAllFoldersHidden ? '모든 폴더가 숨겨졌습니다.' : '모든 폴더가 표시됩니다.');
     }
 
     refresh(): void {
-        const { isProjectFolderHidden, projectPath } = this.plugin.settings;
-
         this.clearHiddenElements();
 
-        if (!isProjectFolderHidden || !projectPath) {
+        if (!this.plugin.settings.isAllFoldersHidden) {
             return;
         }
 
-        const childPath = `${projectPath}/`;
         document.querySelectorAll<HTMLElement>('.nav-folder-title[data-path]').forEach((titleEl) => {
-            const path = titleEl.dataset.path;
-            if (path !== projectPath && !path?.startsWith(childPath)) return;
-
             this.hideElement(titleEl);
 
             const childrenEl = titleEl.nextElementSibling;
