@@ -12,7 +12,7 @@ import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
-import { QuickSlotFeature } from './features/QuickSlot';
+import { QuickSlotFeature, toPathArray, fromPathArray } from './features/QuickSlot';
 import { SelectionFeature } from './features/Selection';
 import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
@@ -288,7 +288,7 @@ export default class ATOZPlugin extends Plugin {
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
                 menu.addItem((item) => {
-                    item.setTitle('Copy whole document')
+                    item.setTitle('문서 전체 복사')
                         .setIcon('copy')
                         .onClick(() => {
                             void this.copyWholeDocument(file);
@@ -305,13 +305,17 @@ export default class ATOZPlugin extends Plugin {
             this.app.vault.on('rename', async (file, oldPath) => {
                 let changed = false;
                 for (let i = 0; i < this.settings.quickSlots.length; i++) {
-                    const slotPath = this.settings.quickSlots[i];
-                    if (slotPath === oldPath) {
-                        this.settings.quickSlots[i] = file.path;
-                        changed = true;
-                    } else if (slotPath?.startsWith(oldPath + '/')) {
-                        this.settings.quickSlots[i] = slotPath.replace(oldPath, file.path);
-                        changed = true;
+                    const paths = toPathArray(this.settings.quickSlots[i]);
+                    if (paths.length === 0) continue;
+                    let slotChanged = false;
+                    const updated = paths.map((p) => {
+                    	if (p === oldPath) { slotChanged = true; return file.path; }
+                    	if (p.startsWith(oldPath + '/')) { slotChanged = true; return p.replace(oldPath, file.path); }
+                    	return p;
+                    });
+                    if (slotChanged) {
+                    	this.settings.quickSlots[i] = fromPathArray(updated);
+                    	changed = true;
                     }
                 }
                 if (changed) {
@@ -325,10 +329,12 @@ export default class ATOZPlugin extends Plugin {
             this.app.vault.on('delete', async (file) => {
                 let changed = false;
                 for (let i = 0; i < this.settings.quickSlots.length; i++) {
-                    const slotPath = this.settings.quickSlots[i];
-                    if (slotPath === file.path || slotPath?.startsWith(file.path + '/')) {
-                        this.settings.quickSlots[i] = null;
-                        changed = true;
+                    const paths = toPathArray(this.settings.quickSlots[i]);
+                    if (paths.length === 0) continue;
+                    const remaining = paths.filter((p) => p !== file.path && !p.startsWith(file.path + '/'));
+                    if (remaining.length !== paths.length) {
+                    	this.settings.quickSlots[i] = fromPathArray(remaining);
+                    	changed = true;
                     }
                 }
                 if (changed) {

@@ -1,37 +1,68 @@
 import { App, Notice, SuggestModal, TFile, WorkspaceLeaf, FileView } from 'obsidian';
 import type ATOZPlugin from '../main';
 
+export function toPathArray(slot: string | string[] | null | undefined): string[] {
+    if (!slot) return [];
+    return Array.isArray(slot) ? slot : [slot];
+}
+
+export function fromPathArray(paths: string[]): string | string[] | null {
+    if (paths.length === 0) return null;
+    if (paths.length === 1) return paths[0]!;
+    return paths;
+}
+
 export class QuickSlotFeature {
     constructor(private plugin: ATOZPlugin) {}
 
     async saveOrClearSlot(slotId: number, file: TFile): Promise<void> {
         const targetIndex = slotId - 1;
         const slots = this.plugin.settings.quickSlots;
-        const existingIndex = slots.indexOf(file.path);
+        const targetPaths = toPathArray(slots[targetIndex]);
 
-        if (existingIndex === targetIndex) {
-            slots[targetIndex] = null;
-            new Notice(`슬롯 ${slotId}의 지정이 해제되었습니다.`);
-        } else {
-            if (existingIndex !== -1) {
-                slots[existingIndex] = null;
-                new Notice(`슬롯 ${existingIndex + 1}에서 슬롯 ${slotId}(으)로 이동되었습니다.`);
-            } else {
-                new Notice(`현재 파일이 퀵 슬롯 ${slotId}에 지정되었습니다.`);
-            }
-            slots[targetIndex] = file.path;
+        if (targetPaths.includes(file.path)) {
+            const next = targetPaths.filter(p => p !== file.path);
+            slots[targetIndex] = fromPathArray(next);
+            new Notice(`슬롯 ${slotId}에서 파일이 제거되었습니다.`);
+            await this.plugin.saveSettings();
+            return;
         }
+
+        for (let i = 0; i < slots.length; i++) {
+            if (i === targetIndex) continue;
+            const otherPaths = toPathArray(slots[i]);
+            if (!otherPaths.includes(file.path)) continue;
+
+            slots[i] = fromPathArray(otherPaths.filter(p => p !== file.path));
+            slots[targetIndex] = fromPathArray([...targetPaths, file.path]);
+            new Notice(`슬롯 ${i + 1}에서 슬롯 ${slotId}(으)로 이동되었습니다.`);
+            await this.plugin.saveSettings();
+            return;
+        }
+
+        slots[targetIndex] = fromPathArray([...targetPaths, file.path]);
+        new Notice(
+            targetPaths.length === 0
+                ? `현재 파일이 퀵 슬롯 ${slotId}에 지정되었습니다.`
+                : `현재 파일이 퀵 슬롯 ${slotId}에 추가되었습니다.`
+        );
         await this.plugin.saveSettings();
     }
 
     async openSlot(slotId: number): Promise<void> {
         const index = slotId - 1;
-        const filePath = this.plugin.settings.quickSlots[index];
-        if (!filePath) {
+        const paths = toPathArray(this.plugin.settings.quickSlots[index]);
+        if (paths.length === 0) {
             new Notice(`퀵 슬롯 ${slotId}이 비어 있습니다.`);
             return;
         }
 
+        if (paths.length > 1) {
+            await this.openMultiple(slotId, index, paths);
+            return;
+        }
+
+        const filePath = paths[0]!;
         const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
             new Notice(`슬롯 ${slotId}의 파일을 찾을 수 없어 초기화합니다.`);
@@ -58,6 +89,41 @@ export class QuickSlotFeature {
             await leaf.openFile(file);
         }
     }
+
+    private async openMultiple(slotId: number, index: number, paths: string[]): Promise<void> {
+            const validPaths: string[] = [];
+            let firstLeaf: WorkspaceLeaf | null = null;
+    
+            for (const path of paths) {
+                const file = this.plugin.app.vault.getAbstractFileByPath(path);
+                if (!(file instanceof TFile)) continue;
+                validPaths.push(path);
+    
+                let existingLeaf: WorkspaceLeaf | null = null;
+                this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+                    if (leaf.getRoot() === this.plugin.app.workspace.rootSplit) {
+                        if (leaf.view instanceof FileView && leaf.view.file?.path === file.path) {
+                            existingLeaf = leaf;
+                        }
+                    }
+                });
+    
+                const leaf = existingLeaf ?? this.plugin.app.workspace.getLeaf('tab');
+                if (!existingLeaf) await leaf.openFile(file);
+    
+                if (!firstLeaf) firstLeaf = leaf;
+            }
+    
+            if (firstLeaf) {
+                this.plugin.app.workspace.setActiveLeaf(firstLeaf, { focus: true });
+            }
+    
+            if (validPaths.length !== paths.length) {
+                this.plugin.settings.quickSlots[index] = fromPathArray(validPaths);
+                await this.plugin.saveSettings();
+                new Notice(`슬롯 ${slotId}에서 찾을 수 없는 파일을 제거했습니다.`);
+            }
+        }
 
     openAssignModal(): void {
         const currentFile = this.plugin.app.workspace.getActiveFile();
@@ -106,16 +172,20 @@ class SlotAssignModal extends BaseSlotModal {
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
         const index = slotId - 1;
-        const path = this.plugin.settings.quickSlots[index];
-        const existingIndex = this.plugin.settings.quickSlots.indexOf(this.currentFile.path);
-        const isAlreadyInAnotherSlot = existingIndex !== -1 && existingIndex !== index;
+        const slotPaths = toPathArray(this.plugin.settings.quickSlots[index]);
+        const isInThisSlot = slotPaths.includes(this.currentFile.path);
 
-        if (path === this.currentFile.path) {
-            el.setText(`[${slotId}] 슬롯: ${path} (누르면 해제)`);
+        let otherIndex = -1;
+        this.plugin.settings.quickSlots.forEach((slot, i) => {
+            if (i !== index && toPathArray(slot).includes(this.currentFile.path)) otherIndex = i;
+        });
+
+        if (isInThisSlot) {
+            el.setText(`[${slotId}] 슬롯: ${slotPaths.join(', ')} (누르면 제거)`);
         } else {
             let text = `[${slotId}] 슬롯: `;
-            text += path ? `${path} (덮어쓰기` : `(비어 있음`;
-            text += isAlreadyInAnotherSlot ? `, 기존 슬롯 ${existingIndex + 1} 해제)` : `)`;
+            text += slotPaths.length > 0 ? `${slotPaths.join(', ')} (추가` : `(비어 있음`;
+            text += otherIndex !== -1 ? `, 기존 슬롯 ${otherIndex + 1}에서 이동)` : `)`;
             el.setText(text);
         }
     }
@@ -132,8 +202,8 @@ class SlotOpenModal extends BaseSlotModal {
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
         const index = slotId - 1;
-        const path = this.plugin.settings.quickSlots[index];
-        el.setText(path ? `[${slotId}] 슬롯: ${path} (누르면 열기)` : `[${slotId}] 슬롯: (비어 있음)`);
+        const paths = toPathArray(this.plugin.settings.quickSlots[index]);
+        el.setText(paths.length > 0 ? `[${slotId}] 슬롯: ${paths.join(', ')} (누르면 열기)` : `[${slotId}] 슬롯: (비어 있음)`);
     }
 
     async onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): Promise<void> {
