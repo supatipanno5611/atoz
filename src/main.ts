@@ -211,6 +211,7 @@ export default class ATOZPlugin extends Plugin {
         
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => void this.executes.focusRootLeaf() });
+        this.addCommand({ id: 'convert-wikilink-to-markdown', name: '위키링크 일괄 변환', editorCallback: async (editor, view) => { if (!view.file) return; await this.executes.convertWikiLinks(editor, view.file); } });
 
         this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
         this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
@@ -219,13 +220,11 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'toggle-all-folders-visibility', name: '모든 폴더 숨김 토글', icon: 'lucide-folder-open', callback: () => void this.folderVisibility.toggleAllFoldersHidden() });
         this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
 
-        this.addCommand({ id: 'configure-publish-note', name: '게시 노트 설정', icon: 'lucide-table-of-contents', callback: () => void this.properties.configurePublishNote() });
         this.addCommand({ id: 'edit-topics', name: '주제어 편집', icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
         this.addCommand({ id: 'insert-today-date', name: '오늘 날짜 속성 삽입', icon: 'lucide-calendar-plus', callback: () => void this.properties.insertTodayDate() });
         this.addCommand({ id: 'update-today-date', name: '오늘 날짜로 갱신', icon: 'lucide-calendar-sync', callback: () => void this.properties.updateTodayDate() });
-        this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
-        this.addCommand({ id: 'insert-audio-properties', name: '오디오 속성 삽입', icon: 'lucide-file-audio', callback: () => this.properties.insertAudioProperties() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
+        this.addCommand({ id: 'edit-title-description', name: '제목 설명 속성 편집', callback: () => void this.properties.openTitleDescModal() });
 
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: 'lucide-chevrons-left', editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });

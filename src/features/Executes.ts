@@ -112,4 +112,65 @@ export class ExecutesFeature {
             );
         }
     }
+
+    async convertWikiLinks(editor: any, file: TFile): Promise<void> {
+        const text = editor.getValue();
+        const regex = /\[\[(.*?)(?:\|(.*?))?\]\]/g;
+        
+        let errorLogs: string[] = [];
+        
+        // replace 콜백을 통해 변환과 동시에 오류 검출 및 행 번호 계산
+        const newText = text.replace(
+        	regex,
+        	(
+        		matchStr: string,
+        		p1: string,
+        		p2: string | undefined,
+        		offset: number
+        	) => {
+            const linkUrl = p1.trim();
+            const linkText = p2 ? p2.trim() : linkUrl;
+    
+            // URL 부분에 공백이 있는지 검사
+            if (/\s/.test(linkUrl)) {
+                // 현재 매칭 위치(offset)까지의 텍스트를 쪼개어 행 번호 계산
+                const lineNumber = text.substring(0, offset).split('\n').length;
+                const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+                
+                errorLogs.push(`- **[${timeStr}]** [[${file.basename}]]: \`${lineNumber}번째 행\` \`${matchStr}\``);
+                
+                // 공백 오류 시 변환하지 않고 원본 유지
+                return matchStr;
+            }
+    
+            // 정상적인 위키링크 -> 마크다운 링크 변환
+            return `[${linkText}](${linkUrl})`;
+        });
+    
+        // 변경사항이 있을 때만 에디터 갱신 (단일 트랜잭션 유지)
+        if (text !== newText) {
+            editor.setValue(newText);
+        }
+    
+        // 결과 알림 및 로그 파일 적재 처리
+        if (errorLogs.length > 0) {
+            await this.writeToLogFile(errorLogs);
+            new Notice(`log.md 확인. 공백 오류 ${errorLogs.length}개 링크 제외 변환 완료`);
+        } else {
+            new Notice('위키링크 변환 완료');
+        }
+    }
+    
+    async writeToLogFile(logs: string[]): Promise<void> {
+        const logFileName = 'log.md';
+    
+        let logFile = this.plugin.app.vault.getAbstractFileByPath(logFileName);
+        const logContent = '\n' + logs.join('\n');
+    
+        if (logFile instanceof TFile) {
+            await this.plugin.app.vault.append(logFile, logContent);
+        } else {
+            await this.plugin.app.vault.create(logFileName, logContent);
+        }
+    }
 }
