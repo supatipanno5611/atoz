@@ -1,4 +1,4 @@
-import { App, Modal, SuggestModal, Notice, moment, Setting } from 'obsidian';
+import { App, Modal, SuggestModal, Notice, moment, Setting, TFile } from 'obsidian';
 import type ATOZPlugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
@@ -185,6 +185,17 @@ export class PropertiesFeature {
         });
         new Notice('date 속성을 오늘 날짜로 갱신했습니다.');
     }
+
+    async renameFile(): Promise<void> {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+    
+        if (!activeFile || activeFile.extension !== 'md') {
+            new Notice('활성 마크다운 파일이 없습니다.');
+            return;
+        }
+    
+        new RenameFileModal(this.plugin, activeFile).open();
+    }
 }
 
 
@@ -362,6 +373,147 @@ class PropertyInputModal extends Modal {
                     this.close();
                 })
             );
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+function splitFilename(name: string): { category: string; unique: string } {
+    const index = name.indexOf('-');
+
+    if (index === -1) {
+        return {
+            category: '',
+            unique: name,
+        };
+    }
+
+    return {
+        category: name.substring(0, index),
+        unique: name.substring(index + 1),
+    };
+}
+
+class RenameFileModal extends Modal {
+    constructor(
+        private plugin: ATOZPlugin,
+        private file: TFile,
+    ) {
+        super(plugin.app);
+    }
+
+    onOpen() {
+        const parsed = splitFilename(this.file.basename);
+
+        let category = parsed.category;
+        let unique = parsed.unique;
+
+        this.titleEl.setText('파일 이름 변경');
+
+        let categoryInput: any;
+        let uniqueInput: any;
+
+        const preview = document.createElement('div');
+        preview.style.marginTop = '8px';
+        preview.style.fontWeight = 'bold';
+
+        const refreshPreview = () => {
+            preview.setText(
+                category.trim()
+                    ? `${category.trim()}-${unique.trim()}`
+                    : unique.trim()
+            );
+        };
+
+        new Setting(this.contentEl)
+            .setName('Category')
+            .setDesc('파일명 앞부분')
+
+            .addDropdown(drop => {
+                categoryInput = drop;
+
+                for (const item of this.plugin.settings.filenameCategories) {
+                    drop.addOption(item, item);
+                }
+
+                if (category) {
+                    if (!this.plugin.settings.filenameCategories.includes(category)) {
+                        drop.addOption(category, category);
+                    }
+
+                    drop.setValue(category);
+                }
+
+                drop.onChange(v => {
+                    category = v;
+                    refreshPreview();
+                });
+            });
+
+        new Setting(this.contentEl)
+            .setName('Unique name')
+            .setDesc('파일명 뒷부분')
+
+            .addText(text => {
+                uniqueInput = text;
+
+                text.setValue(unique);
+
+                text.onChange(v => {
+                    unique = v.trim();
+                    refreshPreview();
+                });
+            });
+
+        this.contentEl.appendChild(preview);
+
+        refreshPreview();
+
+        new Setting(this.contentEl)
+            .addButton(btn => btn
+                .setButtonText('Rename')
+                .setCta()
+
+                .onClick(async () => {
+
+                    const finalName =
+                        category.trim()
+                            ? `${category.trim()}-${unique.trim()}`
+                            : unique.trim();
+
+                    if (!finalName) {
+                        new Notice('파일 이름을 입력하세요.');
+                        return;
+                    }
+
+                    if (finalName === this.file.basename) {
+                        this.close();
+                        return;
+                    }
+
+                    const parent = this.file.parent?.path;
+
+                    const newPath =
+                        parent
+                            ? `${parent}/${finalName}.md`
+                            : `${finalName}.md`;
+
+                    if (this.app.vault.getAbstractFileByPath(newPath)) {
+                        new Notice('같은 이름의 파일이 이미 존재합니다.');
+                        return;
+                    }
+
+                    await this.app.fileManager.renameFile(
+                        this.file,
+                        newPath,
+                    );
+
+                    new Notice('파일 이름을 변경했습니다.');
+
+                    this.close();
+                }));
     }
 
     onClose() {

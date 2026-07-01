@@ -15,6 +15,36 @@ export class ATOZSettingTab extends PluginSettingTab {
     getSettingDefinitions() {
         return [
         	{
+        	    type: 'group' as const,
+        	    heading: 'blog 파일 이름',
+        	
+        	    items: [
+        	        {
+        	            name: '파일명 카테고리 목록',
+        	            desc: '파일명 prefix로 사용할 카테고리를 한 줄에 하나씩 입력합니다.',
+        	
+        	            render: (setting: Setting) => {
+        	                setting.settingEl.addClass('atoz-setting-vertical');
+        	
+        	                setting.addTextArea((ta) => {
+        	                    ta.inputEl.addClass('atoz-setting-textarea');
+        	
+        	                    ta.setValue(this.plugin.settings.filenameCategories.join('\n'));
+        	
+        	                    ta.inputEl.addEventListener('blur', async () => {
+        	                        this.plugin.settings.filenameCategories = ta.getValue()
+        	                            .split('\n')
+        	                            .map(v => v.trim())
+        	                            .filter(v => v.length > 0);
+        	
+        	                        await this.plugin.saveSettings();
+        	                    });
+        	                });
+        	            },
+        	        },
+        	    ],
+        	},
+        	{
         		type: 'group' as const,
         		heading: '행 앞 기호',
         		items: [
@@ -37,25 +67,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                         name: '커서 중앙 고정 사용',
                         desc: '편집할 때 커서가 화면 중앙 근처에 유지됩니다.',
                         control: { type: 'toggle' as const, key: 'isCursorCenterEnabled' },
-                    },
-                ],
-            },
-            {
-                type: 'group' as const,
-                heading: '프로젝트',
-                items: [
-                    {
-                        name: '프로젝트 폴더 경로',
-                        desc: '프로젝트 명령에서 사용할 볼트 기준 폴더 경로입니다. 예: _publish',
-                        render: (setting: Setting) => {
-                            setting.addText((t) => t
-                                .setPlaceholder('_publish')
-                                .setValue(this.plugin.settings.projectPath)
-                                .onChange(async (v) => {
-                                    this.plugin.settings.projectPath = v.trim();
-                                    await this.plugin.saveSettings();
-                                }));
-                        },
                     },
                 ],
             },

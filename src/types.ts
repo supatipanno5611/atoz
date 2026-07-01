@@ -5,10 +5,10 @@ export interface ClipboardEntry {
 }
 
 export interface ATOZSettings {
+	filenameCategories: string[];
 	linePrefixSymbol: string;
 	quickSlots: (string | string[] | null)[];
     isCursorCenterEnabled: boolean;
-    projectPath: string;
     isAllFoldersHidden: boolean;
     snippetTrigger: string;
     snippetLimit: number;
@@ -38,10 +38,12 @@ export interface SymbolItem {
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
+	filenameCategories: [
+	    'srilanka',
+	],
 	linePrefixSymbol: '○ ',
 	quickSlots: [null, null, null, null],
     isCursorCenterEnabled: false,
-    projectPath: '',
     isAllFoldersHidden: false,
     snippetTrigger: '@',
     snippetLimit: 5,
