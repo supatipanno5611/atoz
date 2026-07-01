@@ -19,27 +19,38 @@ export class ATOZSettingTab extends PluginSettingTab {
         	    heading: 'blog 파일 이름',
         	
         	    items: [
-        	        {
-        	            name: '파일명 카테고리 목록',
-        	            desc: '파일명 prefix로 사용할 카테고리를 한 줄에 하나씩 입력합니다.',
-        	
+        	        ...this.plugin.settings.filenameCategories.map((cat: string, i: number) => ({
+        	            name: `카테고리 #${i + 1}`,
         	            render: (setting: Setting) => {
-        	                setting.settingEl.addClass('atoz-setting-vertical');
-        	
-        	                setting.addTextArea((ta) => {
-        	                    ta.inputEl.addClass('atoz-setting-textarea');
-        	
-        	                    ta.setValue(this.plugin.settings.filenameCategories.join('\n'));
-        	
-        	                    ta.inputEl.addEventListener('blur', async () => {
-        	                        this.plugin.settings.filenameCategories = ta.getValue()
-        	                            .split('\n')
-        	                            .map(v => v.trim())
-        	                            .filter(v => v.length > 0);
-        	
+        	                setting.addText((t) => t
+        	                    .setPlaceholder('카테고리')
+        	                    .setValue(cat)
+        	                    .onChange((v) => {
+        	                        this.plugin.settings.filenameCategories[i] = v;
+        	                        this.plugin.debouncedSave();
+        	                    })
+        	                ).addExtraButton((btn) => btn
+        	                    .setIcon('lucide-trash-2')
+        	                    .setTooltip('삭제')
+        	                    .onClick(async () => {
+        	                        this.plugin.settings.filenameCategories.splice(i, 1);
         	                        await this.plugin.saveSettings();
-        	                    });
-        	                });
+        	                        (this as any).update();
+        	                    })
+        	                );
+        	            },
+        	        })),
+        	        {
+        	            name: '',
+        	            render: (setting: Setting) => {
+        	                setting.addButton((btn) => btn
+        	                    .setButtonText('카테고리 추가')
+        	                    .onClick(async () => {
+        	                        this.plugin.settings.filenameCategories.push('');
+        	                        await this.plugin.saveSettings();
+        	                        (this as any).update();
+        	                    })
+        	                );
         	            },
         	        },
         	    ],

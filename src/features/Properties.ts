@@ -433,19 +433,22 @@ class RenameFileModal extends Modal {
 
             .addDropdown(drop => {
                 categoryInput = drop;
-
+            
                 for (const item of this.plugin.settings.filenameCategories) {
                     drop.addOption(item, item);
                 }
-
+            
+                if (category && !this.plugin.settings.filenameCategories.includes(category)) {
+                    drop.addOption(category, category);
+                }
+            
                 if (category) {
-                    if (!this.plugin.settings.filenameCategories.includes(category)) {
-                        drop.addOption(category, category);
-                    }
-
+                    drop.setValue(category);
+                } else if (this.plugin.settings.filenameCategories.length > 0) {
+                    category = this.plugin.settings.filenameCategories[0]!;
                     drop.setValue(category);
                 }
-
+            
                 drop.onChange(v => {
                     category = v;
                     refreshPreview();
