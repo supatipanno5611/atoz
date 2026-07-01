@@ -129,7 +129,6 @@ export class ExecutesFeature {
         		offset: number
         	) => {
             const linkUrl = p1.trim();
-            const linkText = p2 ? p2.trim() : linkUrl;
     
             // URL 부분에 공백이 있는지 검사
             if (/\s/.test(linkUrl)) {
@@ -142,6 +141,15 @@ export class ExecutesFeature {
                 // 공백 오류 시 변환하지 않고 원본 유지
                 return matchStr;
             }
+    
+            // 대상 노트의 title 속성 조회, 없으면 |text, 그것도 없으면 url로 폴백
+            const targetFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkUrl, file.path);
+            const targetTitle = targetFile
+                ? (this.plugin.app.metadataCache.getFileCache(targetFile)?.frontmatter as Record<string, unknown> | undefined)?.title
+                : undefined;
+            const linkText = typeof targetTitle === 'string' && targetTitle
+                ? targetTitle
+                : (p2 ? p2.trim() : linkUrl);
     
             // 정상적인 위키링크 -> 마크다운 링크 변환
             return `[${linkText}](${linkUrl})`;
