@@ -6,7 +6,6 @@ export interface ClipboardEntry {
 
 export interface ATOZSettings {
 	filenameCategories: string[];
-	linePrefixSymbol: string;
 	quickSlots: (string | string[] | null)[];
     isCursorCenterEnabled: boolean;
     isAllFoldersHidden: boolean;
@@ -41,7 +40,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 	filenameCategories: [
 	    'srilanka',
 	],
-	linePrefixSymbol: '○ ',
 	quickSlots: [null, null, null, null],
     isCursorCenterEnabled: false,
     isAllFoldersHidden: false,

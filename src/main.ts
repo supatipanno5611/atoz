@@ -7,7 +7,6 @@ import { CutCopyFeature } from './features/CutCopy';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { ExecutesFeature } from './features/Executes';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
-import { LinePrefixSymbolFeature } from './features/LinePrefixSymbol';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { FolderVisibility } from './features/FolderVisibility';
@@ -37,7 +36,6 @@ export default class ATOZPlugin extends Plugin {
     moveCurrentFile!: MoveCurrentFileFeature;
     clipboard!: ClipboardFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
-    linePrefixSymbol!: LinePrefixSymbolFeature;
     quickSlot!: QuickSlotFeature;
 
     selectedClipboardText = '';
@@ -67,7 +65,6 @@ export default class ATOZPlugin extends Plugin {
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.clipboard = new ClipboardFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
-        this.linePrefixSymbol = new LinePrefixSymbolFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
@@ -254,7 +251,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'toggle-line-prefix-symbol', name: '현재 행 앞 기호 토글', editorCallback: (editor) => { this.linePrefixSymbol.toggle(editor); } });
         this.addCommand({ id: 'move-line-to-target', name: '현재 행을 파일로 이동', editorCallback: (editor) => void this.executes.moveLineToTarget(editor) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
 
