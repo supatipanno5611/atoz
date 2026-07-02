@@ -16,7 +16,7 @@ export class ATOZSettingTab extends PluginSettingTab {
         return [
         	{
         	    type: 'group' as const,
-        	    heading: 'blog 파일 이름',
+        	    heading: '파일 이름',
         	
         	    items: [
         	        ...this.plugin.settings.filenameCategories.map((cat: string, i: number) => ({
@@ -241,10 +241,14 @@ export class ATOZSettingTab extends PluginSettingTab {
                         name: '행 이동 파일 접미어',
                         desc: '현재 파일 이름 뒤에 붙을 접미어입니다. (확장자 .md 포함 필수)',
                         control: { type: 'text' as const, key: 'moveLineSuffix', placeholder: '_later.md' },
-                    },
+                     },
+                     {
+                        name: '행 이동 대상 폴더',
+                        desc: '비워두면 볼트 루트에 생성됩니다.',
+                        control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: '예: archive' },
+                     },
                 ],
             },
-
             {
                 type: 'group' as const,
                 heading: '클립보드',
