@@ -6,7 +6,6 @@ import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { ExecutesFeature } from './features/Executes';
-import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { FolderVisibility } from './features/FolderVisibility';
@@ -25,7 +24,6 @@ export default class ATOZPlugin extends Plugin {
     selection!: SelectionFeature;
     executes!: ExecutesFeature;
     cursorCenter!: CursorCenterFeature;
-    headingNavigater!: HeadingNavigaterFeature;
     properties!: PropertiesFeature;
     cutCopy!: CutCopyFeature;
     symbols!: SymbolsFeature;
@@ -54,7 +52,6 @@ export default class ATOZPlugin extends Plugin {
         this.selection = new SelectionFeature(this);
         this.executes = new ExecutesFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
-        this.headingNavigater = new HeadingNavigaterFeature(this);
         this.properties = new PropertiesFeature(this);
         this.cutCopy = new CutCopyFeature(this);
         this.symbols = new SymbolsFeature(this);
@@ -209,9 +206,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => void this.executes.focusRootLeaf() });
         this.addCommand({ id: 'convert-wikilink-to-markdown', name: '위키링크 일괄 변환', editorCallback: async (editor, view) => { if (!view.file) return; await this.executes.convertWikiLinks(editor, view.file); } });
-
-        this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
-        this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
 
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
         this.addCommand({ id: 'toggle-all-folders-visibility', name: '모든 폴더 숨김 토글', icon: 'lucide-folder-open', callback: () => void this.folderVisibility.toggleAllFoldersHidden() });
