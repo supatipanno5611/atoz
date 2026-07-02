@@ -11,7 +11,6 @@ import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { FolderVisibility } from './features/FolderVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { QuickSlotFeature, toPathArray, fromPathArray } from './features/QuickSlot';
-import { SelectionFeature } from './features/Selection';
 import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
@@ -21,7 +20,6 @@ import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
-    selection!: SelectionFeature;
     executes!: ExecutesFeature;
     cursorCenter!: CursorCenterFeature;
     properties!: PropertiesFeature;
@@ -49,7 +47,6 @@ export default class ATOZPlugin extends Plugin {
 
         this.registerEditorExtension(this._koIme_generateCm6Extension());
 
-        this.selection = new SelectionFeature(this);
         this.executes = new ExecutesFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
         this.properties = new PropertiesFeature(this);
@@ -217,9 +214,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
         this.addCommand({ id: 'edit-title-description', name: '제목 설명 속성 편집', callback: () => void this.properties.openTitleDescModal() });
         this.addCommand({ id: 'rename-current-file', name: '파일 이름 변경', callback: () => void this.properties.renameFile() });
-
-        this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: 'lucide-chevrons-left', editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
-        this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => void this.work.openLaterFile() });
