@@ -34,7 +34,7 @@ function isEmptyProperty(value: unknown): boolean {
 }
 
 export class PropertiesFeature {
-	private tempData = new Map<string, { title: string; desc: string }>();
+	private tempData = new Map<string, { title: string; desc: string; aliases: string }>();
 	
     constructor(private plugin: ATOZPlugin) {}
 
@@ -108,6 +108,7 @@ export class PropertiesFeature {
             
         const currentTitle = typeof fm.title === 'string' ? fm.title : activeFile.basename;
         const currentDesc = typeof fm.description === 'string' ? fm.description : '';
+        const currentAliases = readStringArray(fm.aliases).join(', ');
     
         // 2. 모달 띄우기
         new PropertyInputModal(
@@ -115,16 +116,18 @@ export class PropertiesFeature {
             activeFile.path,
             currentTitle,
             currentDesc,
+            currentAliases,
             this.tempData,
-            async (finalTitle, finalDesc) => {
+            async (finalTitle, finalDesc, finalAliases) => {
                 // 저장 버튼 클릭 시 처리 로직
                 await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
                     const targetFm = frontmatter as FrontmatterRecord;
                     targetFm.title = finalTitle;
                     targetFm.description = finalDesc;
+                    targetFm.aliases = finalAliases;
                 });
                 this.tempData.delete(activeFile.path); // 저장 완료 후 임시 메모리 비우기
-                new Notice('Title과 Description 속성을 저장했습니다.');
+                new Notice('속성을 저장했습니다.');
             }
         ).open();
     }
@@ -299,8 +302,9 @@ class PropertyInputModal extends Modal {
         private filePath: string,
         private defaultTitle: string,
         private defaultDesc: string,
-        private tempData: Map<string, { title: string; desc: string }>,
-        private onSubmit: (title: string, desc: string) => Promise<void>
+        private defaultAliases: string,
+        private tempData: Map<string, { title: string; desc: string; aliases: string }>,
+        private onSubmit: (title: string, desc: string, aliases: string[]) => Promise<void>
     ) {
         super(app);
     }
@@ -308,6 +312,7 @@ class PropertyInputModal extends Modal {
     onOpen() {
         let titleResult = this.defaultTitle;
         let descResult = this.defaultDesc;
+        let aliasesResult = this.defaultAliases;
 
         this.titleEl.setText('문서 속성 설정 (Title / Description)');
 
@@ -323,10 +328,12 @@ class PropertyInputModal extends Modal {
                     .onClick(() => {
                         titleResult = saved.title;
                         descResult = saved.desc;
+                        aliasesResult = saved.aliases;
                         
                         // UI 컴포넌트 강제 업데이트
                         titleInput.setValue(saved.title);
                         descTextArea.setValue(saved.desc);
+                        aliasesInput.setValue(saved.aliases);
                         
                         new Notice('작성 중이던 내용을 불러왔습니다.');
                     })
@@ -343,7 +350,7 @@ class PropertyInputModal extends Modal {
                 text.setValue(titleResult);
                 text.onChange(v => {
                     titleResult = v;
-                    this.tempData.set(this.filePath, { title: titleResult, desc: descResult });
+                    this.tempData.set(this.filePath, { title: titleResult, desc: descResult, aliases: aliasesResult });
                 });
             });
 
@@ -351,7 +358,7 @@ class PropertyInputModal extends Modal {
         let descTextArea: any;
         new Setting(this.contentEl)
             .setName('Description')
-            .setDesc('노트의 상세 설명을 넉넉하게 적어주세요.')
+            .setDesc('노트의 상세 설명을 적어주세요.')
             .addTextArea(text => {
                 descTextArea = text;
                 text.setValue(descResult);
@@ -359,7 +366,21 @@ class PropertyInputModal extends Modal {
                 text.inputEl.style.height = '120px'; // 넉넉한 세로 높이 보장
                 text.onChange(v => {
                     descResult = v;
-                    this.tempData.set(this.filePath, { title: titleResult, desc: descResult });
+                    this.tempData.set(this.filePath, { title: titleResult, desc: descResult, aliases: aliasesResult });
+                });
+            });
+
+        // 3-1. Aliases 입력 컴포넌트 (한 줄, 콤마 구분)
+        let aliasesInput: any;
+        new Setting(this.contentEl)
+            .setName('Aliases')
+            .setDesc('콤마(,)로 구분하여 입력합니다.')
+            .addText(text => {
+                aliasesInput = text;
+                text.setValue(aliasesResult);
+                text.onChange(v => {
+                    aliasesResult = v;
+                    this.tempData.set(this.filePath, { title: titleResult, desc: descResult, aliases: aliasesResult });
                 });
             });
 
@@ -369,7 +390,11 @@ class PropertyInputModal extends Modal {
                 .setButtonText('저장하기')
                 .setCta()
                 .onClick(async () => {
-                    await this.onSubmit(titleResult, descResult);
+                    const aliasesArray = aliasesResult
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                    await this.onSubmit(titleResult, descResult, aliasesArray);
                     this.close();
                 })
             );
