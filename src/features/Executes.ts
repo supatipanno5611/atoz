@@ -150,9 +150,9 @@ export class ExecutesFeature {
             const targetTitle = targetFile
                 ? (this.plugin.app.metadataCache.getFileCache(targetFile)?.frontmatter as Record<string, unknown> | undefined)?.title
                 : undefined;
-            const linkText = typeof targetTitle === 'string' && targetTitle
-                ? targetTitle
-                : (p2 ? p2.trim() : linkUrl);
+            const linkText = p2
+                ? p2.trim()
+                : (typeof targetTitle === 'string' && targetTitle ? targetTitle : linkUrl);
     
             // 정상적인 위키링크 -> 마크다운 링크 변환
             return `[${linkText}](${linkUrl})`;
