@@ -212,7 +212,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'insert-today-date', name: '오늘 날짜 속성 삽입', icon: 'lucide-calendar-plus', callback: () => void this.properties.insertTodayDate() });
         this.addCommand({ id: 'update-today-date', name: '오늘 날짜로 갱신', icon: 'lucide-calendar-sync', callback: () => void this.properties.updateTodayDate() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
-        this.addCommand({ id: 'edit-title-description', name: '제목 설명 속성 편집', callback: () => void this.properties.openTitleDescModal() });
+        this.addCommand({ id: 'edit-title-description', name: '블로그 속성 편집', callback: () => void this.properties.openTitleDescModal() });
         this.addCommand({ id: 'rename-current-file', name: '파일 이름 변경', callback: () => void this.properties.renameFile() });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
