@@ -273,31 +273,19 @@ export default class ATOZPlugin extends Plugin {
             this.app.workspace.on('file-menu', (menu, file) => {
                 if (!(file instanceof TFile) || file.extension !== 'md') return;
         
-                menu.addItem((item) => {
-                    item.setTitle('문서 전체 복사')
-                        .setIcon('copy')
-                        .onClick(() => {
-                            void this.copyWholeDocument(file);
-                        });
-                });
-        
                 if (file.path === this.app.workspace.getActiveFile()?.path) {
                     menu.addItem((item) => {
                         item.setTitle('파일 이름 변경')
                             .setIcon('lucide-pencil-line')
+                            .setSection('view')
                             .onClick(() => void this.properties.renameFile());
                     });
         
                     menu.addItem((item) => {
                         item.setTitle('블로그 속성 편집')
                         	.setIcon('lucide-menu')
+                            .setSection('view')
                             .onClick(() => void this.properties.openTitleDescModal());
-                    });
-        
-                    menu.addItem((item) => {
-                        item.setTitle('퀵 슬롯 지정 메뉴 열기')
-                        	.setIcon('lucide-square-dot')
-                            .onClick(() => this.quickSlot.openAssignModal());
                     });
         
                     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -305,10 +293,25 @@ export default class ATOZPlugin extends Plugin {
                         menu.addItem((item) => {
                             item.setTitle('위키링크 일괄 변환')
                             	.setIcon('lucide-brackets')
+                                .setSection('view')
                                 .onClick(() => void this.executes.convertWikiLinks(activeView.editor, file));
                         });
                     }
+        
+                    menu.addItem((item) => {
+                        item.setTitle('퀵 슬롯 지정 메뉴 열기')
+                        	.setIcon('lucide-square-dot')
+                            .onClick(() => this.quickSlot.openAssignModal());
+                    });
                 }
+        
+                menu.addItem((item) => {
+                    item.setTitle('문서 전체 복사')
+                        .setIcon('copy')
+                        .onClick(() => {
+                            void this.copyWholeDocument(file);
+                        });
+                });
             }),
         );
 
