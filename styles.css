@@ -147,34 +147,22 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 /* 경로 복사 */
-.menu-group:has(svg.lucide-clipboard) {
-  display: none !important;
-}
-.menu-group:has(svg.lucide-clipboard) + .menu-separator {
-  display: none !important;
-}
+.menu-group:has(svg.lucide-clipboard) { display: none !important; }
+.menu-group:has(svg.lucide-clipboard) + .menu-separator { display: none !important; }
 
 /* 링크된 화면 열기 */
-.menu-item:has(svg.lucide-link) {
-  display: none !important;
-}
+.menu-item:has(svg.lucide-link) { display: none !important; }
 
 /* 하단 분할 */
 .menu-item:has(svg.lucide-separator-horizontal) { display: none !important; }
 
 /* 공유 - 그룹에 혼자 있으므로 그룹째 제거 */
-.menu-group:has(svg.lucide-arrow-up-right) {
-  display: none !important;
-}
-.menu-group:has(svg.lucide-arrow-up-right) + .menu-separator {
-  display: none !important;
-}
+.menu-group:has(svg.lucide-arrow-up-right) { display: none !important; }
+.menu-group:has(svg.lucide-arrow-up-right) + .menu-separator { display: none !important; }
+
 /* 검색.../바꾸기... - 그룹에 이 둘만 있으므로 그룹째 제거 */
 .menu-group:has(svg.lucide-file-search) { display: none !important; }
-
-.menu-group:has(svg.lucide-file-search) + .menu-separator {
-  display: none !important;
-}
+.menu-group:has(svg.lucide-file-search) + .menu-separator { display: none !important; }
 
 /* 이름 변경, 이동, 속성 추가 */
 .menu-group:has(svg.lucide-edit-3) { display: none !important; }
