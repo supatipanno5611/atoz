@@ -189,3 +189,5 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
   display: none !important;
 }
 
+/* 이름 변경 */
+.menu-item:has(svg.lucide-pen-line) { display: none !important; }

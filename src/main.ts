@@ -1,4 +1,4 @@
-import { Editor, Notice, Plugin, TFile, View } from 'obsidian';
+import { Editor, MarkdownView, Notice, Plugin, TFile, View } from 'obsidian';
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
@@ -271,6 +271,8 @@ export default class ATOZPlugin extends Plugin {
 
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
+                if (!(file instanceof TFile) || file.extension !== 'md') return;
+        
                 menu.addItem((item) => {
                     item.setTitle('문서 전체 복사')
                         .setIcon('copy')
@@ -278,6 +280,35 @@ export default class ATOZPlugin extends Plugin {
                             void this.copyWholeDocument(file);
                         });
                 });
+        
+                if (file.path === this.app.workspace.getActiveFile()?.path) {
+                    menu.addItem((item) => {
+                        item.setTitle('파일 이름 변경')
+                            .setIcon('lucide-pencil-line')
+                            .onClick(() => void this.properties.renameFile());
+                    });
+        
+                    menu.addItem((item) => {
+                        item.setTitle('블로그 속성 편집')
+                        	.setIcon('lucide-menu')
+                            .onClick(() => void this.properties.openTitleDescModal());
+                    });
+        
+                    menu.addItem((item) => {
+                        item.setTitle('퀵 슬롯 지정 메뉴 열기')
+                        	.setIcon('lucide-square-dot')
+                            .onClick(() => this.quickSlot.openAssignModal());
+                    });
+        
+                    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+                    if (activeView) {
+                        menu.addItem((item) => {
+                            item.setTitle('위키링크 일괄 변환')
+                            	.setIcon('lucide-brackets')
+                                .onClick(() => void this.executes.convertWikiLinks(activeView.editor, file));
+                        });
+                    }
+                }
             }),
         );
 
