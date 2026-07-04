@@ -145,3 +145,47 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .app-container > .worksp
 body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     padding-left: 48px !important; 
 }
+
+/* 하단 분할 */
+.menu-item:has(svg.lucide-separator-horizontal) { display: none !important; }
+
+/* 공유 */
+.menu-item:has(svg.lucide-arrow-up-right) { display: none !important; }
+
+/* 로컬 그래프 열기 */
+.menu-item:has(svg.lucide-git-fork) { display: none !important; }
+
+/* 경로 복사 */
+.menu-group:has(svg.lucide-clipboard) {
+  display: none !important;
+}
+.menu-group:has(svg.lucide-clipboard) + .menu-separator {
+  display: none !important;
+}
+
+/* 보관함 폴더에서 */
+.menu-item:has(svg.vault) { display: none !important; }
+
+/* Obsidian URL로 */
+.menu-item:has(svg.lucide-link) { display: none !important; }
+
+/* 하단 분할 */
+.menu-item:has(svg.lucide-separator-horizontal) { display: none !important; }
+
+/* 로컬 그래프 열기 */
+.menu-item:has(svg.lucide-git-fork) { display: none !important; }
+
+/* 공유 - 그룹에 혼자 있으므로 그룹째 제거 */
+.menu-group:has(svg.lucide-arrow-up-right) {
+  display: none !important;
+}
+.menu-group:has(svg.lucide-arrow-up-right) + .menu-separator {
+  display: none !important;
+}
+/* 검색.../바꾸기... - 그룹에 이 둘만 있으므로 그룹째 제거 */
+.menu-group:has(svg.lucide-file-search) { display: none !important; }
+
+.menu-group:has(svg.lucide-file-search) + .menu-separator {
+  display: none !important;
+}
+
