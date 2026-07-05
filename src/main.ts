@@ -290,11 +290,18 @@ export default class ATOZPlugin extends Plugin {
         
                     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
                     if (activeView) {
+                    	const view = activeView;
                         menu.addItem((item) => {
                             item.setTitle('위키링크 일괄 변환')
                             	.setIcon('lucide-brackets')
                                 .setSection('view')
-                                .onClick(() => void this.executes.convertWikiLinks(activeView.editor, file));
+                                .onClick(() => void this.executes.convertWikiLinks(view.editor, file));
+                        });
+
+                        menu.addItem((item) => {
+                        	item.setTitle('저장')
+                        		.setIcon('lucide-save')
+                        		.onClick(() => this.app.vault.modify(file, view.editor.getValue()));
                         });
                     }
         
