@@ -310,6 +310,13 @@ export default class ATOZPlugin extends Plugin {
                         	.setIcon('lucide-square-dot')
                             .onClick(() => this.quickSlot.openAssignModal());
                     });
+
+
+                    menu.addItem((item) => {
+                        item.setTitle('현재 파일 이동')
+                        	.setIcon('lucide-folder-input')
+                            .onClick(() => this.moveCurrentFile.moveCurrentFile());
+                    });
                 }
         
                 menu.addItem((item) => {
