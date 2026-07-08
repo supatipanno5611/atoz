@@ -301,7 +301,10 @@ export default class ATOZPlugin extends Plugin {
                         menu.addItem((item) => {
                         	item.setTitle('저장')
                         		.setIcon('lucide-save')
-                        		.onClick(() => this.app.vault.modify(file, view.editor.getValue()));
+                        		.onClick(async () => {
+                        			await this.app.vault.modify(file, view.editor.getValue());
+                        			new Notice('저장했습니다.');
+                        		});
                         });
                     }
         
