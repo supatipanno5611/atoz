@@ -404,21 +404,44 @@ class PropertyInputModal extends Modal {
         this.contentEl.empty();
     }
 }
-
-function splitFilename(name: string): { category: string; unique: string } {
-    const index = name.indexOf('-');
-
-    if (index === -1) {
-        return {
-            category: '',
-            unique: name,
-        };
+function splitFilename(name: string): { category: string; order: string; unique: string } {
+    const firstDash = name.indexOf('-');
+    if (firstDash === -1) {
+        return { category: '', order: '', unique: name };
     }
 
-    return {
-        category: name.substring(0, index),
-        unique: name.substring(index + 1),
-    };
+    const category = name.substring(0, firstDash);
+    const rest = name.substring(firstDash + 1);
+    const orderMatch = rest.match(/^(\d+)-(.+)$/);
+
+    if (orderMatch) {
+        return { category, order: orderMatch[1]!, unique: orderMatch[2]! };
+    }
+
+    return { category, order: '', unique: rest };
+}
+
+interface BlogEntry {
+    file: TFile;
+    order: number;
+    unique: string;
+}
+
+function scanBlogEntries(app: App, blogFolder: string, category: string, excludeFile: TFile): BlogEntry[] {
+    const entries: BlogEntry[] = [];
+    const pattern = new RegExp(`^${category}-(\\d+)-(.+)$`);
+
+    for (const file of app.vault.getMarkdownFiles()) {
+        if (file.path === excludeFile.path) continue;
+        if (file.parent?.path !== blogFolder) continue;
+
+        const match = file.basename.match(pattern);
+        if (!match) continue;
+
+        entries.push({ file, order: parseInt(match[1]!, 10), unique: match[2]! });
+    }
+
+    return entries;
 }
 
 class RenameFileModal extends Modal {
@@ -433,12 +456,24 @@ class RenameFileModal extends Modal {
         const parsed = splitFilename(this.file.basename);
 
         let category = parsed.category;
+        let order = parsed.order;
         let unique = parsed.unique;
 
         this.titleEl.setText('파일 이름 변경');
 
-        let categoryInput: any;
-        let uniqueInput: any;
+        const blogFolder = this.plugin.settings.blogFolder;
+
+        if (!blogFolder) {
+            new Setting(this.contentEl)
+                .setDesc('블로그 폴더가 설정되지 않았습니다. 설정 탭에서 "블로그 파일 순서 > 대상 폴더"를 먼저 지정하세요.')
+                .settingEl.style.color = 'var(--text-error)';
+        }
+
+        const previewListEl = document.createElement('div');
+        previewListEl.style.marginTop = '8px';
+        previewListEl.style.fontSize = '0.85em';
+        previewListEl.style.color = 'var(--text-muted)';
+        previewListEl.style.whiteSpace = 'pre-line';
 
         const preview = document.createElement('div');
         preview.style.marginTop = '8px';
@@ -447,9 +482,12 @@ class RenameFileModal extends Modal {
         const refreshPreview = () => {
             preview.setText(
                 category.trim()
-                    ? `${category.trim()}-${unique.trim()}`
+                    ? order.trim()
+                        ? `${category.trim()}-${order.trim()}-${unique.trim()}`
+                        : `${category.trim()}-${unique.trim()}`
                     : unique.trim()
             );
+            this.refreshOrderPreview(previewListEl, category.trim(), order.trim());
         };
 
         new Setting(this.contentEl)
@@ -457,8 +495,6 @@ class RenameFileModal extends Modal {
             .setDesc('파일명 앞부분')
 
             .addDropdown(drop => {
-                categoryInput = drop;
-            
                 for (const item of this.plugin.settings.filenameCategories) {
                     drop.addOption(item, item);
                 }
@@ -481,12 +517,21 @@ class RenameFileModal extends Modal {
             });
 
         new Setting(this.contentEl)
+            .setName('Order')
+            .setDesc('같은 카테고리 내 순서 (숫자, 필수)')
+            .addText(text => {
+                text.setValue(order);
+                text.onChange(v => {
+                    order = v.trim();
+                    refreshPreview();
+                });
+            });
+
+        new Setting(this.contentEl)
             .setName('Unique name')
             .setDesc('파일명 뒷부분')
 
             .addText(text => {
-                uniqueInput = text;
-
                 text.setValue(unique);
 
                 text.onChange(v => {
@@ -496,6 +541,7 @@ class RenameFileModal extends Modal {
             });
 
         this.contentEl.appendChild(preview);
+        this.contentEl.appendChild(previewListEl);
 
         refreshPreview();
 
@@ -505,11 +551,36 @@ class RenameFileModal extends Modal {
                 .setCta()
 
                 .onClick(async () => {
+                    const trimmedCategory = category.trim();
+                    const trimmedOrder = order.trim();
+                    const trimmedUnique = unique.trim();
 
-                    const finalName =
-                        category.trim()
-                            ? `${category.trim()}-${unique.trim()}`
-                            : unique.trim();
+                    if (trimmedCategory) {
+                        if (!blogFolder) {
+                            new Notice('블로그 폴더를 먼저 설정하세요.');
+                            return;
+                        }
+
+                        if (!trimmedOrder) {
+                            new Notice('순서를 입력하세요.');
+                            return;
+                        }
+
+                        const orderNum = parseInt(trimmedOrder, 10);
+                        if (isNaN(orderNum) || orderNum < 1) {
+                            new Notice('순서는 1 이상의 숫자여야 합니다.');
+                            return;
+                        }
+
+                        const ok = await this.applyOrderedRename(blogFolder, trimmedCategory, orderNum, trimmedUnique);
+                        if (!ok) return;
+
+                        new Notice('파일 이름을 변경했습니다.');
+                        this.close();
+                        return;
+                    }
+
+                    const finalName = trimmedUnique;
 
                     if (!finalName) {
                         new Notice('파일 이름을 입력하세요.');
@@ -542,6 +613,95 @@ class RenameFileModal extends Modal {
 
                     this.close();
                 }));
+    }
+
+    private refreshOrderPreview(el: HTMLElement, category: string, orderStr: string): void {
+        const blogFolder = this.plugin.settings.blogFolder;
+
+        if (!category || !blogFolder) {
+            el.setText('');
+            return;
+        }
+
+        const entries = scanBlogEntries(this.app, blogFolder, category, this.file)
+            .sort((a, b) => a.order - b.order);
+
+        if (entries.length === 0) {
+            el.setText('(같은 카테고리의 순서 항목 없음)');
+            return;
+        }
+
+        const orderNum = orderStr ? parseInt(orderStr, 10) : NaN;
+        let windowEntries: BlogEntry[];
+
+        if (!isNaN(orderNum)) {
+            windowEntries = entries.filter(e => Math.abs(e.order - orderNum) <= 1).slice(0, 3);
+            if (windowEntries.length === 0) {
+                windowEntries = entries.slice(-3);
+            }
+        } else {
+            windowEntries = entries.slice(-3);
+        }
+
+        el.setText(windowEntries.map(e => `${e.order}. ${e.unique}`).join('\n'));
+    }
+
+    private async applyOrderedRename(blogFolder: string, category: string, newOrder: number, unique: string): Promise<boolean> {
+        const entries = scanBlogEntries(this.app, blogFolder, category, this.file);
+
+        const parsed = splitFilename(this.file.basename);
+        const oldOrder = parsed.category === category && parsed.order ? parseInt(parsed.order, 10) : null;
+
+        const maxAllowed = entries.length + 1;
+        if (newOrder > maxAllowed) {
+            new Notice(`순서는 1 ~ ${maxAllowed} 사이여야 합니다.`);
+            return false;
+        }
+
+        if (oldOrder === newOrder) {
+            const finalPath = this.buildPath(blogFolder, category, newOrder, unique);
+            if (finalPath !== this.file.path && this.app.vault.getAbstractFileByPath(finalPath)) {
+                new Notice('같은 이름의 파일이 이미 존재합니다.');
+                return false;
+            }
+            if (finalPath !== this.file.path) {
+                await this.app.fileManager.renameFile(this.file, finalPath);
+            }
+            return true;
+        }
+
+        let shifted: { file: TFile; from: number; to: number; unique: string }[] = [];
+
+        if (oldOrder === null) {
+            shifted = entries
+                .filter(e => e.order >= newOrder)
+                .map(e => ({ file: e.file, from: e.order, to: e.order + 1, unique: e.unique }));
+        } else if (newOrder < oldOrder) {
+            shifted = entries
+                .filter(e => e.order >= newOrder && e.order < oldOrder)
+                .map(e => ({ file: e.file, from: e.order, to: e.order + 1, unique: e.unique }));
+        } else {
+            shifted = entries
+                .filter(e => e.order > oldOrder && e.order <= newOrder)
+                .map(e => ({ file: e.file, from: e.order, to: e.order - 1, unique: e.unique }));
+        }
+
+        const isPushingUp = shifted.length > 0 && shifted[0]!.to > shifted[0]!.from;
+        shifted.sort((a, b) => isPushingUp ? b.from - a.from : a.from - b.from);
+
+        for (const s of shifted) {
+            const newPath = this.buildPath(blogFolder, category, s.to, s.unique);
+            await this.app.fileManager.renameFile(s.file, newPath);
+        }
+
+        const finalPath = this.buildPath(blogFolder, category, newOrder, unique);
+        await this.app.fileManager.renameFile(this.file, finalPath);
+        return true;
+    }
+
+    private buildPath(blogFolder: string, category: string, order: number, unique: string): string {
+        const filename = `${category}-${order}-${unique}.md`;
+        return `${blogFolder}/${filename}`;
     }
 
     onClose() {

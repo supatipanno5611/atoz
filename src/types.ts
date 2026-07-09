@@ -25,6 +25,7 @@ export interface ATOZSettings {
     clipboardPreviewLength: number;
     moveLineSuffix: string;
     moveLineTargetFolder: string;
+    blogFolder: string;
 }
 
 export type SnippetsItem =
@@ -72,4 +73,5 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     clipboardPreviewLength: 50,
     moveLineSuffix: '_later.md',
     moveLineTargetFolder: '',
+    blogFolder: '',
 };

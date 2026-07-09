@@ -53,6 +53,11 @@ export class ATOZSettingTab extends PluginSettingTab {
         	                );
         	            },
         	        },
+        	        {
+        	        	name: '블로그 폴더',
+        	        	desc: '카테고리-순서-이름 규칙을 적용할 폴더 경로입니다.',
+        	        	control: { type: 'text' as const, key: 'blogFolder', placeholder: '예: blog' },
+        	        },
         	    ],
         	},
             {
