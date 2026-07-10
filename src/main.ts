@@ -276,7 +276,7 @@ export default class ATOZPlugin extends Plugin {
         
                 if (file.path === this.app.workspace.getActiveFile()?.path) {
                     menu.addItem((item) => {
-                        item.setTitle('파일 이름 변경')
+                        item.setTitle('블로그 규칙 파일명 설정')
                             .setIcon('lucide-pencil-line')
                             .setSection('view')
                             .onClick(() => void this.properties.renameFile());

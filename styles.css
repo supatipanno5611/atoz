@@ -164,6 +164,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .menu-group:has(svg.lucide-file-search) { display: none !important; }
 .menu-group:has(svg.lucide-file-search) + .menu-separator { display: none !important; }
 
-/* 이름 변경, 이동, 속성 추가 */
-.menu-group:has(svg.lucide-edit-3) { display: none !important; }
-.menu-group:has(svg.lucide-edit-3) + .menu-separator { display: none !important; }
+/* 이동, 속성 추가 */
+.menu-item:has(svg.lucide-plus-circle) { display: none !important; }
+.menu-item:has(svg.lucide-folder-tree) { display: none !important; }
