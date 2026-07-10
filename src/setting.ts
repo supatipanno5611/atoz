@@ -72,6 +72,17 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
+            	type: 'group' as const,
+            	heading: '모바일',
+            	items: [
+            		{
+            			name: '사이드바 독립 리본 사용',
+            			desc: '왼쪽 사이드바가 닫혔을 때 리본 메뉴를 화면 좌측에 고정합니다. (모바일/태블릿 전용)',
+            			control: { type: 'toggle' as const, key: 'isMobileStickyRibbonEnabled' },
+            		},
+            	],
+            },
+            {
                 type: 'group' as const,
                 heading: '조각글',
                 items: [

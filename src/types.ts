@@ -9,6 +9,7 @@ export interface ATOZSettings {
 	quickSlots: (string | string[] | null)[];
     isCursorCenterEnabled: boolean;
     isAllFoldersHidden: boolean;
+    isMobileStickyRibbonEnabled: boolean;
     snippetTrigger: string;
     snippetLimit: number;
     snippets: string[];
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 	quickSlots: [null, null, null, null],
     isCursorCenterEnabled: false,
     isAllFoldersHidden: false,
+    isMobileStickyRibbonEnabled: false,
     snippetTrigger: '@',
     snippetLimit: 5,
     snippets: [],

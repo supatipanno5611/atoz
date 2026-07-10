@@ -22,6 +22,7 @@ export class MobileFeature {
     }
 
     checkSidebarState(): void {
+        if (!this.plugin.settings.isMobileStickyRibbonEnabled) return;
         if (!this.ribbonEl || !this.appContainer) return;
 
         document.body.classList.add('plugin-tablet-sticky-ribbon');
@@ -45,11 +46,29 @@ export class MobileFeature {
         new Notice(isHidden ? '모바일 툴바를 숨겼습니다.' : '모바일 툴바를 표시합니다.');
     }
 
-    uninstall(): void {
-        document.body.classList.remove('mobile-toolbar-off', 'notice-bottom', 'plugin-tablet-sticky-ribbon', 'is-left-sidebar-closed');
+    async toggleStickyRibbon(): Promise<void> {
+        this.plugin.settings.isMobileStickyRibbonEnabled = !this.plugin.settings.isMobileStickyRibbonEnabled;
+        await this.plugin.saveSettings();
+
+        if (this.plugin.settings.isMobileStickyRibbonEnabled) {
+            this.checkSidebarState();
+            new Notice('사이드바 독립 리본을 사용합니다.');
+        } else {
+            this.restoreRibbon();
+            new Notice('사이드바 독립 리본을 사용하지 않습니다.');
+        }
+    }
+
+    private restoreRibbon(): void {
+        document.body.classList.remove('plugin-tablet-sticky-ribbon', 'is-left-sidebar-closed');
 
         if (this.ribbonEl && this.originalParent) {
             this.originalParent.appendChild(this.ribbonEl);
         }
+    }
+
+    uninstall(): void {
+        document.body.classList.remove('mobile-toolbar-off', 'notice-bottom');
+        this.restoreRibbon();
     }
 }

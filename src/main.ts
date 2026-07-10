@@ -205,6 +205,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'convert-wikilink-to-markdown', name: '위키링크 일괄 변환', editorCallback: async (editor, view) => { if (!view.file) return; await this.executes.convertWikiLinks(editor, view.file); } });
 
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
+        this.addCommand({ id: 'toggle-mobile-sticky-ribbon', name: '사이드바 독립 리본 토글', icon: 'sidebar-toggle-button-icon', callback: () => void this.mobile.toggleStickyRibbon() });
         this.addCommand({ id: 'toggle-all-folders-visibility', name: '모든 폴더 숨김 토글', icon: 'lucide-folder-open', callback: () => void this.folderVisibility.toggleAllFoldersHidden() });
         this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
 
