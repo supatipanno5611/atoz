@@ -27,6 +27,13 @@ export class CommandSlotFeature {
         new Notice(`슬롯 ${slotId}에 "${commandName}" 명령어를 지정했습니다.`);
     }
 
+    async clearSlot(slotId: number): Promise<void> {
+        const index = slotId - 1;
+        this.plugin.settings.commandSlots[index] = null;
+        await this.plugin.saveSettings();
+        new Notice(`슬롯 ${slotId}을(를) 비웠습니다.`);
+    }
+
     executeSlot(slotId: number): void {
         const index = slotId - 1;
         const commandId = this.plugin.settings.commandSlots[index];
@@ -95,10 +102,18 @@ class CommandSlotAssignModal extends BaseCommandSlotModal {
 
         const commands = getAllCommands(this.app);
         const command = commands.find(c => c.id === commandId);
-        el.setText(`[${slotId}] 슬롯: ${command ? command.name : commandId}`);
+        el.setText(`[${slotId}] 슬롯: ${command ? command.name : commandId} (누르면 제거)`);
     }
 
     onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): void {
+        const index = slotId - 1;
+        const commandId = this.plugin.settings.commandSlots[index];
+
+        if (commandId) {
+            void this.plugin.commandSlot.clearSlot(slotId);
+            return;
+        }
+
         new CommandSearchModal(this.app, (command) => {
             void this.plugin.commandSlot.assignSlot(slotId, command.id, command.name);
         }).open();
