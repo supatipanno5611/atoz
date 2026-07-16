@@ -282,6 +282,17 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
+            	type: 'group' as const,
+            	heading: '명령어 슬롯',
+            	items: [
+            		{
+            			name: '슬롯 개수',
+            			desc: '명령어 슬롯 모달에 표시할 슬롯 개수입니다.',
+            			control: { type: 'number' as const, key: 'commandSlotCount', min: 1 },
+            		},
+            	],
+            },
+            {
                 type: 'group' as const,
                 heading: '초기화',
                 items: [

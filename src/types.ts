@@ -7,6 +7,8 @@ export interface ClipboardEntry {
 export interface ATOZSettings {
 	filenameCategories: string[];
 	quickSlots: (string | string[] | null)[];
+	commandSlots: (string | null)[];
+	commandSlotCount: number;
     isCursorCenterEnabled: boolean;
     isAllFoldersHidden: boolean;
     isMobileStickyRibbonEnabled: boolean;
@@ -44,6 +46,8 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 	    'srilanka',
 	],
 	quickSlots: [null, null, null, null],
+	commandSlots: [],
+	commandSlotCount: 4,
     isCursorCenterEnabled: false,
     isAllFoldersHidden: false,
     isMobileStickyRibbonEnabled: false,

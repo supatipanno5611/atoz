@@ -2,6 +2,7 @@ import { Editor, MarkdownView, Notice, Plugin, TFile, View } from 'obsidian';
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
+import { CommandSlotFeature } from './features/CommandSlot';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
@@ -33,6 +34,7 @@ export default class ATOZPlugin extends Plugin {
     clipboard!: ClipboardFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
+    commandSlot!: CommandSlotFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -60,6 +62,7 @@ export default class ATOZPlugin extends Plugin {
         this.clipboard = new ClipboardFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
+        this.commandSlot = new CommandSlotFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -253,6 +256,14 @@ export default class ATOZPlugin extends Plugin {
         for (let i = 1; i <= 4; i++) {
             this.addCommand({ id: `open-quick-slot-${i}`, name: `퀵 슬롯 ${i} 파일 열기`, callback: () => void this.quickSlot.openSlot(i) });
         }
+
+        this.addCommand({ id: 'open-command-slot-assigner', name: '명령어 슬롯 지정 메뉴 열기', callback: () => this.commandSlot.openAssignModal() });
+        this.addCommand({ id: 'open-command-slot-selector', name: '명령어 슬롯 실행', callback: () => this.commandSlot.openSelectModal() });
+        this.addCommand({ id: 'clear-all-command-slots', name: '명령어 슬롯 모두 비우기', callback: async () => {
+        	this.settings.commandSlots = [];
+        	await this.saveSettings();
+        	new Notice('모든 명령어 슬롯이 비워졌습니다.');
+        }});
     }
 
     private async backupAndClearWork(): Promise<void> {
