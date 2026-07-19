@@ -18,6 +18,7 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { FolderLinkConvertFeature } from './features/FolderLinkConvert';
 
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
@@ -35,6 +36,7 @@ export default class ATOZPlugin extends Plugin {
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
+    folderLinkConvert!: FolderLinkConvertFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -63,6 +65,7 @@ export default class ATOZPlugin extends Plugin {
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
+        this.folderLinkConvert = new FolderLinkConvertFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -264,6 +267,8 @@ export default class ATOZPlugin extends Plugin {
         	await this.saveSettings();
         	new Notice('모든 명령어 슬롯이 비워졌습니다.');
         }});
+        this.addCommand({ id: 'convert-folder-wikilinks-to-markdown', name: '폴더 위키링크를 마크다운 링크로 변환', callback: () => this.folderLinkConvert.openWikilinkToMarkdownPicker() });
+        this.addCommand({ id: 'convert-folder-plaintext-to-wikilinks', name: '폴더 텍스트를 위키링크로 변환', callback: () => this.folderLinkConvert.openPlaintextToWikilinkPicker() });
     }
 
     private async backupAndClearWork(): Promise<void> {
