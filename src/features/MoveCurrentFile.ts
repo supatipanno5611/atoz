@@ -49,11 +49,14 @@ class MoveFileModal extends SuggestModal<MoveChoice> {
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((folder): MoveChoice => ({ kind: 'folder', label: folderLabel(folder), folder }));
 
-        return [
-            { kind: 'move', label: MOVE_HERE_LABEL },
-            { kind: 'new-folder', label: NEW_FOLDER_LABEL },
-            ...folders,
+        const fixedItems: MoveChoice[] = [
+        	{ kind: 'move', label: MOVE_HERE_LABEL },
+        	{ kind: 'new-folder', label: NEW_FOLDER_LABEL },
         ];
+
+        return normalized
+        	? [...folders, ...fixedItems]
+        	: [...fixedItems, ...folders];
     }
 
     renderSuggestion(value: MoveChoice, el: HTMLElement): void {
