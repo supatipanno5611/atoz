@@ -106,9 +106,11 @@ export class PropertiesFeature {
         const cache = this.plugin.app.metadataCache.getFileCache(activeFile);
         const fm = (cache?.frontmatter as FrontmatterRecord | undefined) ?? {};
             
-        const currentTitle = typeof fm.title === 'string' ? fm.title : activeFile.basename;
+        const { unique } = splitFilename(activeFile.basename);
+        const currentTitle = typeof fm.title === 'string' ? fm.title : unique;
         const currentDesc = typeof fm.description === 'string' ? fm.description : '';
-        const currentAliases = readStringArray(fm.aliases).join(', ');
+        const existingAliases = readStringArray(fm.aliases);
+        const currentAliases = existingAliases.length > 0 ? existingAliases.join(', ') : unique;
     
         // 2. 모달 띄우기
         new PropertyInputModal(
