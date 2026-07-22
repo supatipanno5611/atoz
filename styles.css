@@ -1,12 +1,5 @@
 /* ─── 설정 탭 ──────────────────────────────────────────────────────────────── */
 
-.atoz-setting-group {
-    background: var(--background-secondary);
-    border-radius: var(--radius-m);
-    padding: 4px 12px;
-    margin: 4px 0;
-}
-
 .atoz-setting-vertical {
     display: flex;
     flex-direction: column;

@@ -16,14 +16,14 @@ export class ATOZSettingTab extends PluginSettingTab {
         return [
         	{
         	    type: 'group' as const,
-        	    heading: '블로그 폴더',
+        	    heading: '블로그 폴더', // [변경] 그룹 제목이 '파일 이름'에서 '블로그 폴더'로 변경됨
         	
         	    items: [
         	        ...this.plugin.settings.blogFolders.flatMap((folder: BlogFolder, fi: number) => [
+        	            // [변경] 단일 파일 이름 설정 방식에서 여러 개의 블로그 폴더 구조(blogFolders)를 다루도록 확장됨
         	            {
         	                name: `폴더 #${fi + 1} 경로`,
         	                render: (setting: Setting) => {
-        	                    setting.settingEl.addClass('atoz-setting-group');
         	                    setting.addText((t) => t
         	                        .setPlaceholder('예: blog/travel')
         	                        .setValue(folder.path)
@@ -33,7 +33,7 @@ export class ATOZSettingTab extends PluginSettingTab {
         	                        })
         	                    ).addExtraButton((btn) => btn
         	                        .setIcon('lucide-trash-2')
-        	                        .setTooltip('폴더 삭제')
+        	                        .setTooltip('폴더 삭제') // [추가] 개별 폴더 삭제 버튼 추가
         	                        .onClick(async () => {
         	                            this.plugin.settings.blogFolders.splice(fi, 1);
         	                            await this.plugin.saveSettings();
@@ -43,9 +43,8 @@ export class ATOZSettingTab extends PluginSettingTab {
         	                },
         	            },
         	            ...folder.categories.map((cat: string, ci: number) => ({
-        	                name: `카테고리 #${ci + 1}`,
+        	                name: `　카테고리 #${ci + 1}`, // [추가] 각 폴더 내부의 카테고리 목록 매핑 (들여쓰기 적용)
         	                render: (setting: Setting) => {
-        	                    setting.settingEl.addClass('atoz-setting-group');
         	                    setting.addText((t) => t
         	                        .setPlaceholder('카테고리')
         	                        .setValue(cat)
@@ -55,7 +54,7 @@ export class ATOZSettingTab extends PluginSettingTab {
         	                        })
         	                    ).addExtraButton((btn) => btn
         	                        .setIcon('lucide-trash-2')
-        	                        .setTooltip('카테고리 삭제')
+        	                        .setTooltip('카테고리 삭제') // [추가] 개별 카테고리 삭제 버튼
         	                        .onClick(async () => {
         	                            this.plugin.settings.blogFolders[fi]!.categories.splice(ci, 1);
         	                            await this.plugin.saveSettings();
@@ -67,9 +66,8 @@ export class ATOZSettingTab extends PluginSettingTab {
         	            {
         	                name: '',
         	                render: (setting: Setting) => {
-        	                    setting.settingEl.addClass('atoz-setting-group');
         	                    setting.addButton((btn) => btn
-        	                        .setButtonText('카테고리 추가')
+        	                        .setButtonText('카테고리 추가') // [추가] 특정 폴더 내부에 카테고리를 추가하는 버튼
         	                        .onClick(async () => {
         	                            this.plugin.settings.blogFolders[fi]!.categories.push('');
         	                            await this.plugin.saveSettings();
@@ -83,7 +81,7 @@ export class ATOZSettingTab extends PluginSettingTab {
         	            name: '',
         	            render: (setting: Setting) => {
         	                setting.addButton((btn) => btn
-        	                    .setButtonText('블로그 폴더 추가')
+        	                    .setButtonText('블로그 폴더 추가') // [변경] 기존 '카테고리 추가'에서 전체 '블로그 폴더 추가' 버튼으로 변경됨
         	                    .onClick(async () => {
         	                        this.plugin.settings.blogFolders.push({ path: '', categories: [] });
         	                        await this.plugin.saveSettings();
