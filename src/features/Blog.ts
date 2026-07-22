@@ -214,28 +214,28 @@ class RenameFileModal extends Modal {
 
     onOpen() {
         const parsed = splitFilename(this.file.basename);
-
+    
         let folder: BlogFolder | null = this.findFolderForFile();
         let category = parsed.category;
         let order = parsed.order;
         let unique = parsed.unique;
-
+    
         if (!order && category && folder) {
             order = String(this.nextOrderFor(folder, category));
         }
-
+    
         this.titleEl.setText('파일 이름 변경');
-
+    
         const previewListEl = document.createElement('div');
         previewListEl.style.marginTop = '8px';
         previewListEl.style.fontSize = '0.85em';
         previewListEl.style.color = 'var(--text-muted)';
         previewListEl.style.whiteSpace = 'pre-line';
-
+    
         const preview = document.createElement('div');
         preview.style.marginTop = '8px';
         preview.style.fontWeight = 'bold';
-
+    
         const refreshPreview = () => {
             preview.setText(
                 category.trim()
@@ -246,7 +246,7 @@ class RenameFileModal extends Modal {
             );
             this.refreshOrderPreview(previewListEl, folder, category.trim(), order.trim());
         };
-
+    
         let categoryDropdown: any;
         const rebuildCategoryOptions = () => {
             categoryDropdown.selectEl.empty();
@@ -259,7 +259,9 @@ class RenameFileModal extends Modal {
             }
             categoryDropdown.setValue(category);
         };
-
+    
+        let orderInput: any;
+    
         new Setting(this.contentEl)
             .setName('블로그 폴더')
             .setDesc('파일이 속할 폴더')
@@ -268,19 +270,18 @@ class RenameFileModal extends Modal {
                 for (const f of folders) {
                     drop.addOption(f.path, f.path || '/');
                 }
-
-                const currentParentPath = this.file.parent?.path ?? '';
+    
                 if (folder && !folders.some(f => f.path === folder!.path)) {
                     drop.addOption(folder.path, folder.path || '/');
                 }
-
+    
                 if (folder) {
                     drop.setValue(folder.path);
                 } else if (folders.length > 0) {
                     folder = folders[0]!;
                     drop.setValue(folder.path);
                 }
-
+    
                 drop.onChange(v => {
                     folder = this.plugin.settings.blogFolders.find(f => f.path === v) ?? null;
                     if (!category || !(folder?.categories.includes(category))) {
@@ -288,38 +289,41 @@ class RenameFileModal extends Modal {
                         categoryDropdown.setValue(category);
                     }
                     order = folder ? String(this.nextOrderFor(folder, category)) : order;
+                    orderInput.setValue(order);
                     rebuildCategoryOptions();
                     refreshPreview();
                 });
             });
-
+    
         new Setting(this.contentEl)
             .setName('Category')
             .setDesc('파일명 앞부분')
             .addDropdown(drop => {
                 categoryDropdown = drop;
                 rebuildCategoryOptions();
-
+    
                 drop.onChange(v => {
                     category = v;
                     if (!order && folder) {
                         order = String(this.nextOrderFor(folder, category));
+                        orderInput.setValue(order);
                     }
                     refreshPreview();
                 });
             });
-
+    
         new Setting(this.contentEl)
             .setName('Order')
             .setDesc('같은 카테고리 내 순서 (숫자, 필수)')
             .addText(text => {
+                orderInput = text;
                 text.setValue(order);
                 text.onChange(v => {
                     order = v.trim();
                     refreshPreview();
                 });
             });
-
+    
         new Setting(this.contentEl)
             .setName('Unique name')
             .setDesc('파일명 뒷부분')
@@ -330,12 +334,12 @@ class RenameFileModal extends Modal {
                     refreshPreview();
                 });
             });
-
+    
         this.contentEl.appendChild(preview);
         this.contentEl.appendChild(previewListEl);
-
+    
         refreshPreview();
-
+    
         new Setting(this.contentEl)
             .addButton(btn => btn
                 .setButtonText('Rename')
@@ -344,63 +348,63 @@ class RenameFileModal extends Modal {
                     const trimmedCategory = category.trim();
                     const trimmedOrder = order.trim();
                     const trimmedUnique = unique.trim();
-
+    
                     if (trimmedCategory) {
                         if (!folder) {
                             new Notice('블로그 폴더를 먼저 설정하세요.');
                             return;
                         }
-
+    
                         if (!trimmedOrder) {
                             new Notice('순서를 입력하세요.');
                             return;
                         }
-
+    
                         const orderNum = parseInt(trimmedOrder, 10);
                         if (isNaN(orderNum) || orderNum < 1) {
                             new Notice('순서는 1 이상의 숫자여야 합니다.');
                             return;
                         }
-
+    
                         const ok = await this.applyOrderedRename(folder, trimmedCategory, orderNum, trimmedUnique);
                         if (!ok) return;
-
+    
                         new Notice('파일 이름을 변경했습니다.');
                         this.close();
                         return;
                     }
-
+    
                     const finalName = trimmedUnique;
-
+    
                     if (!finalName) {
                         new Notice('파일 이름을 입력하세요.');
                         return;
                     }
-
+    
                     if (finalName === this.file.basename) {
                         this.close();
                         return;
                     }
-
+    
                     const parent = this.file.parent?.path;
-
+    
                     const newPath =
                         parent
                             ? `${parent}/${finalName}.md`
                             : `${finalName}.md`;
-
+    
                     if (this.app.vault.getAbstractFileByPath(newPath)) {
                         new Notice('같은 이름의 파일이 이미 존재합니다.');
                         return;
                     }
-
+    
                     await this.app.fileManager.renameFile(
                         this.file,
                         newPath,
                     );
-
+    
                     new Notice('파일 이름을 변경했습니다.');
-
+    
                     this.close();
                 }));
     }
