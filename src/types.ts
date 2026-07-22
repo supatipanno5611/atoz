@@ -4,8 +4,12 @@ export interface ClipboardEntry {
     pinned?: boolean;
 }
 
+export interface BlogFolder {
+    path: string;
+    categories: string[];
+}
+
 export interface ATOZSettings {
-	filenameCategories: string[];
 	quickSlots: (string | string[] | null)[];
 	commandSlots: (string | null)[];
 	commandSlotCount: number;
@@ -28,7 +32,7 @@ export interface ATOZSettings {
     clipboardPreviewLength: number;
     moveLineSuffix: string;
     moveLineTargetFolder: string;
-    blogFolder: string;
+    blogFolders: BlogFolder[];
 }
 
 export type SnippetsItem =
@@ -42,9 +46,6 @@ export interface SymbolItem {
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
-	filenameCategories: [
-	    'srilanka',
-	],
 	quickSlots: [null, null, null, null],
 	commandSlots: [],
 	commandSlotCount: 4,
@@ -79,5 +80,5 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     clipboardPreviewLength: 50,
     moveLineSuffix: '_later.md',
     moveLineTargetFolder: '',
-    blogFolder: '',
+    blogFolders: [],
 };

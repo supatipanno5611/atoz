@@ -19,6 +19,7 @@ import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { FolderLinkConvertFeature } from './features/FolderLinkConvert';
+import { BlogFeature } from './features/Blog';
 
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
@@ -37,6 +38,7 @@ export default class ATOZPlugin extends Plugin {
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
     folderLinkConvert!: FolderLinkConvertFeature;
+    blog!: BlogFeature;
 
     selectedClipboardText = '';
     selectedClipboardId = '';
@@ -66,6 +68,7 @@ export default class ATOZPlugin extends Plugin {
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
         this.folderLinkConvert = new FolderLinkConvertFeature(this);
+        this.blog = new BlogFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -219,8 +222,8 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'insert-today-date', name: '오늘 날짜 속성 삽입', icon: 'lucide-calendar-plus', callback: () => void this.properties.insertTodayDate() });
         this.addCommand({ id: 'update-today-date', name: '오늘 날짜로 갱신', icon: 'lucide-calendar-sync', callback: () => void this.properties.updateTodayDate() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
-        this.addCommand({ id: 'edit-title-description', name: '블로그 속성 편집', callback: () => void this.properties.openTitleDescModal() });
-        this.addCommand({ id: 'rename-current-file', name: '파일 이름 변경', callback: () => void this.properties.renameFile() });
+        this.addCommand({ id: 'edit-title-description', name: '블로그 속성 편집', callback: () => void this.blog.openTitleDescModal() });
+        this.addCommand({ id: 'rename-current-file', name: '파일 이름 변경', callback: () => void this.blog.renameFile() });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => void this.work.openLaterFile() });
@@ -295,14 +298,14 @@ export default class ATOZPlugin extends Plugin {
                         item.setTitle('블로그 규칙 파일명 설정')
                             .setIcon('lucide-pencil-line')
                             .setSection('view')
-                            .onClick(() => void this.properties.renameFile());
+                            .onClick(() => void this.blog.renameFile());
                     });
         
                     menu.addItem((item) => {
                         item.setTitle('블로그 속성 편집')
                         	.setIcon('lucide-menu')
                             .setSection('view')
-                            .onClick(() => void this.properties.openTitleDescModal());
+                            .onClick(() => void this.blog.openTitleDescModal());
                     });
         
                     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
