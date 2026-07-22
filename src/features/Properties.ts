@@ -460,6 +460,10 @@ class RenameFileModal extends Modal {
         let category = parsed.category;
         let order = parsed.order;
         let unique = parsed.unique;
+        
+        if (!order && category && this.plugin.settings.blogFolder) {
+            order = String(this.nextOrderFor(category));
+        }
 
         this.titleEl.setText('파일 이름 변경');
 
@@ -514,6 +518,9 @@ class RenameFileModal extends Modal {
             
                 drop.onChange(v => {
                     category = v;
+                    if (!order) {
+                        order = String(this.nextOrderFor(category));
+                    }
                     refreshPreview();
                 });
             });
@@ -646,6 +653,16 @@ class RenameFileModal extends Modal {
         }
 
         el.setText(windowEntries.map(e => `${e.order}. ${e.unique}`).join('\n'));
+    }
+
+    private nextOrderFor(category: string): number {
+        const blogFolder = this.plugin.settings.blogFolder;
+        if (!blogFolder || !category) return 1;
+    
+        const entries = scanBlogEntries(this.app, blogFolder, category, this.file);
+        if (entries.length === 0) return 1;
+    
+        return Math.max(...entries.map(e => e.order)) + 1;
     }
 
     private async applyOrderedRename(blogFolder: string, category: string, newOrder: number, unique: string): Promise<boolean> {
