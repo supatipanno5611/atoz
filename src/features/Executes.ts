@@ -79,7 +79,7 @@ export class ExecutesFeature {
             await this.plugin.app.vault.create(finalPath, cleanedText);
         }
     
-        new Notice(`"${cleanedText}" 항목을 ${finalPath} 파일로 이동했습니다.`);
+        new Notice(`${finalPath} 파일로 이동했습니다.`);
     }
 
     private cleanMarkdownSymbols(text: string): string {
