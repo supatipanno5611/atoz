@@ -38,22 +38,22 @@ export class CharacterCountView extends ItemView {
 
         const createStat = (labelText: string, tooltip: string): HTMLElement => {
             const section = wrapper.createDiv();
-            section.setCssProps({ marginBottom: '20px' });
+            section.setCssProps({ 'margin-bottom': '20px' });
 
             const label = section.createDiv({ text: labelText });
             label.setCssProps({
-                fontSize: '0.85em',
+                'font-size': '0.85em',
                 color: 'var(--text-muted)',
-                marginBottom: '6px',
+                'margin-bottom': '6px',
             });
             label.setAttr('aria-label', tooltip);
 
             const value = section.createDiv({ text: '—' });
             value.setCssProps({
-                fontSize: '2em',
-                fontWeight: '600',
-                lineHeight: '1.1',
-                fontVariantNumeric: 'tabular-nums',
+                'font-size': '2em',
+                'font-weight': '600',
+                'line-height': '1.1',
+                'font-variant-numeric': 'tabular-nums',
             });
             return value;
         };
