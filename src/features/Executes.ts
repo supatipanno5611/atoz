@@ -1,5 +1,5 @@
 import type ATOZPlugin from '../main';
-import { Editor, MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import { pickMostRecentLeaf } from '../utils';
 
 export class ExecutesFeature {
@@ -31,64 +31,6 @@ export class ExecutesFeature {
     
         await this.plugin.work.openWorkFile();
     }
-
-    async moveLineToTarget(editor: Editor) {
-        // 1. 현재 활성화된 파일 정보를 가져옵니다.
-        const activeFile = this.plugin.app.workspace.getActiveFile();
-        if (!activeFile) {
-            new Notice('활성화된 파일이 없습니다.');
-            return;
-        }
-    
-        // 2. 설정된 접미어를 가져옵니다. 비어있다면 기본값 '_later.md'를 사용합니다.
-        const suffix = this.plugin.settings.moveLineSuffix?.trim() || '_later.md';
-            
-        // 3. 현재 파일 이름(basename) 뒤에 접미어를 붙여 타겟 파일명을 만듭니다.
-        const targetFilename = `${activeFile.basename}${suffix}`;
-    
-        // 3.5. 대상 폴더가 설정되어 있다면, 편집 전에 존재 여부를 미리 확인합니다.
-        const targetFolder = this.plugin.settings.moveLineTargetFolder?.trim();
-        if (targetFolder && !this.plugin.app.vault.getAbstractFileByPath(targetFolder)) {
-            new Notice(`대상 폴더를 찾을 수 없습니다: ${targetFolder}`);
-            return;
-        }
-    
-        const cursor = editor.getCursor();
-        const lineNum = cursor.line;
-        const originalLineText = editor.getLine(lineNum);
-        const cleanedText = this.cleanMarkdownSymbols(originalLineText);
-    
-        if (lineNum === editor.lineCount() - 1) {
-            editor.replaceRange('', { line: lineNum, ch: 0 }, { line: lineNum, ch: originalLineText.length });
-        } else {
-            editor.replaceRange('', { line: lineNum, ch: 0 }, { line: lineNum + 1, ch: 0 });
-        }
-    
-        if (!cleanedText) {
-            new Notice('빈 행이 삭제되었습니다.');
-            return;
-        }
-    
-        // 4. 설정된 대상 폴더 안에 생성되도록 경로를 계산합니다.
-        const finalPath = targetFolder ? `${targetFolder}/${targetFilename}` : targetFilename;
-    
-        const targetFile = this.plugin.app.vault.getAbstractFileByPath(finalPath);
-        if (targetFile instanceof TFile) {
-            await this.plugin.app.vault.append(targetFile, `\n${cleanedText}`);
-        } else {
-            await this.plugin.app.vault.create(finalPath, cleanedText);
-        }
-    
-        new Notice(`${finalPath} 파일로 이동했습니다.`);
-    }
-
-    private cleanMarkdownSymbols(text: string): string {
-        let result = text.trim();
-        if (!result) return '';
-        result = result.replace(/^(?:>\s*)*(?:[-*+]\s+)?(?:\[[ xX]\]\s+)?(?:\d+\.\s+)?/, '');
-        return result.trim();
-    }
-
 
     executeDeleteParagraph() {
         const view = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);

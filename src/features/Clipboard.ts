@@ -183,13 +183,15 @@ export class ClipboardFeature {
     async activateView(): Promise<void> {
         const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD);
         if (existing.length > 0) {
-            this.plugin.app.workspace.revealLeaf(existing[0]!);
+            this.plugin.activeSidebarMode = 'clipboard';
+            void this.plugin.app.workspace.revealLeaf(existing[0]!);
             return;
         }
         const leaf = this.plugin.app.workspace.getRightLeaf(false);
         if (!leaf) return;
         await leaf.setViewState({ type: VIEW_TYPE_CLIPBOARD, active: true });
-        this.plugin.app.workspace.revealLeaf(leaf);
+        this.plugin.activeSidebarMode = 'clipboard';
+        void this.plugin.app.workspace.revealLeaf(leaf);
     }
 }
 
@@ -304,6 +306,7 @@ export class ClipboardView extends ItemView {
     }
 
     private selectEntry(entry: ClipboardEntry, el: HTMLElement): void {
+        this.plugin.activeSidebarMode = 'clipboard';
         this.selectedEl?.removeClass('atoz-clipboard-selected');
         this.plugin.selectedClipboardText = entry.text;
         this.plugin.selectedClipboardId = entry.id;

@@ -70,7 +70,8 @@ body.notice-bottom .notice {
 }
 
 /* ── 빈 상태 ── */
-.atoz-clipboard-empty {
+.atoz-clipboard-empty,
+.atoz-later-empty {
     padding: 16px;
     color: var(--text-muted);
     font-size: var(--font-smaller);
@@ -78,13 +79,15 @@ body.notice-bottom .notice {
 }
 
 /* ── 목록 ── */
-.atoz-clipboard-list {
+.atoz-clipboard-list,
+.atoz-later-list {
     list-style: none;
     margin: 0;
     padding: 4px 0;
 }
 
-.atoz-clipboard-item {
+.atoz-clipboard-item,
+.atoz-later-item {
     display: flex;
     align-items: center;
     padding: 5px 8px;
@@ -93,11 +96,18 @@ body.notice-bottom .notice {
     margin: 0 4px;
 }
 
-.atoz-clipboard-item:hover {
+.atoz-clipboard-item:hover,
+.atoz-later-item:hover {
     background: var(--background-modifier-hover);
 }
 
 .atoz-clipboard-item.atoz-clipboard-selected {
+    background: var(--background-modifier-hover);
+    outline: 1px solid var(--color-accent);
+    outline-offset: -1px;
+}
+
+.atoz-later-item.atoz-later-selected {
     background: var(--background-modifier-hover);
     outline: 1px solid var(--color-accent);
     outline-offset: -1px;
@@ -111,7 +121,8 @@ body.notice-bottom .notice {
 }
 
 /* ── 텍스트 미리보기 ── */
-.atoz-clipboard-text {
+.atoz-clipboard-text,
+.atoz-later-text {
     flex: 1;
     font-size: var(--font-normal);
     color: var(--text-normal);
@@ -119,6 +130,20 @@ body.notice-bottom .notice {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+}
+
+.atoz-later-source {
+    padding: 12px;
+    color: var(--text-muted);
+}
+
+.atoz-later-candidate-preview {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 사이드바가 닫혔을 때 최상위로 꺼내진 태블릿 리본 메뉴 디자인 */

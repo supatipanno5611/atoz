@@ -11,6 +11,7 @@ const ALLOWED_PROPERTIES = new Set([
     'cssclasses',
     'aliases',
     'tags',
+    'later',
 ]);
 
 // 토픽 관리를 위한 마커 상수들
