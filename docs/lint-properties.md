@@ -8,15 +8,14 @@ vault의 마크다운 파일 frontmatter를 검사해 빈 비허용 속성을 �
 
 - 명령 팔레트에서 `속성을 형식에 맞게 정리`를 실행합니다.
 - 빈 값인 비허용 속성은 자동으로 삭제됩니다.
-- 값이 들어 있는 비허용 속성이나 오디오 속성 짝이 맞지 않는 파일은 새 탭으로 열립니다.
+- 값이 들어 있는 비허용 속성이 있는 파일은 새 탭으로 열립니다.
 
 ## 허용 속성
 
-- `date`, `topics`, `type`, `parent`, `order`
-- `youtubeId`, `audioSrc`, `audioTitle`
+- `date`, `topics`, `title`, `description`
+- `cssclasses`, `aliases`, `tags`, `later`
 
 ## 제외 파일
 
 - `log.md`
 - 설정된 작업 문서
-- 설정된 보관 문서
