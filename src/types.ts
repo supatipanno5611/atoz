@@ -4,11 +4,6 @@ export interface ClipboardEntry {
     pinned?: boolean;
 }
 
-export interface BlogFolder {
-    path: string;
-    categories: string[];
-}
-
 export interface ATOZSettings {
 	quickSlots: (string | string[] | null)[];
 	commandSlots: (string | null)[];
@@ -29,7 +24,6 @@ export interface ATOZSettings {
     clipboardHistoryLimit: number;
     clipboardPreviewLength: number;
     moveLineTargetFolder: string;
-    blogFolders: BlogFolder[];
 }
 
 export type SnippetsItem =
@@ -74,5 +68,4 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     clipboardHistoryLimit: 30,
     clipboardPreviewLength: 50,
     moveLineTargetFolder: '',
-    blogFolders: [],
 };
