@@ -264,7 +264,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'move-line-to-target', name: '선택한 행을 Later로 이동', editorCallback: (editor, view) => void this.later.moveLinesToLater(editor, view.file) });
+        this.addCommand({ id: 'move-line-to-target', name: '선택한 행을 Later로 이동', icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveLinesToLater(editor, view.file) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
 
         this.addCommand({ id: 'open-quick-slot-assigner', name: '퀵 슬롯 지정 메뉴 열기', callback: () => this.quickSlot.openAssignModal() });
