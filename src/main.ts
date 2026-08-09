@@ -168,7 +168,12 @@ export default class ATOZPlugin extends Plugin {
 
     async loadSettings() {
         const loadedData: unknown = await this.loadData();
-        const data = typeof loadedData === 'object' && loadedData !== null ? loadedData : {};
+        const data: Record<string, unknown> = typeof loadedData === 'object' && loadedData !== null
+            ? { ...loadedData }
+            : {};
+        delete data.laterFilePath;
+        delete data.workTimestampFormat;
+        delete data.moveLineSuffix;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data) as ATOZSettings;
     }
 
@@ -205,7 +210,6 @@ export default class ATOZPlugin extends Plugin {
 
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
-        this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
         this.addRibbonIcon('lucide-folder-open', '모든 폴더 숨김 토글', () => void this.folderVisibility.toggleAllFoldersHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
@@ -242,14 +246,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'rename-current-file', name: '파일 이름 변경', callback: () => void this.blog.renameFile() });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
-        this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => void this.work.openLaterFile() });
         this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => void this.work.cleanupTabs() });
-        this.addCommand({
-            id: 'backup-and-clear-work',
-            name: '작업 문서 정리',
-            icon: 'lucide-brush-cleaning',
-            callback: () => void this.backupAndClearWork(),
-        });
         this.addCommand({ id: 'clipboard-select-prev', name: '사이드바 이전 항목 선택', callback: () => this.selectSidebarItem('prev') });
         this.addCommand({ id: 'clipboard-select-next', name: '사이드바 다음 항목 선택', callback: () => this.selectSidebarItem('next') });
         this.addCommand({ id: 'paste-clipboard-selected', name: '사이드바 선택 항목 가져오기', icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
@@ -267,7 +264,7 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'move-line-to-target', name: '현재 행을 파일로 이동', editorCallback: (editor, view) => void this.later.moveLinesToLater(editor, view.file) });
+        this.addCommand({ id: 'move-line-to-target', name: '선택한 행을 Later로 이동', editorCallback: (editor, view) => void this.later.moveLinesToLater(editor, view.file) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
 
         this.addCommand({ id: 'open-quick-slot-assigner', name: '퀵 슬롯 지정 메뉴 열기', callback: () => this.quickSlot.openAssignModal() });
@@ -341,12 +338,6 @@ export default class ATOZPlugin extends Plugin {
             if (leaf.view instanceof MarkdownView && leaf.view.file) leaves.push(leaf);
         });
         return pickMostRecentLeaf(leaves, this.app);
-    }
-
-    private async backupAndClearWork(): Promise<void> {
-        const result = await this.work.readWorkContent();
-        if (!result || !result.content.trim()) return;
-        await this.work.backupAndClear(result.file, result.content);
     }
 
     registerEvents() {

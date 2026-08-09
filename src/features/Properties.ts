@@ -44,7 +44,6 @@ export class PropertiesFeature {
         const excluded = new Set([
             'log.md',
             this.plugin.settings.workFilePath,
-            this.plugin.settings.laterFilePath,
         ]);
 
         let cleanedCount = 0;

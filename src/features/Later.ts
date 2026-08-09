@@ -116,7 +116,15 @@ export class LaterFeature {
             return;
         }
 
-        const range = this.getSelectedLineRange(editor);
+        let range = this.getSelectedLineRange(editor);
+        const frontmatterEnd = this.findFrontmatterEndLine(editor);
+        if (frontmatterEnd >= 0 && range.end <= frontmatterEnd) {
+            new Notice('Frontmatter는 Later로 이동할 수 없습니다.');
+            return;
+        }
+        if (frontmatterEnd >= 0 && range.start <= frontmatterEnd) {
+            range = { start: frontmatterEnd + 1, end: range.end };
+        }
         const cleanedLines: string[] = [];
         for (let line = range.start; line <= range.end; line++) {
             const cleaned = this.cleanMarkdownSymbols(editor.getLine(line));
@@ -371,8 +379,7 @@ export class LaterFeature {
     }
 
     private async getOrCreateLaterFile(source: TFile, targetFolder: string | undefined): Promise<TFile | null> {
-        const suffix = this.plugin.settings.moveLineSuffix?.trim() || '_later.md';
-        const targetFilename = `${source.basename}${suffix}`;
+        const targetFilename = `${source.basename}_later.md`;
         const finalPath = normalizePath(targetFolder ? `${targetFolder}/${targetFilename}` : targetFilename);
         const existing = this.plugin.app.vault.getAbstractFileByPath(finalPath);
 
@@ -440,6 +447,14 @@ export class LaterFeature {
         const to = editor.getCursor('to');
         const end = to.ch === 0 && to.line > from.line ? to.line - 1 : to.line;
         return { start: from.line, end };
+    }
+
+    private findFrontmatterEndLine(editor: Editor): number {
+        if (editor.getLine(0).trim() !== '---') return -1;
+        for (let line = 1; line < editor.lineCount(); line++) {
+            if (editor.getLine(line).trim() === '---') return line;
+        }
+        return -1;
     }
 
     private removeLines(editor: Editor, start: number, end: number): void {

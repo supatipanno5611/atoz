@@ -262,37 +262,22 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
-                heading: '작업 문서와 보관 문서',
+                heading: '작업 문서',
                 items: [
                     {
                         name: '작업 문서 경로',
                         desc: '작업 문서 명령에서 사용할 볼트 기준 경로입니다.',
                         control: { type: 'text' as const, key: 'workFilePath', placeholder: '예: work.md' },
                     },
-                    {
-                        name: '보관 문서 경로',
-                        desc: '보관 문서 명령에서 사용할 볼트 기준 경로입니다.',
-                        control: { type: 'text' as const, key: 'laterFilePath', placeholder: '예: later.md' },
-                    },
-                    {
-                        name: '작업 시간 형식',
-                        desc: '작업 문서 백업을 덧붙일 때 사용할 Moment.js 시간 형식입니다.',
-                        control: { type: 'text' as const, key: 'workTimestampFormat', placeholder: 'MM/DD HH:mm:ss' },
-                    },
                 ],
             },
             {
                 type: 'group' as const,
-                heading: '행 이동',
+                heading: 'Later',
                 items: [
                     {
-                        name: '행 이동 파일 접미어',
-                        desc: '현재 파일 이름 뒤에 붙을 접미어입니다. (확장자 .md 포함 필수)',
-                        control: { type: 'text' as const, key: 'moveLineSuffix', placeholder: '_later.md' },
-                     },
-                     {
-                        name: '행 이동 대상 폴더',
-                        desc: '비워두면 볼트 루트에 생성됩니다.',
+                        name: 'Later 노트 대상 폴더',
+                        desc: '비워두면 원본별 Later 노트가 볼트 루트에 생성됩니다.',
                         control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: '예: archive' },
                      },
                 ],

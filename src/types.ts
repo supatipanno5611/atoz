@@ -25,12 +25,9 @@ export interface ATOZSettings {
     symbols: SymbolItem[];
     recentSymbols: Record<string, number>;
     workFilePath: string;
-    laterFilePath: string;
-    workTimestampFormat: string;
     clipboardHistory: ClipboardEntry[];
     clipboardHistoryLimit: number;
     clipboardPreviewLength: number;
-    moveLineSuffix: string;
     moveLineTargetFolder: string;
     blogFolders: BlogFolder[];
 }
@@ -73,12 +70,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     ],
     recentSymbols: {},
     workFilePath: 'work.md',
-    laterFilePath: 'later.md',
-    workTimestampFormat: 'MM/DD HH:mm:ss',
     clipboardHistory: [],
     clipboardHistoryLimit: 30,
     clipboardPreviewLength: 50,
-    moveLineSuffix: '_later.md',
     moveLineTargetFolder: '',
     blogFolders: [],
 };
