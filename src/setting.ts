@@ -205,22 +205,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
-                type: 'group' as const,
-                heading: '클립보드',
-                items: [
-                    {
-                        name: '히스토리 최대 개수',
-                        desc: '저장할 클립보드 항목의 최대 개수입니다.',
-                        control: { type: 'number' as const, key: 'clipboardHistoryLimit', min: 0 },
-                    },
-                    {
-                        name: '미리보기 글자 수',
-                        desc: '사이드바와 모달에서 표시할 최대 글자 수입니다.',
-                        control: { type: 'number' as const, key: 'clipboardPreviewLength', min: 0 },
-                    },
-                ],
-            },
-            {
             	type: 'group' as const,
             	heading: '명령어 슬롯',
             	items: [

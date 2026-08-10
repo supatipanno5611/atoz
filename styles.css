@@ -70,7 +70,6 @@ body.notice-bottom .notice {
 }
 
 /* ── 빈 상태 ── */
-.atoz-clipboard-empty,
 .atoz-later-empty {
     padding: 16px;
     color: var(--text-muted);
@@ -79,14 +78,12 @@ body.notice-bottom .notice {
 }
 
 /* ── 목록 ── */
-.atoz-clipboard-list,
 .atoz-later-list {
     list-style: none;
     margin: 0;
     padding: 4px 0;
 }
 
-.atoz-clipboard-item,
 .atoz-later-item {
     display: flex;
     align-items: center;
@@ -96,15 +93,8 @@ body.notice-bottom .notice {
     margin: 0 4px;
 }
 
-.atoz-clipboard-item:hover,
 .atoz-later-item:hover {
     background: var(--background-modifier-hover);
-}
-
-.atoz-clipboard-item.atoz-clipboard-selected {
-    background: var(--background-modifier-hover);
-    outline: 1px solid var(--color-accent);
-    outline-offset: -1px;
 }
 
 .atoz-later-item.atoz-later-selected {
@@ -113,15 +103,7 @@ body.notice-bottom .notice {
     outline-offset: -1px;
 }
 
-.atoz-clipboard-divider {
-    height: 1px;
-    background: var(--background-modifier-border);
-    margin: 4px 8px;
-    list-style: none;
-}
-
 /* ── 텍스트 미리보기 ── */
-.atoz-clipboard-text,
 .atoz-later-text {
     flex: 1;
     font-size: var(--font-normal);

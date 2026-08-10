@@ -1,9 +1,3 @@
-export interface ClipboardEntry {
-    id: string;
-    text: string;
-    pinned?: boolean;
-}
-
 export interface ATOZSettings {
 	quickSlots: (string | string[] | null)[];
 	commandSlots: (string | null)[];
@@ -20,9 +14,6 @@ export interface ATOZSettings {
     symbols: SymbolItem[];
     recentSymbols: Record<string, number>;
     workFilePath: string;
-    clipboardHistory: ClipboardEntry[];
-    clipboardHistoryLimit: number;
-    clipboardPreviewLength: number;
     moveLineTargetFolder: string;
 }
 
@@ -64,8 +55,5 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     ],
     recentSymbols: {},
     workFilePath: 'work.md',
-    clipboardHistory: [],
-    clipboardHistoryLimit: 30,
-    clipboardPreviewLength: 50,
     moveLineTargetFolder: '',
 };

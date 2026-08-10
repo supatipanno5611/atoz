@@ -1,7 +1,6 @@
-import { Editor, MarkdownView, Notice, Plugin, TFile, View, WorkspaceLeaf } from 'obsidian';
+import { Editor, MarkdownView, Notice, Plugin, TFile, View } from 'obsidian';
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { ClipboardFeature, ClipboardModal, ClipboardView, VIEW_TYPE_CLIPBOARD } from './features/Clipboard';
 import { CommandSlotFeature } from './features/CommandSlot';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
@@ -20,7 +19,6 @@ import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { FolderLinkConvertFeature } from './features/FolderLinkConvert';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
-import { pickMostRecentLeaf } from './utils';
 import { InfoFeature } from './features/Info';
 
 export default class ATOZPlugin extends Plugin {
@@ -35,7 +33,6 @@ export default class ATOZPlugin extends Plugin {
     folderVisibility!: FolderVisibility;
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
-    clipboard!: ClipboardFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
@@ -43,10 +40,7 @@ export default class ATOZPlugin extends Plugin {
     later!: LaterFeature;
     info!: InfoFeature;
 
-    activeSidebarMode: 'clipboard' | 'later' | null = null;
-
-    selectedClipboardText = '';
-    selectedClipboardId = '';
+    activeSidebarMode: 'later' | null = null;
 
     topicCandidates: string[] = [];
     private saveTimer: number | null = null;
@@ -61,14 +55,13 @@ export default class ATOZPlugin extends Plugin {
         this.executes = new ExecutesFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
         this.properties = new PropertiesFeature(this);
-        this.cutCopy = new CutCopyFeature(this);
+        this.cutCopy = new CutCopyFeature();
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.folderVisibility = new FolderVisibility(this);
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
-        this.clipboard = new ClipboardFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
@@ -84,12 +77,12 @@ export default class ATOZPlugin extends Plugin {
         this.registerEditorSuggest(new SnippetsSuggestions(this));
         this.registerEditorSuggest(new SymbolSuggestions(this));
 
-        this.registerView(VIEW_TYPE_CLIPBOARD, (leaf) => new ClipboardView(leaf, this));
         this.registerView(VIEW_TYPE_LATER, (leaf) => new LaterView(leaf, this));
         this.later.install();
         this.info.install();
 
         this.app.workspace.onLayoutReady(() => {
+            this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
             this.topicCandidates = this.collectTopicCandidates();
             this.folderVisibility.install();
             this.mobile.install();
@@ -160,7 +153,6 @@ export default class ATOZPlugin extends Plugin {
         this.mobile.uninstall();
         this.later.uninstall();
         this.info.uninstall();
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE_CLIPBOARD);
     }
 
     async loadSettings() {
@@ -171,7 +163,14 @@ export default class ATOZPlugin extends Plugin {
         delete data.laterFilePath;
         delete data.workTimestampFormat;
         delete data.moveLineSuffix;
+        const hadClipboardData = 'clipboardHistory' in data
+            || 'clipboardHistoryLimit' in data
+            || 'clipboardPreviewLength' in data;
+        delete data.clipboardHistory;
+        delete data.clipboardHistoryLimit;
+        delete data.clipboardPreviewLength;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data) as ATOZSettings;
+        if (hadClipboardData) await this.saveSettings();
     }
 
     async saveSettings() {
@@ -209,7 +208,6 @@ export default class ATOZPlugin extends Plugin {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-folder-open', '모든 폴더 숨김 토글', () => void this.folderVisibility.toggleAllFoldersHidden());
         this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
-        this.addRibbonIcon('lucide-clipboard-list', '클립보드 사이드바 열기', () => void this.clipboard.activateView());
         this.addRibbonIcon('lucide-archive-restore', 'Later 사이드바 열기', () => void this.later.activateView());
         for (let i = 1; i <= 4; i++) {
         	this.addRibbonIcon(`lucide-dice-${i}`, `퀵 슬롯 ${i} 열기`, () => void this.quickSlot.openSlot(i));
@@ -245,21 +243,15 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'clipboard-select-prev', name: '사이드바 이전 항목 선택', callback: () => this.selectSidebarItem('prev') });
         this.addCommand({ id: 'clipboard-select-next', name: '사이드바 다음 항목 선택', callback: () => this.selectSidebarItem('next') });
         this.addCommand({ id: 'paste-clipboard-selected', name: '사이드바 선택 항목 가져오기', icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
-        this.addCommand({ id: 'open-clipboard-history', name: '클립보드 모달 열기', callback: () => new ClipboardModal(this).open() });
-        this.addCommand({ id: 'open-clipboard-view', name: '클립보드 사이드바 열기', callback: () => void this.clipboard.activateView() });
         this.addCommand({ id: 'open-later-view', name: 'Later 사이드바 열기', callback: () => void this.later.activateView() });
         this.addCommand({ id: 'resolve-later-links', name: 'Later 연결 정리', callback: () => void this.later.resolveDuplicateLinks() });
-        this.addCommand({ id: 'clipboard-clear-history', name: '클립보드 히스토리 전체 삭제', callback: () => this.clipboard.clearHistory() });
-        this.addCommand({ id: 'clipboard-delete-selected', name: '클립보드 선택 항목 삭제', icon: 'lucide-clipboard-x', callback: () => this.clipboard.deleteSelected() });
-        this.addCommand({ id: 'clipboard-list-order-up', name: '클립보드 선택 항목 위로 이동', callback: () => this.clipboard.moveSelected('up') });
-        this.addCommand({ id: 'clipboard-list-order-down', name: '클립보드 선택 항목 아래로 이동', callback: () => this.clipboard.moveSelected('down') });
 
         this.addCommand({ id: 'cycle-left-sidebar-next', name: '왼쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
         this.addCommand({ id: 'cycle-left-sidebar-prev', name: '왼쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
         this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'move-line-to-target', name: '선택한 행을 Later로 이동', icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveLinesToLater(editor, view.file) });
+        this.addCommand({ id: 'move-line-to-target', name: '선택 영역 또는 현재 행을 Later로 이동', icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveSelectionToLater(editor, view.file) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
 
         this.addCommand({ id: 'open-quick-slot-assigner', name: '퀵 슬롯 지정 메뉴 열기', callback: () => this.quickSlot.openAssignModal() });
@@ -285,19 +277,13 @@ export default class ATOZPlugin extends Plugin {
     }
 
     private selectSidebarItem(direction: 'prev' | 'next'): void {
-        if (this.activeSidebarMode === 'clipboard' && this.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD).length > 0) {
-            if (direction === 'prev') this.clipboard.selectPrev();
-            else this.clipboard.selectNext();
-            return;
-        }
-
         if (this.activeSidebarMode === 'later' && this.app.workspace.getLeavesOfType(VIEW_TYPE_LATER).length > 0) {
             if (direction === 'prev') this.later.selectPrev();
             else this.later.selectNext();
             return;
         }
 
-        new Notice('클립보드 또는 Later 사이드바 탭을 선택해 주세요.');
+        new Notice('Later 사이드바 탭을 선택해 주세요.');
     }
 
     private async takeSidebarItem(): Promise<void> {
@@ -306,33 +292,7 @@ export default class ATOZPlugin extends Plugin {
             return;
         }
 
-        if (this.activeSidebarMode === 'clipboard' && this.app.workspace.getLeavesOfType(VIEW_TYPE_CLIPBOARD).length > 0) {
-            if (!this.selectedClipboardText) {
-                new Notice('가져올 클립보드 항목이 선택되지 않았습니다.');
-                return;
-            }
-
-            const leaf = this.getMostRecentRootMarkdownLeaf();
-            if (!(leaf?.view instanceof MarkdownView)) {
-                new Notice('텍스트를 가져올 Markdown 노트가 없습니다.');
-                return;
-            }
-
-            this.clipboard.pasteSelected(leaf.view.editor);
-            this.app.workspace.setActiveLeaf(leaf, { focus: true });
-            leaf.view.editor.focus();
-            return;
-        }
-
-        new Notice('클립보드 또는 Later 사이드바 탭을 선택해 주세요.');
-    }
-
-    private getMostRecentRootMarkdownLeaf(): WorkspaceLeaf | null {
-        const leaves: WorkspaceLeaf[] = [];
-        this.app.workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view instanceof MarkdownView && leaf.view.file) leaves.push(leaf);
-        });
-        return pickMostRecentLeaf(leaves, this.app);
+        new Notice('Later 사이드바 탭을 선택해 주세요.');
     }
 
     registerEvents() {

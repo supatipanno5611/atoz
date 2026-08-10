@@ -92,8 +92,6 @@ export class LaterFeature {
         const viewType = leaf.view.getViewType();
         if (viewType === VIEW_TYPE_LATER) {
             this.plugin.activeSidebarMode = 'later';
-        } else if (viewType === 'atoz-clipboard-view') {
-            this.plugin.activeSidebarMode = 'clipboard';
         } else {
             this.plugin.activeSidebarMode = null;
         }
@@ -106,7 +104,7 @@ export class LaterFeature {
         this.refreshView();
     }
 
-    async moveLinesToLater(editor: Editor, sourceFile: TFile | null): Promise<void> {
+    async moveSelectionToLater(editor: Editor, sourceFile: TFile | null): Promise<void> {
         if (!sourceFile) {
             new Notice('활성화된 파일이 없습니다.');
             return;
@@ -116,25 +114,34 @@ export class LaterFeature {
             return;
         }
 
-        let range = this.getSelectedLineRange(editor);
         const frontmatterEnd = this.findFrontmatterEndLine(editor);
-        if (frontmatterEnd >= 0 && range.end <= frontmatterEnd) {
-            new Notice('Frontmatter는 Later로 이동할 수 없습니다.');
-            return;
-        }
-        if (frontmatterEnd >= 0 && range.start <= frontmatterEnd) {
-            range = { start: frontmatterEnd + 1, end: range.end };
-        }
-        const cleanedLines: string[] = [];
-        for (let line = range.start; line <= range.end; line++) {
-            const cleaned = this.cleanMarkdownSymbols(editor.getLine(line));
-            if (cleaned) cleanedLines.push(cleaned);
-        }
+        const hasSelection = editor.somethingSelected();
+        let textToMove: string;
+        let currentLine: number | null = null;
 
-        if (cleanedLines.length === 0) {
-            this.removeLines(editor, range.start, range.end);
-            new Notice('빈 행이 삭제되었습니다.');
-            return;
+        if (hasSelection) {
+            const from = editor.getCursor('from');
+            if (frontmatterEnd >= 0 && from.line <= frontmatterEnd) {
+                new Notice('Frontmatter가 포함된 선택 영역은 Later로 이동할 수 없습니다.');
+                return;
+            }
+            textToMove = editor.getSelection();
+            if (!textToMove.trim()) {
+                new Notice('이동할 내용이 없습니다.');
+                return;
+            }
+        } else {
+            currentLine = editor.getCursor().line;
+            if (frontmatterEnd >= 0 && currentLine <= frontmatterEnd) {
+                new Notice('Frontmatter는 Later로 이동할 수 없습니다.');
+                return;
+            }
+            textToMove = this.cleanMarkdownSymbols(editor.getLine(currentLine));
+            if (!textToMove) {
+                this.removeLines(editor, currentLine, currentLine);
+                new Notice('빈 행이 삭제되었습니다.');
+                return;
+            }
         }
 
         const targetFolder = this.plugin.settings.moveLineTargetFolder?.trim();
@@ -158,9 +165,15 @@ export class LaterFeature {
                 if (!targetFile) return;
             }
 
-            await this.plugin.app.vault.append(targetFile, `\n${cleanedLines.join('\n')}`);
-            this.removeLines(editor, range.start, range.end);
+            await this.plugin.app.vault.append(targetFile, `\n\n${textToMove}`);
+            if (hasSelection) {
+                editor.replaceSelection('');
+            } else if (currentLine !== null) {
+                this.removeLines(editor, currentLine, currentLine);
+            }
             this.sourceFile = sourceFile;
+            const entries = await this.readEntries(targetFile);
+            this.selectedEntry = entries[entries.length - 1] ?? null;
             this.refreshView();
             new Notice(`${targetFile.path} 파일로 이동했습니다.`);
         } catch (error) {
@@ -437,18 +450,6 @@ export class LaterFeature {
         return selected;
     }
 
-    private getSelectedLineRange(editor: Editor): { start: number; end: number } {
-        if (!editor.somethingSelected()) {
-            const line = editor.getCursor().line;
-            return { start: line, end: line };
-        }
-
-        const from = editor.getCursor('from');
-        const to = editor.getCursor('to');
-        const end = to.ch === 0 && to.line > from.line ? to.line - 1 : to.line;
-        return { start: from.line, end };
-    }
-
     private findFrontmatterEndLine(editor: Editor): number {
         if (editor.getLine(0).trim() !== '---') return -1;
         for (let line = 1; line < editor.lineCount(); line++) {
@@ -592,6 +593,7 @@ export class LaterView extends ItemView {
         }
 
         container.scrollTop = prevScrollTop;
+        this.selectedEl?.scrollIntoView({ block: 'nearest' });
     }
 
     updateHighlight(id: string | null): void {

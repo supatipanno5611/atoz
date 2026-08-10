@@ -1,15 +1,11 @@
-import type ATOZPlugin from '../main';
 import { Editor, Notice } from 'obsidian';
 
 export class CutCopyFeature {
-    constructor(private plugin: ATOZPlugin) {}
-
     // 문서 전체를 복사하는 메서드
     async copyAll(editor: Editor) {
         // 현재 에디터의 전체 텍스트를 가져옴
         // editor.getValue()는 문서 전체 문자열을 반환
         await navigator.clipboard.writeText(editor.getValue());
-        this.plugin.clipboard.addEntry(editor.getValue());
 
         // 사용자에게 복사 완료 알림 표시
         new Notice('문서 전체가 복사되었습니다.');
@@ -25,8 +21,6 @@ export class CutCopyFeature {
 
         // 전체 내용을 클립보드에 복사
         await navigator.clipboard.writeText(content);
-
-        this.plugin.clipboard.addEntry(content);
 
         // 문서 내용을 전부 비움
         editor.setValue("");
@@ -62,7 +56,6 @@ export class CutCopyFeature {
 
             // 해당 텍스트를 클립보드에 복사
             await navigator.clipboard.writeText(text);
-            this.plugin.clipboard.addEntry(text);
 
             if (isCut) {
                 // 잘라내기 모드라면 선택된 텍스트를 삭제
