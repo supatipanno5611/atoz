@@ -16,7 +16,6 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
-import { FolderLinkConvertFeature } from './features/FolderLinkConvert';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { InfoFeature } from './features/Info';
 
@@ -34,7 +33,6 @@ export default class ATOZPlugin extends Plugin {
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
-    folderLinkConvert!: FolderLinkConvertFeature;
     later!: LaterFeature;
     info!: InfoFeature;
 
@@ -62,7 +60,6 @@ export default class ATOZPlugin extends Plugin {
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
-        this.folderLinkConvert = new FolderLinkConvertFeature(this);
         this.later = new LaterFeature(this);
         this.info = new InfoFeature(this);
 
@@ -222,7 +219,6 @@ export default class ATOZPlugin extends Plugin {
         
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => void this.executes.focusRootLeaf() });
-        this.addCommand({ id: 'convert-wikilink-to-markdown', name: '위키링크 일괄 변환', editorCallback: async (editor, view) => { if (!view.file) return; await this.executes.convertWikiLinks(editor, view.file); } });
 
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
         this.addCommand({ id: 'toggle-mobile-sticky-ribbon', name: '사이드바 독립 리본 토글', icon: 'sidebar-toggle-button-icon', callback: () => void this.mobile.toggleStickyRibbon() });
@@ -267,8 +263,6 @@ export default class ATOZPlugin extends Plugin {
         	await this.saveSettings();
         	new Notice('모든 명령어 슬롯이 비워졌습니다.');
         }});
-        this.addCommand({ id: 'convert-folder-wikilinks-to-markdown', name: '폴더 위키링크를 마크다운 링크로 변환', callback: () => this.folderLinkConvert.openWikilinkToMarkdownPicker() });
-        this.addCommand({ id: 'convert-folder-plaintext-to-wikilinks', name: '폴더 텍스트를 위키링크로 변환', callback: () => this.folderLinkConvert.openPlaintextToWikilinkPicker() });
     }
 
     private selectSidebarItem(direction: 'prev' | 'next'): void {
@@ -307,13 +301,6 @@ export default class ATOZPlugin extends Plugin {
                     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
                     if (activeView) {
                     	const view = activeView;
-                        menu.addItem((item) => {
-                            item.setTitle('위키링크 일괄 변환')
-                            	.setIcon('lucide-brackets')
-                                .setSection('view')
-                                .onClick(() => void this.executes.convertWikiLinks(view.editor, file));
-                        });
-
                         menu.addItem((item) => {
                         	item.setTitle('저장')
                         		.setIcon('lucide-save')
