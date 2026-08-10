@@ -4,6 +4,7 @@ import {
     MarkdownRenderer,
     MarkdownView,
     Notice,
+    setIcon,
     SuggestModal,
     TFile,
     WorkspaceLeaf,
@@ -47,12 +48,19 @@ export class CharacterCountView extends ItemView {
 
     async onOpen(): Promise<void> {
         this.contentEl.empty();
-        this.addAction('target', '현재 문서 목표 글자수 지정', () => {
-            this.plugin.info.openWritingTargetPicker();
-        });
 
         const wrapper = this.contentEl.createDiv({ cls: 'character-count-container' });
         wrapper.setCssProps({ padding: '16px' });
+
+        const toolbar = wrapper.createDiv();
+        toolbar.setCssProps({ display: 'flex', 'justify-content': 'flex-end', 'margin-bottom': '16px' });
+        const targetButton = toolbar.createEl('button');
+        targetButton.setCssProps({ display: 'flex', 'align-items': 'center', gap: '6px' });
+        targetButton.setAttr('aria-label', '현재 문서 목표 글자수 지정');
+        targetButton.setAttr('title', '현재 문서 목표 글자수 지정');
+        setIcon(targetButton, 'target');
+        targetButton.createSpan({ text: '목표 지정' });
+        targetButton.addEventListener('click', () => this.plugin.info.openWritingTargetPicker());
 
         const createStat = (labelText: string, tooltip: string): HTMLElement => {
             const section = wrapper.createDiv();
@@ -89,7 +97,7 @@ export class CharacterCountView extends ItemView {
             '실제로 읽을 수 있는 글자가 존재하는 행 수',
         );
         this.readingTimeEl = createStat(
-            '읽는 시간',
+            '읽는 시간(분)',
             '설정한 계산 기준과 분당 글자 수로 예상한 읽는 시간',
         );
         this.writingTargetSectionEl = wrapper.createDiv();
@@ -316,8 +324,7 @@ export class InfoFeature {
         if (characterCount === 0) return '—';
 
         const minutes = characterCount / this.plugin.settings.readingCharactersPerMinute;
-        if (minutes < 1) return '1분 미만';
-        return `약 ${Math.max(1, Math.round(minutes)).toLocaleString()}분`;
+        return Math.max(1, Math.round(minutes)).toLocaleString();
     }
 
     getWritingTargetPresets(): WritingTargetPreset[] {
