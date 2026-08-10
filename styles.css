@@ -1,5 +1,32 @@
 /* ─── 설정 탭 ──────────────────────────────────────────────────────────────── */
 
+.character-count-container {
+    padding: 16px;
+}
+
+.character-count-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.character-count-stat {
+    margin-bottom: 20px;
+}
+
+.character-count-label {
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.character-count-value {
+    font-size: 2em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
 .atoz-setting-vertical {
     display: flex;
     flex-direction: column;

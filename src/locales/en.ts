@@ -1,5 +1,5 @@
 export const en = {
-    'command.toggleCursorCenter': 'Toggle cursor centering',
+    'command.toggleCursorCenter': 'Toggle Cursor centering',
     'command.copyEntireDocument': 'Copy entire document',
     'command.cutEntireDocument': 'Cut entire document',
     'command.cut': 'Cut',
@@ -68,8 +68,8 @@ export const en = {
     'createNote.alreadyExists': 'A file with that name already exists.',
 
     'settings.cursorCenter.heading': 'Cursor centering',
-    'settings.cursorCenter.name': 'Enable cursor centering',
-    'settings.cursorCenter.desc': 'Keeps the cursor near the center of the screen while editing.',
+    'settings.cursorCenter.name': 'Enable Cursor centering',
+    'settings.cursorCenter.desc': 'Keeps the Cursor near the center of the screen while editing.',
     'settings.mobile.heading': 'Mobile',
     'settings.mobile.stickyRibbon.name': 'Enable standalone sidebar ribbon',
     'settings.mobile.stickyRibbon.desc': 'Pins the ribbon to the left side of the screen when the left sidebar is closed. Mobile and tablet only.',

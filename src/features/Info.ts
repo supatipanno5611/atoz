@@ -51,10 +51,8 @@ export class CharacterCountView extends ItemView {
         this.contentEl.empty();
 
         const wrapper = this.contentEl.createDiv({ cls: 'character-count-container' });
-        wrapper.setCssProps({ padding: '16px' });
 
-        const toolbar = wrapper.createDiv();
-        toolbar.setCssProps({ display: 'flex', 'justify-content': 'flex-end', 'margin-bottom': '16px' });
+        const toolbar = wrapper.createDiv({ cls: 'character-count-toolbar' });
         const targetButton = toolbar.createEl('button', { cls: 'clickable-icon' });
         targetButton.setAttr('aria-label', t('info.setTarget'));
         targetButton.setAttr('title', t('info.setTarget'));
@@ -62,24 +60,12 @@ export class CharacterCountView extends ItemView {
         targetButton.addEventListener('click', () => this.plugin.info.openWritingTargetPicker());
 
         const createStat = (labelText: string, tooltip: string): HTMLElement => {
-            const section = wrapper.createDiv();
-            section.setCssProps({ 'margin-bottom': '20px' });
+            const section = wrapper.createDiv({ cls: 'character-count-stat' });
 
-            const label = section.createDiv({ text: labelText });
-            label.setCssProps({
-                'font-size': '0.85em',
-                color: 'var(--text-muted)',
-                'margin-bottom': '6px',
-            });
+            const label = section.createDiv({ cls: 'character-count-label', text: labelText });
             label.setAttr('aria-label', tooltip);
 
-            const value = section.createDiv({ text: '—' });
-            value.setCssProps({
-                'font-size': '2em',
-                'font-weight': '600',
-                'line-height': '1.1',
-                'font-variant-numeric': 'tabular-nums',
-            });
+            const value = section.createDiv({ cls: 'character-count-value', text: '—' });
             return value;
         };
 
@@ -130,24 +116,13 @@ export class CharacterCountView extends ItemView {
         this.writingTargetSectionEl.empty();
         if (stats.writingTarget.kind === 'none') return;
 
-        const section = this.writingTargetSectionEl.createDiv();
-        section.setCssProps({ 'margin-bottom': '20px' });
+        const section = this.writingTargetSectionEl.createDiv({ cls: 'character-count-stat' });
 
-        const label = section.createDiv({ text: t('info.writingTarget') });
-        label.setCssProps({
-            'font-size': '0.85em',
-            color: 'var(--text-muted)',
-            'margin-bottom': '6px',
-        });
+        const label = section.createDiv({ cls: 'character-count-label', text: t('info.writingTarget') });
         label.setAttr('aria-label', t('info.targetDifference'));
 
         if (stats.writingTarget.kind === 'invalid') {
-            const invalid = section.createDiv({ text: t('info.invalidTarget') });
-            invalid.setCssProps({
-                'font-size': '2em',
-                'font-weight': '600',
-                'line-height': '1.1',
-            });
+            section.createDiv({ cls: 'character-count-value', text: t('info.invalidTarget') });
         } else {
             const { target, tolerance } = stats.writingTarget;
             const delta = target - stats.withSpaces;
@@ -159,13 +134,7 @@ export class CharacterCountView extends ItemView {
                 : delta > 0
                     ? `+ ${delta.toLocaleString()}`
                     : `- ${Math.abs(delta).toLocaleString()}`;
-            const deltaEl = section.createDiv({ text: deltaText });
-            deltaEl.setCssProps({
-                'font-size': '2em',
-                'font-weight': '600',
-                'line-height': '1.1',
-                'font-variant-numeric': 'tabular-nums',
-            });
+            section.createDiv({ cls: 'character-count-value', text: deltaText });
         }
     }
 }
@@ -362,7 +331,7 @@ export class InfoFeature {
             return { withSpaces: 0, withoutSpaces: 0, nonEmptyLines: 0 };
         }
 
-        const container = document.createElement('div');
+        const container = createDiv();
         const component = new Component();
         component.load();
 
@@ -519,7 +488,7 @@ function renderedDomToText(container: HTMLElement): string {
             result += node.textContent ?? '';
             return;
         }
-        if (!(node instanceof HTMLElement)) return;
+        if (!node.instanceOf(HTMLElement)) return;
         if (node.tagName === 'BR') {
             result += '\n';
             return;

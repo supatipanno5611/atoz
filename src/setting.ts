@@ -11,8 +11,6 @@ export class ATOZSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    display(): void {}
-
     getSettingDefinitions() {
         return [
             {
@@ -119,7 +117,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                             name: `#${i + 1} id`,
                             render: (setting: Setting) => {
                                 setting.addText((text) => text
-                                    .setPlaceholder('id')
+                                    .setPlaceholder('ID')
                                     .setValue(sym.id)
                                     .onChange((v) => {
                                         this.plugin.settings.symbols[i]!.id = v;
@@ -340,7 +338,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         render: (setting: Setting) => {
                             setting.addButton((btn) => btn
                                 .setButtonText(t('settings.reset.button'))
-                                .setWarning()
+                                .setDestructive()
                                 .onClick(async () => {
                                     this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
                                     await this.plugin.saveSettings();
@@ -357,8 +355,7 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     private refreshSettings(): void {
-        const settingTab = this as ATOZSettingTab & { update?: () => void };
-        settingTab.update?.();
+        this.update();
     }
 
 }

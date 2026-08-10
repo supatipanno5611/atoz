@@ -99,7 +99,7 @@ export class CutAndCreateModal extends Modal {
             window.setTimeout(() => text.inputEl.focus(), 0);
         });
 
-        this.errorEl = contentEl.createEl('div', { cls: 'cut-create-error' });
+        this.errorEl = contentEl.createDiv({ cls: 'cut-create-error' });
         this.scope.register([], 'Enter', () => {
             this.handleSubmit();
             return false;

@@ -541,7 +541,7 @@ export class LaterView extends ItemView {
 
         if (!source) {
             container.empty();
-            container.createEl('div', { cls: 'atoz-later-empty', text: t('later.noSourceNote') });
+            container.createDiv({ cls: 'atoz-later-empty', text: t('later.noSourceNote') });
             return;
         }
 
@@ -549,7 +549,7 @@ export class LaterView extends ItemView {
             const original = this.plugin.later.resolveLaterSource(source);
             container.empty();
             if (!original) {
-                container.createEl('div', { cls: 'atoz-later-empty', text: t('later.sourceNotFound') });
+                container.createDiv({ cls: 'atoz-later-empty', text: t('later.sourceNotFound') });
                 return;
             }
             this.renderSourceLink(container, original);
@@ -562,7 +562,7 @@ export class LaterView extends ItemView {
             const text = linkedFiles.length === 0
                 ? t('later.noLinkedNote')
                 : t('later.multipleLinkedNotes');
-            container.createEl('div', { cls: 'atoz-later-empty', text });
+            container.createDiv({ cls: 'atoz-later-empty', text });
             return;
         }
 
@@ -574,14 +574,14 @@ export class LaterView extends ItemView {
         this.itemEls.clear();
 
         if (entries.length === 0) {
-            container.createEl('div', { cls: 'atoz-later-empty', text: t('later.noEntries') });
+            container.createDiv({ cls: 'atoz-later-empty', text: t('later.noEntries') });
             return;
         }
 
         const list = container.createEl('ul', { cls: 'atoz-later-list' });
         for (const entry of entries) {
             const item = list.createEl('li', { cls: 'atoz-later-item' });
-            item.createEl('span', { cls: 'atoz-later-text', text: entry.text });
+            item.createSpan({ cls: 'atoz-later-text', text: entry.text });
             this.itemEls.set(entry.id, item);
 
             if (entry.id === this.plugin.later.getSelectedEntryId()) {
@@ -616,7 +616,7 @@ export class LaterView extends ItemView {
         const title = typeof frontmatter?.title === 'string' && frontmatter.title.trim()
             ? frontmatter.title.trim()
             : source.basename;
-        const row = container.createEl('div', { cls: 'atoz-later-source' });
+        const row = container.createDiv({ cls: 'atoz-later-source' });
         row.createSpan({ text: t('later.sourceLabel') });
         const link = row.createEl('a', { cls: 'internal-link', text: title, href: source.path });
         link.addEventListener('click', (event) => {
@@ -651,7 +651,7 @@ class LaterFilePicker extends SuggestModal<LaterCandidate> {
     }
 
     renderSuggestion(candidate: LaterCandidate, el: HTMLElement): void {
-        el.createEl('div', { text: candidate.file.path });
+        el.createDiv({ text: candidate.file.path });
         if (candidate.preview) {
             el.createEl('small', { cls: 'atoz-later-candidate-preview', text: candidate.preview });
         }

@@ -95,7 +95,7 @@ export class SymbolSuggestions extends EditorSuggest<SymbolItem> {
 
             this.autoInserted = true;
 
-            setTimeout(() => {
+            window.setTimeout(() => {
                 if (!this.context) return;
                 this.selectSuggestion(targetItem);
                 this.close();

@@ -277,13 +277,9 @@ export default class ATOZPlugin extends Plugin {
             this.addCommand({ id: `open-quick-slot-${i}`, name: t('command.openQuickSlot', { slot: i }), callback: () => void this.quickSlot.openSlot(i) });
         }
 
-        // Keep these existing IDs so users do not lose configured hotkeys.
-        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
-        this.addCommand({ id: 'open-command-slot-assigner', name: t('command.openCommandSlotAssigner'), callback: () => this.commandSlot.openAssignModal() });
-        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
-        this.addCommand({ id: 'open-command-slot-selector', name: t('command.openCommandSlotSelector'), callback: () => this.commandSlot.openSelectModal() });
-        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
-        this.addCommand({ id: 'clear-all-command-slots', name: t('command.clearCommandSlots'), callback: async () => {
+        this.addCommand({ id: 'open-action-slot-assigner', name: t('command.openCommandSlotAssigner'), callback: () => this.commandSlot.openAssignModal() });
+        this.addCommand({ id: 'open-action-slot-selector', name: t('command.openCommandSlotSelector'), callback: () => this.commandSlot.openSelectModal() });
+        this.addCommand({ id: 'clear-all-action-slots', name: t('command.clearCommandSlots'), callback: async () => {
         	this.settings.commandSlots = [];
         	await this.saveSettings();
             new Notice(t('notice.commandSlotsCleared'));
@@ -425,7 +421,7 @@ export default class ATOZPlugin extends Plugin {
     	this._koIme_isFeatureActivated = false;
     	this._koIme_isComposingState = false;
     
-    	setTimeout(() => {
+		window.setTimeout(() => {
     		this._koIme_isFeatureActivated = true;
             new Notice(t('notice.koreanImeFixRestarted'));
     	}, 50);
