@@ -10,16 +10,12 @@ export class MobileFeature {
     constructor(private plugin: ATOZPlugin) {}
 
     install(): void {
-        if (Platform.isMobileApp) {
-            if (window.screen.width < 800) {
-                document.body.classList.add('notice-bottom');
-            }
+        if (!Platform.isMobileApp) return;
 
-            this.ribbonEl = document.querySelector('.workspace-drawer-ribbon');
-            this.originalParent = this.ribbonEl?.parentElement ?? null;
-            this.appContainer = document.querySelector('.app-container');
-            this.checkSidebarState();
-        }
+        this.ribbonEl = document.querySelector('.workspace-drawer-ribbon');
+        this.originalParent = this.ribbonEl?.parentElement ?? null;
+        this.appContainer = document.querySelector('.app-container');
+        this.checkSidebarState();
     }
 
     checkSidebarState(): void {
@@ -69,7 +65,7 @@ export class MobileFeature {
     }
 
     uninstall(): void {
-        document.body.classList.remove('mobile-toolbar-off', 'notice-bottom');
+        document.body.classList.remove('mobile-toolbar-off');
         this.restoreRibbon();
     }
 }

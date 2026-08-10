@@ -1,0 +1,20 @@
+/*
+ * Optional personal snippet for placing notices at the bottom on phones.
+ * This file is not loaded by the a to z plugin.
+ * !important is intentional here because Obsidian's notice position takes
+ * precedence over ordinary snippet declarations.
+ */
+
+@media (max-width: 799px) {
+    body.is-mobile .notice-container {
+        top: auto !important;
+        bottom: 25px !important;
+        display: flex;
+        flex-direction: column-reverse;
+    }
+
+    body.is-mobile .notice {
+        margin-top: 10px;
+        margin-bottom: 0;
+    }
+}

@@ -56,6 +56,20 @@ styles.css
 
 `manifest.json` 기준 최소 Obsidian 버전은 `1.13.0`이고, 데스크톱 전용 플러그인은 아닙니다.
 
+### 선택형 CSS 스니펫
+
+[`extras/delete_unnecessary_filemenues.css`](extras/delete_unnecessary_filemenues.css)는 Obsidian 파일 메뉴의 일부 항목을 숨기는 개인용 CSS 스니펫입니다. 플러그인에는 포함되지 않으며 자동으로 불러오지 않습니다.
+
+[`extras/mobile_notice_bottom.css`](extras/mobile_notice_bottom.css)는 스마트폰에서 알림을 화면 아래에 표시합니다. Obsidian의 알림 위치 스타일보다 우선하려고 `!important`를 사용합니다. 이 파일도 선택형이며 플러그인이 자동으로 불러오지 않습니다.
+
+스니펫 사용 방법:
+
+1. 파일을 `<내 vault>/.obsidian/snippets/`에 복사합니다.
+2. `설정 → 테마 → CSS 스니펫`을 엽니다.
+3. 스니펫 목록을 새로고침하고 복사한 스니펫을 켭니다.
+
+이 스니펫은 `:has()` 선택자를 사용합니다. 메뉴 렌더링 성능에 영향을 줄 수 있고, 같은 아이콘을 사용하는 다른 플러그인의 메뉴 항목도 숨길 수 있습니다. 이 동작을 원하는 경우에만 켜세요.
+
 ## 처음 설정하면 좋은 값
 
 플러그인을 켠 뒤 `설정 > a to z`에서 필요한 값만 채우면 됩니다.
@@ -202,6 +216,7 @@ npm run version
 ├── manifest.json        # Obsidian 플러그인 메타데이터
 ├── main.js              # esbuild가 만든 번들 파일
 ├── styles.css           # 설정 화면과 모바일/폴더 표시 제어 스타일
+├── extras/              # 플러그인이 불러오지 않는 선택형 CSS 스니펫
 ├── src/
 │   ├── main.ts          # 플러그인 로딩, 명령어 등록, 이벤트 등록
 │   ├── setting.ts       # 설정 탭

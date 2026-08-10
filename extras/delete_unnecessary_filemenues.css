@@ -1,0 +1,28 @@
+/*
+ * Optional personal snippet for hiding selected Obsidian file-menu items.
+ * This file is not loaded by the a to z plugin.
+ * It uses :has(), which may affect menu rendering performance and can also
+ * match menu items added by other plugins that use the same icons.
+ */
+
+/* Copy path */
+body .menu-group:has(svg.lucide-clipboard) { display: none; }
+body .menu-group:has(svg.lucide-clipboard) + .menu-separator { display: none; }
+
+/* Open linked view */
+body .menu-item:has(svg.lucide-link) { display: none; }
+
+/* Split down */
+body .menu-item:has(svg.lucide-separator-horizontal) { display: none; }
+
+/* Share */
+body .menu-group:has(svg.lucide-arrow-up-right) { display: none; }
+body .menu-group:has(svg.lucide-arrow-up-right) + .menu-separator { display: none; }
+
+/* Find and replace */
+body .menu-group:has(svg.lucide-file-search) { display: none; }
+body .menu-group:has(svg.lucide-file-search) + .menu-separator { display: none; }
+
+/* Add property and move file */
+body .menu-item:has(svg.lucide-plus-circle) { display: none; }
+body .menu-item:has(svg.lucide-folder-tree) { display: none; }

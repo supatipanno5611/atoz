@@ -75,21 +75,7 @@
 /* mobile toolbar */
 body.mobile-toolbar-off .mobile-toolbar,
 body.mobile-toolbar-off .mobile-toolbar-container {
-    display: none !important;
-}
-
-/* notice position (phone only) */
-/* 알림창 위치를 우측 하단으로 이동 */
-body.notice-bottom .notice-container {
-    top: auto !important;
-    bottom: 25px !important;
-    display: flex;
-    flex-direction: column-reverse;  /* 최신 알림이 가장 아래에 쌓이도록 설정 */
-}
-/* 개별 알림창 간격 조정 */
-body.notice-bottom .notice {
-    margin-top: 10px;
-    margin-bottom: 0px;
+    display: none;
 }
 
 /* ── 빈 상태 ── */
@@ -153,7 +139,7 @@ body.notice-bottom .notice {
 
 /* 사이드바가 닫혔을 때 최상위로 꺼내진 태블릿 리본 메뉴 디자인 */
 body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .app-container > .workspace-drawer-ribbon {
-    display: flex !important;
+    display: flex;
     flex-direction: column;
     
     position: fixed;
@@ -173,27 +159,5 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .app-container > .worksp
 
 /* 플러그인이 켜져있고 사이드바가 닫혔을 때만 워크스페이스 밀어주기 */
 body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
-    padding-left: 48px !important; 
+    padding-left: 48px;
 }
-
-/* 경로 복사 */
-.menu-group:has(svg.lucide-clipboard) { display: none !important; }
-.menu-group:has(svg.lucide-clipboard) + .menu-separator { display: none !important; }
-
-/* 링크된 화면 열기 */
-.menu-item:has(svg.lucide-link) { display: none !important; }
-
-/* 하단 분할 */
-.menu-item:has(svg.lucide-separator-horizontal) { display: none !important; }
-
-/* 공유 - 그룹에 혼자 있으므로 그룹째 제거 */
-.menu-group:has(svg.lucide-arrow-up-right) { display: none !important; }
-.menu-group:has(svg.lucide-arrow-up-right) + .menu-separator { display: none !important; }
-
-/* 검색.../바꾸기... - 그룹에 이 둘만 있으므로 그룹째 제거 */
-.menu-group:has(svg.lucide-file-search) { display: none !important; }
-.menu-group:has(svg.lucide-file-search) + .menu-separator { display: none !important; }
-
-/* 이동, 속성 추가 */
-.menu-item:has(svg.lucide-plus-circle) { display: none !important; }
-.menu-item:has(svg.lucide-folder-tree) { display: none !important; }
