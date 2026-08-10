@@ -1,7 +1,7 @@
 {
 	"name": "atoz",
 	"version": "1.0.0",
-	"description": "다양한 기능을 추가합니다.",
+	"description": "Add writing, note organization, and input tools to Obsidian.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

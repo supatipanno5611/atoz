@@ -1,4 +1,5 @@
 import { Editor, Notice } from 'obsidian';
+import { t } from '../locales';
 
 export class CutCopyFeature {
     // 문서 전체를 복사하는 메서드
@@ -8,7 +9,7 @@ export class CutCopyFeature {
         await navigator.clipboard.writeText(editor.getValue());
 
         // 사용자에게 복사 완료 알림 표시
-        new Notice('문서 전체가 복사되었습니다.');
+        new Notice(t('notice.entireDocumentCopied'));
     }
 
     // 문서 전체를 잘라내는 메서드 (전체 선택 + 복사 + 삭제와 동일한 동작)
@@ -26,7 +27,7 @@ export class CutCopyFeature {
         editor.setValue("");
 
         // 사용자에게 잘라내기 완료 알림 표시
-        new Notice('문서 전체를 잘라냈습니다.');
+        new Notice(t('notice.entireDocumentCut'));
     }
 
     // 선택 영역이 있으면 해당 영역을,

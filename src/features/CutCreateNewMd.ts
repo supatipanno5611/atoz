@@ -1,5 +1,6 @@
 import { App, Editor, Modal, Notice, Setting, TFile, normalizePath } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 export class CutCreateNewMdFeature {
     constructor(private plugin: ATOZPlugin) {}
@@ -28,7 +29,7 @@ export class CutCreateNewMdFeature {
         }
 
         if (!contentToMove.trim()) {
-            new Notice('Nothing to move.');
+            new Notice(t('notice.nothingToMove'));
             return;
         }
 
@@ -69,7 +70,7 @@ export class CutCreateNewMdFeature {
             });
         } catch (error) {
             console.error(error);
-            new Notice('Failed to create note.');
+            new Notice(t('notice.failedToCreateNote'));
         }
     }
 }
@@ -89,11 +90,11 @@ export class CutAndCreateModal extends Modal {
     onOpen(): void {
         const { contentEl } = this;
         contentEl.empty();
-        this.titleEl.setText('Create note');
+        this.titleEl.setText(t('createNote.title'));
 
         new Setting(contentEl).addText((text) => {
             this.inputEl = text.inputEl;
-            text.setPlaceholder('File name');
+            text.setPlaceholder(t('createNote.fileName'));
             text.inputEl.addEventListener('input', () => this.clearError());
             window.setTimeout(() => text.inputEl.focus(), 0);
         });
@@ -109,17 +110,17 @@ export class CutAndCreateModal extends Modal {
         const raw = this.inputEl.value.trim();
 
         if (!raw) {
-            this.showError('Enter a file name.');
+            this.showError(t('createNote.fileNameRequired'));
             return;
         }
 
         if (/[\\/:*?"<>|]/.test(raw)) {
-            this.showError('File name contains invalid characters.');
+            this.showError(t('createNote.invalidCharacters'));
             return;
         }
 
         if (this.app.vault.getAbstractFileByPath(normalizePath(`${raw}.md`))) {
-            this.showError('A file with that name already exists.');
+            this.showError(t('createNote.alreadyExists'));
             return;
         }
 

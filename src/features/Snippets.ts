@@ -1,4 +1,5 @@
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, Notice, prepareFuzzySearch } from 'obsidian';
 import { SnippetsItem } from '../types';
 import { buildTriggerRegex } from '../utils';
@@ -59,7 +60,7 @@ export class SnippetsSuggestions extends EditorSuggest<SnippetsItem> {
 
     renderSuggestion(item: SnippetsItem, el: HTMLElement) {
         if (item.kind === 'add') {
-            el.setText(`새 조각글로 추가: ${item.content}`);
+            el.setText(t('snippets.addNew', { content: item.content }));
             return;
         }
 
@@ -75,7 +76,7 @@ export class SnippetsSuggestions extends EditorSuggest<SnippetsItem> {
     
         if (item.kind === 'add' && !this.plugin.settings.snippets.includes(content)) {
             this.plugin.settings.snippets.push(content);
-            new Notice(`조각글 등록 완료: "${content}"`);
+            new Notice(t('snippets.added', { content }));
         }
     
         this.recordRecent(content);

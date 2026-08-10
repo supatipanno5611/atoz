@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type ATOZPlugin from './main';
 import { DEFAULT_SETTINGS, SymbolItem } from './types';
+import { t } from './locales';
 
 export class ATOZSettingTab extends PluginSettingTab {
     plugin: ATOZPlugin;
@@ -16,41 +17,41 @@ export class ATOZSettingTab extends PluginSettingTab {
         return [
             {
                 type: 'group' as const,
-                heading: '커서 중앙 고정',
+                heading: t('settings.cursorCenter.heading'),
                 items: [
                     {
-                        name: '커서 중앙 고정 사용',
-                        desc: '편집할 때 커서가 화면 중앙 근처에 유지됩니다.',
+                        name: t('settings.cursorCenter.name'),
+                        desc: t('settings.cursorCenter.desc'),
                         control: { type: 'toggle' as const, key: 'isCursorCenterEnabled' },
                     },
                 ],
             },
             {
             	type: 'group' as const,
-            	heading: '모바일',
+                heading: t('settings.mobile.heading'),
             	items: [
             		{
-            			name: '사이드바 독립 리본 사용',
-            			desc: '왼쪽 사이드바가 닫혔을 때 리본 메뉴를 화면 좌측에 고정합니다. (모바일/태블릿 전용)',
+                        name: t('settings.mobile.stickyRibbon.name'),
+                        desc: t('settings.mobile.stickyRibbon.desc'),
             			control: { type: 'toggle' as const, key: 'isMobileStickyRibbonEnabled' },
             		},
             	],
             },
             {
                 type: 'group' as const,
-                heading: '조각글',
+                heading: t('settings.snippets.heading'),
                 items: [
                     {
-                        name: '조각글 트리거 문자',
-                        desc: '이 문자를 입력하면 조각글 추천이 열립니다.',
+                        name: t('settings.snippets.trigger.name'),
+                        desc: t('settings.snippets.trigger.desc'),
                         render: (setting: Setting) => {
-                            setting.addText((t) => {
-                                t.setPlaceholder('@').setValue(this.plugin.settings.snippetTrigger);
-                                t.inputEl.addEventListener('blur', async () => {
-                                    const trigger = t.getValue().trim();
+                            setting.addText((text) => {
+                                text.setPlaceholder('@').setValue(this.plugin.settings.snippetTrigger);
+                                text.inputEl.addEventListener('blur', async () => {
+                                    const trigger = text.getValue().trim();
                                     if (!trigger) {
-                                        new Notice('조각글 트리거 문자는 비워둘 수 없어 기본값을 사용합니다.');
-                                        t.setValue(DEFAULT_SETTINGS.snippetTrigger);
+                                        new Notice(t('settings.snippets.trigger.empty'));
+                                        text.setValue(DEFAULT_SETTINGS.snippetTrigger);
                                         this.plugin.settings.snippetTrigger = DEFAULT_SETTINGS.snippetTrigger;
                                     } else {
                                         this.plugin.settings.snippetTrigger = trigger;
@@ -61,13 +62,13 @@ export class ATOZSettingTab extends PluginSettingTab {
                         },
                     },
                     {
-                        name: '조각글 표시 개수',
-                        desc: '보여줄 조각글 추천의 최대 개수입니다.',
+                        name: t('settings.snippets.limit.name'),
+                        desc: t('settings.snippets.limit.desc'),
                         control: { type: 'number' as const, key: 'snippetLimit', min: 0 },
                     },
                     {
-                        name: '조각글 목록',
-                        desc: '한 줄에 하나씩 입력합니다.',
+                        name: t('settings.snippets.list.name'),
+                        desc: t('settings.snippets.list.desc'),
                         render: (setting: Setting) => {
                             setting.settingEl.addClass('atoz-setting-vertical');
                             setting.addTextArea((ta) => {
@@ -86,19 +87,19 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
-                heading: '기호',
+                heading: t('settings.symbols.heading'),
                 items: [
                     {
-                        name: '기호 트리거 문자',
-                        desc: '이 문자를 입력하면 기호 추천이 열립니다.',
+                        name: t('settings.symbols.trigger.name'),
+                        desc: t('settings.symbols.trigger.desc'),
                         render: (setting: Setting) => {
-                            setting.addText((t) => {
-                                t.setPlaceholder('~').setValue(this.plugin.settings.symbolTrigger);
-                                t.inputEl.addEventListener('blur', async () => {
-                                    const trigger = t.getValue().trim();
+                            setting.addText((text) => {
+                                text.setPlaceholder('~').setValue(this.plugin.settings.symbolTrigger);
+                                text.inputEl.addEventListener('blur', async () => {
+                                    const trigger = text.getValue().trim();
                                     if (!trigger) {
-                                        new Notice('기호 트리거 문자는 비워둘 수 없어 기본값을 사용합니다.');
-                                        t.setValue(DEFAULT_SETTINGS.symbolTrigger);
+                                        new Notice(t('settings.symbols.trigger.empty'));
+                                        text.setValue(DEFAULT_SETTINGS.symbolTrigger);
                                         this.plugin.settings.symbolTrigger = DEFAULT_SETTINGS.symbolTrigger;
                                     } else {
                                         this.plugin.settings.symbolTrigger = trigger;
@@ -109,15 +110,15 @@ export class ATOZSettingTab extends PluginSettingTab {
                         },
                     },
                     {
-                        name: '기호 표시 개수',
-                        desc: '보여줄 기호 추천의 최대 개수입니다.',
+                        name: t('settings.symbols.limit.name'),
+                        desc: t('settings.symbols.limit.desc'),
                         control: { type: 'number' as const, key: 'symbolLimit', min: 0 },
                     },
                     ...this.plugin.settings.symbols.flatMap((sym: SymbolItem, i: number) => [
                         {
                             name: `#${i + 1} id`,
                             render: (setting: Setting) => {
-                                setting.addText((t) => t
+                                setting.addText((text) => text
                                     .setPlaceholder('id')
                                     .setValue(sym.id)
                                     .onChange((v) => {
@@ -126,7 +127,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     })
                                 ).addExtraButton((btn) => btn
                                     .setIcon('lucide-trash-2')
-                                    .setTooltip('삭제')
+                                    .setTooltip(t('settings.symbols.delete'))
                                     .onClick(async () => {
                                         this.plugin.settings.symbols.splice(i, 1);
                                         await this.plugin.saveSettings();
@@ -136,10 +137,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                             },
                         },
                         {
-                            name: `#${i + 1} 기호`,
+                            name: t('settings.symbols.item', { index: i + 1 }),
                             render: (setting: Setting) => {
-                                setting.addText((t) => t
-                                    .setPlaceholder('기호')
+                                setting.addText((text) => text
+                                    .setPlaceholder(t('settings.symbols.placeholder'))
                                     .setValue(sym.symbol)
                                     .onChange((v) => {
                                         this.plugin.settings.symbols[i]!.symbol = v;
@@ -149,10 +150,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                             },
                         },
                         {
-                            name: `#${i + 1} 닫는 기호`,
+                            name: t('settings.symbols.closingItem', { index: i + 1 }),
                             render: (setting: Setting) => {
-                                setting.addText((t) => t
-                                    .setPlaceholder('닫는 기호 (선택)')
+                                setting.addText((text) => text
+                                    .setPlaceholder(t('settings.symbols.closingPlaceholder'))
                                     .setValue(sym.closing ?? '')
                                     .onChange((v) => {
                                         const closing = v.trim();
@@ -171,7 +172,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         name: '',
                         render: (setting: Setting) => {
                             setting.addButton((btn) => btn
-                                .setButtonText('기호 추가')
+                                .setButtonText(t('settings.symbols.add'))
                                 .onClick(async () => {
                                     this.plugin.settings.symbols.push({ id: '', symbol: '' });
                                     await this.plugin.saveSettings();
@@ -184,15 +185,15 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
-                heading: '문서 정보',
+                heading: t('settings.info.heading'),
                 items: [
                     {
-                        name: '읽는 시간 계산 기준',
-                        desc: '읽는 시간을 계산할 때 사용할 글자 수입니다.',
+                        name: t('settings.info.basis.name'),
+                        desc: t('settings.info.basis.desc'),
                         render: (setting: Setting) => {
                             setting.addDropdown((dropdown) => dropdown
-                                .addOption('without-spaces', '공백 제외')
-                                .addOption('with-spaces', '공백 포함')
+                                .addOption('without-spaces', t('settings.info.withoutSpaces'))
+                                .addOption('with-spaces', t('settings.info.withSpaces'))
                                 .setValue(this.plugin.settings.readingTimeCharacterBasis)
                                 .onChange(async (value) => {
                                     this.plugin.settings.readingTimeCharacterBasis = value === 'with-spaces'
@@ -205,8 +206,8 @@ export class ATOZSettingTab extends PluginSettingTab {
                         },
                     },
                     {
-                        name: '분당 읽는 글자 수',
-                        desc: '1분 동안 읽는 글자 수입니다. 1 이상의 정수를 입력합니다.',
+                        name: t('settings.info.charactersPerMinute.name'),
+                        desc: t('settings.info.charactersPerMinute.desc'),
                         render: (setting: Setting) => {
                             setting.addText((text) => {
                                 text.inputEl.type = 'number';
@@ -215,7 +216,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 text.inputEl.addEventListener('blur', () => {
                                     const value = Number(text.getValue());
                                     if (!Number.isInteger(value) || value < 1) {
-                                        new Notice('분당 읽는 글자 수는 1 이상의 정수여야 합니다.');
+                                        new Notice(t('settings.info.charactersPerMinute.invalid'));
                                         text.setValue(this.plugin.settings.readingCharactersPerMinute.toString());
                                         return;
                                     }
@@ -227,20 +228,20 @@ export class ATOZSettingTab extends PluginSettingTab {
                         },
                     },
                     ...this.plugin.settings.writingTargetPresets.map((preset, i) => ({
-                        name: `목표 후보 #${i + 1}`,
-                        desc: '목표 글자 수와 허용할 오차 글자 수입니다.',
+                        name: t('settings.info.targetPreset.name', { index: i + 1 }),
+                        desc: t('settings.info.targetPreset.desc'),
                         render: (setting: Setting) => {
                             setting.addText((text) => {
                                 text.inputEl.type = 'number';
                                 text.inputEl.min = '1';
-                                text.setPlaceholder('목표');
+                                text.setPlaceholder(t('settings.info.targetPlaceholder'));
                                 text.setValue(preset.target.toString());
                                 text.inputEl.addEventListener('blur', () => {
                                     const target = Number(text.getValue());
                                     const duplicate = this.plugin.settings.writingTargetPresets
                                         .some((item, index) => index !== i && item.target === target);
                                     if (!Number.isInteger(target) || target < 1 || target <= preset.tolerance || duplicate) {
-                                        new Notice('목표 글자 수는 오차보다 큰 중복되지 않는 정수여야 합니다.');
+                                        new Notice(t('settings.info.targetInvalid'));
                                         text.setValue(preset.target.toString());
                                         return;
                                     }
@@ -250,12 +251,12 @@ export class ATOZSettingTab extends PluginSettingTab {
                             }).addText((text) => {
                                 text.inputEl.type = 'number';
                                 text.inputEl.min = '1';
-                                text.setPlaceholder('오차');
+                                text.setPlaceholder(t('settings.info.tolerancePlaceholder'));
                                 text.setValue(preset.tolerance.toString());
                                 text.inputEl.addEventListener('blur', () => {
                                     const tolerance = Number(text.getValue());
                                     if (!Number.isInteger(tolerance) || tolerance < 1 || tolerance >= preset.target) {
-                                        new Notice('오차범위는 목표 글자 수보다 작은 양의 정수여야 합니다.');
+                                        new Notice(t('settings.info.toleranceInvalid'));
                                         text.setValue(preset.tolerance.toString());
                                         return;
                                     }
@@ -264,7 +265,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 });
                             }).addExtraButton((button) => button
                                 .setIcon('lucide-trash-2')
-                                .setTooltip('삭제')
+                                .setTooltip(t('settings.symbols.delete'))
                                 .onClick(async () => {
                                     this.plugin.settings.writingTargetPresets.splice(i, 1);
                                     await this.plugin.saveSettings();
@@ -277,7 +278,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         name: '',
                         render: (setting: Setting) => {
                             setting.addButton((button) => button
-                                .setButtonText('목표 후보 추가')
+                                .setButtonText(t('settings.info.addTarget'))
                                 .onClick(async () => {
                                     const largestTarget = Math.max(
                                         0,
@@ -298,12 +299,12 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
-                heading: '작업 문서',
+                heading: t('settings.work.heading'),
                 items: [
                     {
-                        name: '작업 문서 경로',
-                        desc: '작업 문서 명령에서 사용할 볼트 기준 경로입니다.',
-                        control: { type: 'text' as const, key: 'workFilePath', placeholder: '예: work.md' },
+                        name: t('settings.work.path.name'),
+                        desc: t('settings.work.path.desc'),
+                        control: { type: 'text' as const, key: 'workFilePath', placeholder: t('settings.work.path.placeholder') },
                     },
                 ],
             },
@@ -312,39 +313,39 @@ export class ATOZSettingTab extends PluginSettingTab {
                 heading: 'Later',
                 items: [
                     {
-                        name: 'Later 노트 대상 폴더',
-                        desc: '비워두면 원본별 Later 노트가 볼트 루트에 생성됩니다.',
-                        control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: '예: archive' },
+                        name: t('settings.later.folder.name'),
+                        desc: t('settings.later.folder.desc'),
+                        control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: t('settings.later.folder.placeholder') },
                      },
                 ],
             },
             {
             	type: 'group' as const,
-            	heading: '명령어 슬롯',
+                heading: t('settings.commandSlots.heading'),
             	items: [
             		{
-            			name: '슬롯 개수',
-            			desc: '명령어 슬롯 모달에 표시할 슬롯 개수입니다.',
+                        name: t('settings.commandSlots.count.name'),
+                        desc: t('settings.commandSlots.count.desc'),
             			control: { type: 'number' as const, key: 'commandSlotCount', min: 1 },
             		},
             	],
             },
             {
                 type: 'group' as const,
-                heading: '초기화',
+                heading: t('settings.reset.heading'),
                 items: [
                     {
-                        name: '모든 설정 초기화',
-                        desc: '플러그인 설정을 모두 기본값으로 되돌립니다.',
+                        name: t('settings.reset.name'),
+                        desc: t('settings.reset.desc'),
                         render: (setting: Setting) => {
                             setting.addButton((btn) => btn
-                                .setButtonText('초기화')
+                                .setButtonText(t('settings.reset.button'))
                                 .setWarning()
                                 .onClick(async () => {
                                     this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
                                     await this.plugin.saveSettings();
                                     this.plugin.info.settingsChanged();
-                                    new Notice('설정을 기본값으로 초기화했습니다.');
+                                    new Notice(t('settings.reset.notice'));
                                     (this as any).update();
                                 })
                             );

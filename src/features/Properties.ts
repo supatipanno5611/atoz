@@ -1,5 +1,6 @@
 import { App, SuggestModal, Notice, moment } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 type FrontmatterRecord = Record<string, unknown>;
 
@@ -17,10 +18,10 @@ const ALLOWED_PROPERTIES = new Set([
 ]);
 
 // 토픽 관리를 위한 마커 상수들
-const NEW_ITEM_PREFIX = "+ '";
-const NEW_ITEM_SUFFIX = "' 추가";
-const DONE_LABEL = '완료';
-const SELECTED_PREFIX = '[선택됨] ';
+const NEW_ITEM_PREFIX = t('properties.addPrefix');
+const NEW_ITEM_SUFFIX = t('properties.addSuffix');
+const DONE_LABEL = t('properties.done');
+const SELECTED_PREFIX = t('properties.selectedPrefix');
 
 // 토픽 관련 유틸리티 함수
 function readStringArray(value: unknown): string[] {
@@ -90,17 +91,17 @@ export class PropertiesFeature {
         }
 
         if (cleanedCount === 0 && reviewCount === 0) {
-            new Notice('정리할 속성이 없습니다.');
+            new Notice(t('properties.nothingToClean'));
             return;
         }
 
-        new Notice(`속성 ${cleanedCount}개를 정리했고, 파일 ${reviewCount}개는 검토가 필요합니다.`);
+        new Notice(t('properties.cleaned', { cleaned: cleanedCount, review: reviewCount }));
     }
 
     async editTopics(): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile || activeFile.extension !== 'md') {
-            new Notice('활성 마크다운 파일이 없습니다.');
+            new Notice(t('properties.noActiveMarkdown'));
             return;
         }
 
@@ -119,7 +120,7 @@ export class PropertiesFeature {
     async insertTodayDate(): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile || activeFile.extension !== 'md') {
-            new Notice('활성 마크다운 파일이 없습니다.');
+            new Notice(t('properties.noActiveMarkdown'));
             return;
         }
 
@@ -134,16 +135,16 @@ export class PropertiesFeature {
         });
 
         if (alreadyExists) {
-            new Notice('이미 date 속성이 있습니다.');
+            new Notice(t('properties.dateExists'));
             return;
         }
-        new Notice('오늘 날짜 속성을 삽입했습니다.');
+        new Notice(t('properties.dateInserted'));
     }
 
     async updateTodayDate(): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile || activeFile.extension !== 'md') {
-            new Notice('활성 마크다운 파일이 없습니다.');
+            new Notice(t('properties.noActiveMarkdown'));
             return;
         }
 
@@ -151,7 +152,7 @@ export class PropertiesFeature {
             const fm = frontmatter as FrontmatterRecord;
             fm.date = moment().format('YYYY-MM-DD');
         });
-        new Notice('date 속성을 오늘 날짜로 갱신했습니다.');
+        new Notice(t('properties.dateUpdated'));
     }
 }
 
@@ -162,7 +163,7 @@ class TopicInputModal extends SuggestModal<string> {
     constructor(app: App, private candidates: string[], initialTopics?: string[]) {
         super(app);
         this.currentTopics = initialTopics ?? this.fetchInitialTopics();
-        this.setPlaceholder('주제어 추가 또는 삭제 (검색 가능)');
+        this.setPlaceholder(t('properties.topicPlaceholder'));
     }
 
     private fetchInitialTopics(): string[] {
@@ -232,11 +233,11 @@ class TopicInputModal extends SuggestModal<string> {
             fm.topics = topics;
         });
         if (alreadyExists) {
-            new Notice(`이미 주제어에 있습니다: ${item}`);
+            new Notice(t('properties.topicExists', { topic: item }));
             return;
         }
         if (!this.candidates.includes(item)) this.candidates.push(item);
-        new Notice(`주제어에 추가했습니다: ${item}`);
+        new Notice(t('properties.topicAdded', { topic: item }));
     }
 
     private async removeTopic(item: string): Promise<void> {
@@ -246,6 +247,6 @@ class TopicInputModal extends SuggestModal<string> {
             const fm = frontmatter as FrontmatterRecord;
             fm.topics = readStringArray(fm.topics).filter((topic) => topic !== item);
         });
-        new Notice(`주제어에서 제거했습니다: ${item}`);
+        new Notice(t('properties.topicRemoved', { topic: item }));
     }
 }

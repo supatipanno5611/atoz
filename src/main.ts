@@ -16,6 +16,7 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { InfoFeature } from './features/Info';
 
@@ -109,7 +110,7 @@ export default class ATOZPlugin extends Plugin {
            						_koIme_isExecutionTriggered = true;
             							
            						this._koIme_isFeatureActivated = true; 
-           						new Notice('옵시디언 준비 완료');
+                               new Notice(t('notice.obsidianReady'));
            					};
             
            					window.requestAnimationFrame(() => {
@@ -215,69 +216,69 @@ export default class ATOZPlugin extends Plugin {
     }
 
     registerRibbonIcon() {
-        this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
-        this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
-        this.addRibbonIcon('lucide-archive-restore', 'Later 사이드바 열기', () => void this.later.activateView());
+        this.addRibbonIcon('lucide-file-pen', t('ribbon.openWorkFile'), () => void this.work.openWorkFile());
+        this.addRibbonIcon('lucide-panel-bottom', t('ribbon.toggleMobileToolbar'), () => this.mobile.toggleMobileToolbarHidden());
+        this.addRibbonIcon('lucide-archive-restore', t('ribbon.openLaterView'), () => void this.later.activateView());
         for (let i = 1; i <= 4; i++) {
-        	this.addRibbonIcon(`lucide-dice-${i}`, `퀵 슬롯 ${i} 열기`, () => void this.quickSlot.openSlot(i));
+            this.addRibbonIcon(`lucide-dice-${i}`, t('ribbon.openQuickSlot', { slot: i }), () => void this.quickSlot.openSlot(i));
         }
     }
 
     registerCommands() {
-        this.addCommand({ id: 'toggle-cursor-center', name: '커서 중앙 유지 토글', callback: () => this.cursorCenter.toggleCursorCenter() });
+        this.addCommand({ id: 'toggle-cursor-center', name: t('command.toggleCursorCenter'), callback: () => this.cursorCenter.toggleCursorCenter() });
 
-        this.addCommand({ id: 'copy-all-document', name: '문서 전체 복사', editorCallback: (editor) => this.cutCopy.copyAll(editor) });
-        this.addCommand({ id: 'cut-all-document', name: '문서 전체 잘라내기', editorCallback: (editor: Editor) => this.cutCopy.cutAll(editor) });
-        this.addCommand({ id: 'cut-to-clipboard', name: '잘라내기', icon: 'lucide-scissors', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, true) });
-        this.addCommand({ id: 'copy-to-clipboard', name: '복사하기', icon: 'copy', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
+        this.addCommand({ id: 'copy-all-document', name: t('command.copyEntireDocument'), editorCallback: (editor) => this.cutCopy.copyAll(editor) });
+        this.addCommand({ id: 'cut-all-document', name: t('command.cutEntireDocument'), editorCallback: (editor: Editor) => this.cutCopy.cutAll(editor) });
+        this.addCommand({ id: 'cut-to-clipboard', name: t('command.cut'), icon: 'lucide-scissors', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, true) });
+        this.addCommand({ id: 'copy-to-clipboard', name: t('command.copy'), icon: 'copy', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
 
-        this.addCommand({ id: 'cut-and-create-new-md', name: '내용을 잘라내어 새 노트 만들기', icon: 'lucide-file-input', editorCallback: (editor: Editor) => void this.cutCreateNewMd.cutAndCreateNewMd(editor) });
+        this.addCommand({ id: 'cut-and-create-new-md', name: t('command.cutToNewNote'), icon: 'lucide-file-input', editorCallback: (editor: Editor) => void this.cutCreateNewMd.cutAndCreateNewMd(editor) });
         
-        this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
-        this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => void this.executes.focusRootLeaf() });
+        this.addCommand({ id: 'execute-delete-paragraph', name: t('command.deleteParagraph'), icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
+        this.addCommand({ id: 'focus-root-leaf', name: t('command.focusMainEditor'), callback: () => void this.executes.focusRootLeaf() });
 
-        this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
-        this.addCommand({ id: 'toggle-mobile-sticky-ribbon', name: '사이드바 독립 리본 토글', icon: 'sidebar-toggle-button-icon', callback: () => void this.mobile.toggleStickyRibbon() });
-        this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
+        this.addCommand({ id: 'toggle-mobile-toolbar', name: t('command.toggleMobileToolbar'), icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
+        this.addCommand({ id: 'toggle-mobile-sticky-ribbon', name: t('command.toggleStickyRibbon'), icon: 'sidebar-toggle-button-icon', callback: () => void this.mobile.toggleStickyRibbon() });
+        this.addCommand({ id: 'move-current-file', name: t('command.moveCurrentFile'), icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
 
-        this.addCommand({ id: 'edit-topics', name: '주제어 편집', icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
-        this.addCommand({ id: 'insert-today-date', name: '오늘 날짜 속성 삽입', icon: 'lucide-calendar-plus', callback: () => void this.properties.insertTodayDate() });
-        this.addCommand({ id: 'update-today-date', name: '오늘 날짜로 갱신', icon: 'lucide-calendar-sync', callback: () => void this.properties.updateTodayDate() });
-        this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
+        this.addCommand({ id: 'edit-topics', name: t('command.editTopics'), icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
+        this.addCommand({ id: 'insert-today-date', name: t('command.insertTodayDate'), icon: 'lucide-calendar-plus', callback: () => void this.properties.insertTodayDate() });
+        this.addCommand({ id: 'update-today-date', name: t('command.updateTodayDate'), icon: 'lucide-calendar-sync', callback: () => void this.properties.updateTodayDate() });
+        this.addCommand({ id: 'lint-properties', name: t('command.lintProperties'), icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
 
-        this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
-        this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => void this.work.cleanupTabs() });
-        this.addCommand({ id: 'clipboard-select-prev', name: '사이드바 이전 항목 선택', callback: () => this.selectSidebarItem('prev') });
-        this.addCommand({ id: 'clipboard-select-next', name: '사이드바 다음 항목 선택', callback: () => this.selectSidebarItem('next') });
-        this.addCommand({ id: 'paste-clipboard-selected', name: '사이드바 선택 항목 가져오기', icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
-        this.addCommand({ id: 'open-later-view', name: 'Later 사이드바 열기', callback: () => void this.later.activateView() });
-        this.addCommand({ id: 'resolve-later-links', name: 'Later 연결 정리', callback: () => void this.later.resolveDuplicateLinks() });
+        this.addCommand({ id: 'open-work-file', name: t('command.openWorkFile'), callback: () => void this.work.openWorkFile() });
+        this.addCommand({ id: 'close-all-tabs', name: t('command.closeAllTabs'), callback: () => void this.work.cleanupTabs() });
+        this.addCommand({ id: 'clipboard-select-prev', name: t('command.selectPreviousSidebarItem'), callback: () => this.selectSidebarItem('prev') });
+        this.addCommand({ id: 'clipboard-select-next', name: t('command.selectNextSidebarItem'), callback: () => this.selectSidebarItem('next') });
+        this.addCommand({ id: 'paste-clipboard-selected', name: t('command.takeSelectedSidebarItem'), icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
+        this.addCommand({ id: 'open-later-view', name: t('command.openLaterView'), callback: () => void this.later.activateView() });
+        this.addCommand({ id: 'resolve-later-links', name: t('command.resolveLaterLinks'), callback: () => void this.later.resolveDuplicateLinks() });
 
-        this.addCommand({ id: 'cycle-left-sidebar-next', name: '왼쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
-        this.addCommand({ id: 'cycle-left-sidebar-prev', name: '왼쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
-        this.addCommand({ id: 'cycle-right-sidebar-next', name: '오른쪽 사이드바: 다음 탭', callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
-        this.addCommand({ id: 'cycle-right-sidebar-prev', name: '오른쪽 사이드바: 이전 탭', callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
+        this.addCommand({ id: 'cycle-left-sidebar-next', name: t('command.nextLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
+        this.addCommand({ id: 'cycle-left-sidebar-prev', name: t('command.previousLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
+        this.addCommand({ id: 'cycle-right-sidebar-next', name: t('command.nextRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
+        this.addCommand({ id: 'cycle-right-sidebar-prev', name: t('command.previousRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'move-line-to-target', name: '선택 영역 또는 현재 행을 Later로 이동', icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveSelectionToLater(editor, view.file) });
-        this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: '한글 입력 버그 픽스 기능 재시작', callback: () => { this._koIme_resetFeatureState(); } });
+        this.addCommand({ id: 'move-line-to-target', name: t('command.moveSelectionToLater'), icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveSelectionToLater(editor, view.file) });
+        this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: t('command.restartKoreanImeFix'), callback: () => { this._koIme_resetFeatureState(); } });
 
-        this.addCommand({ id: 'open-quick-slot-assigner', name: '퀵 슬롯 지정 메뉴 열기', callback: () => this.quickSlot.openAssignModal() });
-        this.addCommand({ id: 'open-quick-slot-selector', name: '퀵 슬롯 파일 열기', callback: () => this.quickSlot.openSelectModal() });
-        this.addCommand({ id: 'clear-all-slots', name: '퀵 슬롯 초기화', callback: async () => {
+        this.addCommand({ id: 'open-quick-slot-assigner', name: t('command.openQuickSlotAssigner'), callback: () => this.quickSlot.openAssignModal() });
+        this.addCommand({ id: 'open-quick-slot-selector', name: t('command.openQuickSlotSelector'), callback: () => this.quickSlot.openSelectModal() });
+        this.addCommand({ id: 'clear-all-slots', name: t('command.clearQuickSlots'), callback: async () => {
             this.settings.quickSlots = [null, null, null, null];
             await this.saveSettings();
-            new Notice('모든 퀵 슬롯이 비워졌습니다.');
+            new Notice(t('notice.quickSlotsCleared'));
         }});
         for (let i = 1; i <= 4; i++) {
-            this.addCommand({ id: `open-quick-slot-${i}`, name: `퀵 슬롯 ${i} 파일 열기`, callback: () => void this.quickSlot.openSlot(i) });
+            this.addCommand({ id: `open-quick-slot-${i}`, name: t('command.openQuickSlot', { slot: i }), callback: () => void this.quickSlot.openSlot(i) });
         }
 
-        this.addCommand({ id: 'open-command-slot-assigner', name: '명령어 슬롯 지정 메뉴 열기', callback: () => this.commandSlot.openAssignModal() });
-        this.addCommand({ id: 'open-command-slot-selector', name: '명령어 슬롯 실행', callback: () => this.commandSlot.openSelectModal() });
-        this.addCommand({ id: 'clear-all-command-slots', name: '명령어 슬롯 모두 비우기', callback: async () => {
+        this.addCommand({ id: 'open-command-slot-assigner', name: t('command.openCommandSlotAssigner'), callback: () => this.commandSlot.openAssignModal() });
+        this.addCommand({ id: 'open-command-slot-selector', name: t('command.openCommandSlotSelector'), callback: () => this.commandSlot.openSelectModal() });
+        this.addCommand({ id: 'clear-all-command-slots', name: t('command.clearCommandSlots'), callback: async () => {
         	this.settings.commandSlots = [];
         	await this.saveSettings();
-        	new Notice('모든 명령어 슬롯이 비워졌습니다.');
+            new Notice(t('notice.commandSlotsCleared'));
         }});
     }
 
@@ -288,7 +289,7 @@ export default class ATOZPlugin extends Plugin {
             return;
         }
 
-        new Notice('Later 사이드바 탭을 선택해 주세요.');
+        new Notice(t('notice.selectLaterSidebarTab'));
     }
 
     private async takeSidebarItem(): Promise<void> {
@@ -297,7 +298,7 @@ export default class ATOZPlugin extends Plugin {
             return;
         }
 
-        new Notice('Later 사이드바 탭을 선택해 주세요.');
+        new Notice(t('notice.selectLaterSidebarTab'));
     }
 
     registerEvents() {
@@ -318,31 +319,31 @@ export default class ATOZPlugin extends Plugin {
                     if (activeView) {
                     	const view = activeView;
                         menu.addItem((item) => {
-                        	item.setTitle('저장')
+                            item.setTitle(t('menu.save'))
                         		.setIcon('lucide-save')
                         		.onClick(async () => {
                         			await this.app.vault.modify(file, view.editor.getValue());
-                        			new Notice('저장했습니다.');
+                                    new Notice(t('notice.saved'));
                         		});
                         });
                     }
         
                     menu.addItem((item) => {
-                        item.setTitle('퀵 슬롯 지정 메뉴 열기')
+                        item.setTitle(t('menu.openQuickSlotAssigner'))
                         	.setIcon('lucide-square-dot')
                             .onClick(() => this.quickSlot.openAssignModal());
                     });
 
 
                     menu.addItem((item) => {
-                        item.setTitle('현재 파일 이동')
+                        item.setTitle(t('menu.moveCurrentFile'))
                         	.setIcon('lucide-folder-input')
                             .onClick(() => this.moveCurrentFile.moveCurrentFile());
                     });
                 }
         
                 menu.addItem((item) => {
-                    item.setTitle('문서 전체 복사')
+                    item.setTitle(t('menu.copyEntireDocument'))
                         .setIcon('copy')
                         .onClick(() => {
                             void this.copyWholeDocument(file);
@@ -374,7 +375,7 @@ export default class ATOZPlugin extends Plugin {
                 }
                 if (changed) {
                 	await this.saveSettings();
-                	new Notice('퀵 슬롯에 등록된 파일의 이름(경로)이 업데이트되었습니다.');
+                new Notice(t('notice.quickSlotPathUpdated'));
                 }
             })
         );
@@ -393,7 +394,7 @@ export default class ATOZPlugin extends Plugin {
                 }
                 if (changed) {
                 	await this.saveSettings();
-                	new Notice('퀵 슬롯에 등록된 파일이 삭제되어 슬롯에서 제거되었습니다.');
+                new Notice(t('notice.quickSlotFileRemoved'));
                 }
             })
         );
@@ -408,7 +409,7 @@ export default class ATOZPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         const content = await this.app.vault.read(file);
         await navigator.clipboard.writeText(content);
-        new Notice(`${file.name}을(를) 복사했습니다.`);
+        new Notice(t('notice.fileCopied', { file: file.name }));
     }
 
 // this is for koIme
@@ -418,7 +419,7 @@ export default class ATOZPlugin extends Plugin {
     
     	setTimeout(() => {
     		this._koIme_isFeatureActivated = true;
-    		new Notice('한글 입력 버그 픽스 기능이 재시작되었습니다.');
+            new Notice(t('notice.koreanImeFixRestarted'));
     	}, 50);
     }
     

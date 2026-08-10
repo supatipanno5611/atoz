@@ -1,48 +1,54 @@
 # a to z
 
-`a to z`는 한국어 사용자의 Obsidian 작성 흐름을 빠르게 만들기 위한 개인용 플러그인입니다.
+English | [한국어](README.ko.md)
 
-글을 쓰는 동안 자주 반복하는 편집 동작, Later 문장 보관, frontmatter와 주제어 관리, 조각글과 기호 입력을 명령어와 설정으로 묶어 둔 프로젝트입니다.
+`a to z` is an Obsidian plugin designed to streamline writing workflows, with particular support for Korean users.
 
-## 무엇을 해주나요?
+It brings frequently used editing actions, source-linked Later notes, frontmatter and topic management, snippets, and symbol input together as commands and settings.
 
-이 플러그인은 크게 네 가지 일을 돕습니다.
+## Features
 
-| 영역 | 대표 기능 |
+| Area | Main features |
 | --- | --- |
-| 편집 보조 | 문서 전체 복사/잘라내기, 현재 행 복사/잘라내기, 단락 제거, 메인 에디터 포커스 |
-| 노트 정리 | 선택한 행을 원본별 Later 노트로 이동, 선택한 내용을 새 노트로 이동, 현재 파일 이동, 탭 정리 |
-| 속성 관리 | `topics`, `date` 편집과 속성 정리 |
-| 입력 보조 | 조각글 추천, 기호 추천, 짝 기호 스마트 삭제 |
+| Editing | Copy or cut an entire document, copy or cut the current line, delete a paragraph, and focus the main editor |
+| Note organization | Move selected text to source-specific Later notes, move content to a new note, move the current file, and clean up tabs |
+| Property management | Edit and clean up `topics`, `date`, and other supported properties |
+| Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
 
-각 기능의 자세한 동작은 [기능 문서](#기능-문서)에서 볼 수 있습니다.
+The plugin automatically uses Korean UI text when Obsidian's interface language is Korean. All other interface languages use English.
 
-## 설치하기
+## Installation
 
-이 저장소는 Obsidian 커뮤니티 플러그인 형태로 빌드됩니다.
+### Community plugins
 
-### 직접 설치
+Once the plugin is available in the Obsidian Community directory:
 
-1. 이 저장소를 내려받습니다.
-2. 의존성을 설치합니다.
+1. Open **Settings → Community plugins**.
+2. Search for **a to z**.
+3. Select **Install**, then enable the plugin.
+
+### Manual installation
+
+1. Download or clone this repository.
+2. Install the dependencies.
 
 ```bash
 npm install
 ```
 
-3. 플러그인을 빌드합니다.
+3. Build the plugin.
 
 ```bash
 npm run build
 ```
 
-4. Obsidian vault 안에 플러그인 폴더를 만듭니다.
+4. Create the following folder inside your vault:
 
 ```text
-<내 vault>/.obsidian/plugins/atoz/
+<your-vault>/.obsidian/plugins/atoz/
 ```
 
-5. 아래 세 파일을 그 폴더에 넣습니다.
+5. Copy these files into the folder:
 
 ```text
 manifest.json
@@ -50,46 +56,44 @@ main.js
 styles.css
 ```
 
-6. Obsidian을 다시 불러온 뒤 `설정 > 커뮤니티 플러그인`에서 `a to z`를 켭니다.
+6. Reload Obsidian and enable **a to z** under **Settings → Community plugins**.
 
-`manifest.json` 기준 최소 Obsidian 버전은 `1.13.0`이고, 데스크톱 전용 플러그인은 아닙니다.
+The minimum supported Obsidian version is `1.13.0`. The plugin supports both desktop and mobile.
 
-## 처음 설정하면 좋은 값
+## Recommended initial settings
 
-플러그인을 켠 뒤 `설정 > a to z`에서 필요한 값만 채우면 됩니다.
+After enabling the plugin, open **Settings → a to z** and configure only the features you need.
 
-| 설정 | 기본값 | 설명 |
+| Setting | Default | Description |
 | --- | --- | --- |
-| 커서 중앙 고정 사용 | 꺼짐 | 편집 중 커서를 화면 중앙 근처에 유지합니다. |
-| 읽는 시간 계산 기준 | 공백 제외 | 문서 정보에서 읽는 시간을 계산할 글자 수 기준입니다. |
-| 분당 읽는 글자 수 | `500` | 읽는 시간 계산에 사용할 개인 읽기 속도입니다. |
-| 목표 글자수 후보 | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | 문서별로 선택할 목표와 안전 범위입니다. |
-| 조각글 트리거 문자 | `@` | 입력 중 조각글 추천을 여는 문자입니다. |
-| 조각글 표시 개수 | `5` | 추천 목록에 보여줄 조각글 수입니다. |
-| 조각글 목록 | 비어 있음 | 자주 쓰는 문구를 한 줄에 하나씩 저장합니다. |
-| 기호 트리거 문자 | `~` | 기호 추천을 여는 문자입니다. |
-| 기호 표시 개수 | `5` | 추천 목록에 보여줄 기호 수입니다. |
-| 기호 목록 | 기본 기호 세트 | 각 기호의 ID, 표시 문자, 선택적인 닫는 문자를 설정합니다. |
-| 작업 문서 경로 | `work.md` | `작업 문서 열기` 명령으로 열 파일입니다. |
+| Enable cursor centering | Off | Keeps the cursor near the center of the screen while editing. |
+| Reading time basis | Without spaces | Character-count basis used to estimate reading time. |
+| Reading speed | `500` | Personal reading speed in characters per minute. |
+| Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets and their allowed ranges. |
+| Snippet trigger character | `@` | Opens snippet suggestions while typing. |
+| Snippet suggestion limit | `5` | Maximum number of snippet suggestions shown. |
+| Snippet list | Empty | Stores reusable text, one snippet per line. |
+| Symbol trigger character | `~` | Opens symbol suggestions while typing. |
+| Symbol suggestion limit | `5` | Maximum number of symbol suggestions shown. |
+| Symbol list | Default symbol set | Configures each symbol's ID, displayed character, and optional closing character. |
+| Work note path | `work.md` | File opened by the **Open work note** command. |
 
-설정 화면의 `모든 설정 초기화`를 누르면 이 값들이 기본값으로 돌아갑니다.
+Use **Reset all settings** to restore these defaults.
 
-## 자주 쓰는 흐름
+## Common workflows
 
-### Later에 문장 보관
+### Save text for Later
 
-1. 일반 노트나 `work.md`에서 옮길 범위를 선택하거나 현재 행에 커서를 둡니다.
-2. `선택 영역 또는 현재 행을 Later로 이동`을 실행합니다.
-3. 내용이 `<원본명>_later.md`에 저장되고 원본에서 제거됩니다.
-4. Later 사이드바에서 문장을 선택해 원본으로 다시 가져올 수 있습니다.
+1. Select text in a regular note or `work.md`, or place the cursor on a line.
+2. Run **Move selection or current line to Later**.
+3. The content is saved in `<source-name>_later.md` and removed from the source note.
+4. Select an entry in the later sidebar to move it back to the source note.
 
-Later 노트는 `later: "[[원본 노트]]"` 속성으로 원본과 연결됩니다.
+Each Later note is linked to its source by the `later: "[[Source note]]"` property.
 
-### frontmatter 정리
+### Clean up frontmatter
 
-`속성을 형식에 맞게 정리`는 vault의 마크다운 파일을 훑으면서 허용된 속성만 남기도록 돕습니다.
-
-허용 속성은 다음과 같습니다.
+**Clean up properties** checks Markdown files in the vault against the supported property list:
 
 ```yaml
 date:
@@ -104,109 +108,108 @@ target-characters:
 target-tolerance:
 ```
 
-빈 값인 비허용 속성은 자동으로 지우고, 값이 들어 있는 비허용 속성이 있는 파일은 검토할 수 있도록 새 탭으로 엽니다. `log.md`와 설정된 작업 문서는 검사에서 제외됩니다.
+Unsupported empty properties are removed automatically. Files containing unsupported properties with values are opened in new tabs for review. `log.md` and the configured work note are excluded.
 
-### 조각글과 기호 입력
+### Insert snippets and symbols
 
-조각글은 기본적으로 `@` 뒤에 검색어를 입력해 사용합니다. 기존 조각글을 고르면 입력 범위가 해당 문구로 바뀌고, 새 문구는 추천 목록에서 바로 등록할 수 있습니다.
+By default, type `@` followed by a search term to open snippet suggestions. Selecting an existing snippet replaces the typed range. A new snippet can be added directly from the suggestion list.
 
-기호는 기본적으로 `~` 뒤에 기호 ID를 입력해 사용합니다. 닫는 문자가 있는 기호는 선택 영역을 감싸거나, 선택 영역이 없으면 쌍을 넣고 커서를 가운데에 둡니다. 짝 기호 사이에서 Backspace를 누르면 두 기호가 함께 지워집니다.
+Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a closing character wraps selected text, or inserts the pair and places the cursor between them. Pressing Backspace between a matching pair deletes both characters.
 
-## 명령어 한눈에 보기
+## Commands
 
-| 명령어 | 설명 |
+| Command | Description |
 | --- | --- |
-| `커서 중앙 유지 토글` | 편집 중 커서를 화면 중앙 근처에 유지합니다. |
-| `문서 전체 복사` | 현재 문서 전체를 클립보드에 복사합니다. |
-| `문서 전체 잘라내기` | 현재 문서 전체를 클립보드에 복사한 뒤 문서를 비웁니다. |
-| `복사하기` | 선택 영역을 복사하고, 선택이 없으면 현재 행을 복사합니다. |
-| `잘라내기` | 선택 영역을 잘라내고, 선택이 없으면 현재 행을 잘라냅니다. |
-| `내용을 잘라내어 새 노트 만들기` | 선택한 행 또는 문서 전체를 vault 루트의 새 노트로 이동합니다. |
-| `단락 제거` | 현재 커서가 있는 행을 삭제합니다. |
-| `메인 에디터에 포커스` | 메인 마크다운 에디터로 포커스를 되돌립니다. |
-| `모든 폴더 숨김 토글` | 파일 탐색기의 모든 폴더를 숨기거나 표시합니다. |
-| `모바일 툴바 숨김 토글` | 모바일 하단 툴바를 숨기거나 표시합니다. |
-| `현재 파일 이동` | 현재 마크다운 파일을 vault 안의 다른 폴더로 이동합니다. |
-| `주제어 편집` | 현재 파일의 `topics` 값을 추가하거나 제거합니다. |
-| `오늘 날짜 속성 삽입` | `date`가 없을 때만 오늘 날짜를 넣습니다. |
-| `오늘 날짜로 갱신` | `date` 값을 오늘 날짜로 덮어씁니다. |
-| `속성을 형식에 맞게 정리` | frontmatter의 비허용 속성을 정리하고 검토 파일을 엽니다. |
-| `문서 정보 보기` | 현재 문서의 글자 수, 읽는 시간과 지정된 목표를 왼쪽 사이드바에 표시합니다. |
-| `현재 문서 목표 글자수 지정` | 설정의 목표 후보 중 하나를 현재 문서에 지정하거나 기존 목표를 해제합니다. |
-| `작업 문서 열기` | 설정한 작업 문서를 엽니다. |
-| `모든 탭 닫기` | 메인 작업 영역의 고정되지 않은 탭을 닫습니다. |
-| `선택 영역 또는 현재 행을 Later로 이동` | 선택한 문자 범위 또는 현재 행을 원본과 연결된 `<원본명>_later.md`로 이동합니다. |
-| `Later 사이드바 열기` | 현재 노트에 연결된 Later 문장을 오른쪽 사이드바에 표시합니다. |
-| `사이드바 이전 항목 선택` | Later 사이드바의 이전 항목을 선택합니다. |
-| `사이드바 다음 항목 선택` | Later 사이드바의 다음 항목을 선택합니다. |
-| `사이드바 선택 항목 가져오기` | 선택된 Later 항목을 원본 편집기로 가져옵니다. |
-| `Later 연결 정리` | 한 원본을 가리키는 여러 Later 노트 중 하나만 연결 상태로 유지합니다. |
+| **Toggle cursor centering** | Keeps the cursor near the center of the screen while editing. |
+| **Copy entire document** | Copies the entire current document to the clipboard. |
+| **Cut entire document** | Copies the entire current document, then clears it. |
+| **Copy** | Copies the selection, or the current line when nothing is selected. |
+| **Cut** | Cuts the selection, or the current line when nothing is selected. |
+| **Cut content to new note** | Moves the selected lines or entire document to a new note in the vault root. |
+| **Delete paragraph** | Deletes the line containing the cursor. |
+| **Focus main editor** | Returns focus to the main Markdown editor. |
+| **Toggle mobile toolbar** | Shows or hides the bottom toolbar on mobile. |
+| **Move current file** | Moves the current Markdown file to another folder in the vault. |
+| **Edit topics** | Adds or removes values in the current file's `topics` property. |
+| **Insert today's date property** | Adds today's date only when the `date` property is absent. |
+| **Update date property to today** | Replaces the `date` value with today's date. |
+| **Clean up properties** | Removes unsupported empty properties and opens files that need review. |
+| **View document info** | Shows character counts, reading time, and the writing target in the left sidebar. |
+| **Set writing target for current document** | Assigns one of the configured target presets or clears the current target. |
+| **Open work note** | Opens the configured work note. |
+| **Close all tabs** | Closes unpinned tabs in the main workspace. |
+| **Move selection or current line to later** | Moves the exact selection or current line into a source-linked later note. |
+| **Open later sidebar** | Shows later entries linked to the current note. |
+| **Select previous sidebar item** | Selects the previous entry in the later sidebar. |
+| **Select next sidebar item** | Selects the next entry in the later sidebar. |
+| **Take selected sidebar item** | Moves the selected later entry back into the source editor. |
+| **Resolve later links** | Keeps one linked later note when multiple notes point to the same source. |
 
-리본 아이콘으로는 `작업 문서 열기`, `모든 폴더 숨김 토글`, `모바일 툴바 숨김 토글`, `Later 사이드바 열기`, 퀵 슬롯 열기를 바로 실행할 수 있습니다.
+Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, document info, and quick slots.
 
-## 기능 문서
+## Documentation
 
-더 자세한 설명은 기능별 문서를 참고하세요.
+Detailed feature documentation is currently available in Korean:
 
-| 문서 | 내용 |
+| Document | Topic |
 | --- | --- |
-| [cursor-center.md](docs/cursor-center.md) | 커서 중앙 유지 |
-| [cut-copy.md](docs/cut-copy.md) | 복사와 잘라내기 |
-| [cut-create-new-md.md](docs/cut-create-new-md.md) | 내용을 잘라내어 새 노트 만들기 |
-| [delete-paragraph.md](docs/delete-paragraph.md) | 단락 제거 |
-| [focus-root-leaf.md](docs/focus-root-leaf.md) | 메인 에디터에 포커스 |
-| [move-current-file.md](docs/move-current-file.md) | 현재 파일 이동 |
-| [work.md](docs/work.md) | 작업 문서와 탭 정리 |
-| [later-sidebar.md](docs/later-sidebar.md) | 원본별 Later 노트와 사이드바 |
-| [edit-topics.md](docs/edit-topics.md) | 주제어 편집 |
-| [date-property.md](docs/date-property.md) | 날짜 속성 |
-| [lint-properties.md](docs/lint-properties.md) | 속성 정리 |
-| [document-info.md](docs/document-info.md) | 글자 수, 읽는 시간과 목표 글자 수 |
-| [folder-visibility.md](docs/folder-visibility.md) | 모든 폴더 숨김 토글 |
-| [mobile-toolbar.md](docs/mobile-toolbar.md) | 모바일 툴바 숨김 토글 |
-| [snippets.md](docs/snippets.md) | 조각글 제안 |
-| [symbols.md](docs/symbols.md) | 기호 제안과 스마트 삭제 |
+| [cursor-center.md](docs/cursor-center.md) | Cursor centering |
+| [cut-copy.md](docs/cut-copy.md) | Copy and cut actions |
+| [cut-create-new-md.md](docs/cut-create-new-md.md) | Move content to a new note |
+| [delete-paragraph.md](docs/delete-paragraph.md) | Delete the current paragraph |
+| [focus-root-leaf.md](docs/focus-root-leaf.md) | Focus the main editor |
+| [move-current-file.md](docs/move-current-file.md) | Move the current file |
+| [work.md](docs/work.md) | Work note and tab cleanup |
+| [later-sidebar.md](docs/later-sidebar.md) | Source-specific Later notes and sidebar |
+| [edit-topics.md](docs/edit-topics.md) | Topic editing |
+| [date-property.md](docs/date-property.md) | Date properties |
+| [lint-properties.md](docs/lint-properties.md) | Property cleanup |
+| [document-info.md](docs/document-info.md) | Character counts, reading time, and writing targets |
+| [mobile-toolbar.md](docs/mobile-toolbar.md) | Mobile toolbar visibility |
+| [snippets.md](docs/snippets.md) | Snippet suggestions |
+| [symbols.md](docs/symbols.md) | Symbol suggestions and paired deletion |
 
-## 개발하기
+## Development
 
-주요 소스는 `src/`에 있고, 빌드 결과는 루트의 `main.js`로 생성됩니다.
+Source files are located in `src/`. The build output is generated as `main.js` in the repository root.
 
 ```bash
 npm run dev
 ```
 
-개발 모드입니다. `src/main.ts`를 entry point로 esbuild watch를 실행하고, sourcemap을 포함한 `main.js`를 만듭니다.
+Starts esbuild in watch mode with `src/main.ts` as the entry point and generates a source-mapped `main.js`.
 
 ```bash
 npm run build
 ```
 
-배포용 빌드입니다. TypeScript 타입 검사를 먼저 실행한 뒤 production bundle을 만듭니다.
+Runs the TypeScript type check and creates a production bundle.
 
 ```bash
 npm run lint
 ```
 
-ESLint와 Obsidian 플러그인 권장 규칙으로 코드를 검사합니다.
+Checks the project with ESLint and the recommended Obsidian plugin rules.
 
 ```bash
 npm run version
 ```
 
-`version-bump.mjs`를 실행하고 `manifest.json`, `versions.json`을 git stage에 올립니다.
+Runs `version-bump.mjs`, then stages `manifest.json` and `versions.json`.
 
-## 프로젝트 구조
+## Project structure
 
 ```text
 .
-├── manifest.json        # Obsidian 플러그인 메타데이터
-├── main.js              # esbuild가 만든 번들 파일
-├── styles.css           # 설정 화면과 모바일/폴더 표시 제어 스타일
+├── manifest.json        # Obsidian plugin metadata
+├── main.js              # Bundle generated by esbuild
+├── styles.css           # Plugin styles
 ├── src/
-│   ├── main.ts          # 플러그인 로딩, 명령어 등록, 이벤트 등록
-│   ├── setting.ts       # 설정 탭
-│   ├── types.ts         # 설정 타입과 기본값
-│   ├── utils.ts         # 공통 유틸리티
-│   └── features/        # 기능별 구현
-└── docs/                # 기능별 사용자 문서
+│   ├── locales/         # English and Korean UI text
+│   ├── main.ts          # Plugin loading, commands, and events
+│   ├── setting.ts       # Settings tab
+│   ├── types.ts         # Settings types and defaults
+│   ├── utils.ts         # Shared utilities
+│   └── features/        # Feature implementations
+└── docs/                # Korean feature documentation
 ```

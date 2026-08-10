@@ -1,5 +1,6 @@
 import { App, Notice, SuggestModal, TFile, WorkspaceLeaf, FileView } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 export function toPathArray(slot: string | string[] | null | undefined): string[] {
     if (!slot) return [];
@@ -23,7 +24,7 @@ export class QuickSlotFeature {
         if (targetPaths.includes(file.path)) {
             const next = targetPaths.filter(p => p !== file.path);
             slots[targetIndex] = fromPathArray(next);
-            new Notice(`슬롯 ${slotId}에서 파일이 제거되었습니다.`);
+            new Notice(t('quickSlot.fileRemoved', { slot: slotId }));
             await this.plugin.saveSettings();
             return;
         }
@@ -35,7 +36,7 @@ export class QuickSlotFeature {
 
             slots[i] = fromPathArray(otherPaths.filter(p => p !== file.path));
             slots[targetIndex] = fromPathArray([...targetPaths, file.path]);
-            new Notice(`슬롯 ${i + 1}에서 슬롯 ${slotId}(으)로 이동되었습니다.`);
+            new Notice(t('quickSlot.fileMoved', { from: i + 1, to: slotId }));
             await this.plugin.saveSettings();
             return;
         }
@@ -43,8 +44,8 @@ export class QuickSlotFeature {
         slots[targetIndex] = fromPathArray([...targetPaths, file.path]);
         new Notice(
             targetPaths.length === 0
-                ? `현재 파일이 퀵 슬롯 ${slotId}에 지정되었습니다.`
-                : `현재 파일이 퀵 슬롯 ${slotId}에 추가되었습니다.`
+                ? t('quickSlot.currentAssigned', { slot: slotId })
+                : t('quickSlot.currentAdded', { slot: slotId })
         );
         await this.plugin.saveSettings();
     }
@@ -53,7 +54,7 @@ export class QuickSlotFeature {
         const index = slotId - 1;
         const paths = toPathArray(this.plugin.settings.quickSlots[index]);
         if (paths.length === 0) {
-            new Notice(`퀵 슬롯 ${slotId}이 비어 있습니다.`);
+            new Notice(t('quickSlot.empty', { slot: slotId }));
             return;
         }
 
@@ -65,7 +66,7 @@ export class QuickSlotFeature {
         const filePath = paths[0]!;
         const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (!(file instanceof TFile)) {
-            new Notice(`슬롯 ${slotId}의 파일을 찾을 수 없어 초기화합니다.`);
+            new Notice(t('quickSlot.missingCleared', { slot: slotId }));
             this.plugin.settings.quickSlots[index] = null;
             await this.plugin.saveSettings();
             return;
@@ -121,14 +122,14 @@ export class QuickSlotFeature {
             if (validPaths.length !== paths.length) {
                 this.plugin.settings.quickSlots[index] = fromPathArray(validPaths);
                 await this.plugin.saveSettings();
-                new Notice(`슬롯 ${slotId}에서 찾을 수 없는 파일을 제거했습니다.`);
+                new Notice(t('quickSlot.missingRemoved', { slot: slotId }));
             }
         }
 
     openAssignModal(): void {
         const currentFile = this.plugin.app.workspace.getActiveFile();
         if (!currentFile) {
-            new Notice('현재 활성화된 파일이 없습니다.');
+            new Notice(t('quickSlot.noActiveFile'));
             return;
         }
         new SlotAssignModal(this.plugin.app, this.plugin, currentFile).open();
@@ -167,7 +168,7 @@ abstract class BaseSlotModal extends SuggestModal<number> {
 
 class SlotAssignModal extends BaseSlotModal {
     constructor(app: App, plugin: ATOZPlugin, private currentFile: TFile) {
-        super(app, plugin, '지정/해제할 슬롯을 선택하세요.');
+        super(app, plugin, t('quickSlot.assignTitle'));
     }
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
@@ -181,12 +182,13 @@ class SlotAssignModal extends BaseSlotModal {
         });
 
         if (isInThisSlot) {
-            el.setText(`[${slotId}] 슬롯: ${slotPaths.join(', ')} (누르면 제거)`);
+            el.setText(t('quickSlot.assignedItem', { slot: slotId, paths: slotPaths.join(', ') }));
         } else {
-            let text = `[${slotId}] 슬롯: `;
-            text += slotPaths.length > 0 ? `${slotPaths.join(', ')} (추가` : `(비어 있음`;
-            text += otherIndex !== -1 ? `, 기존 슬롯 ${otherIndex + 1}에서 이동)` : `)`;
-            el.setText(text);
+            el.setText(slotPaths.length === 0
+                ? t('quickSlot.emptyItem', { slot: slotId })
+                : otherIndex === -1
+                    ? t('quickSlot.addItem', { slot: slotId, paths: slotPaths.join(', ') })
+                    : t('quickSlot.moveItem', { slot: slotId, paths: slotPaths.join(', '), from: otherIndex + 1 }));
         }
     }
 
@@ -197,13 +199,15 @@ class SlotAssignModal extends BaseSlotModal {
 
 class SlotOpenModal extends BaseSlotModal {
     constructor(app: App, plugin: ATOZPlugin) {
-        super(app, plugin, '열고 싶은 슬롯을 선택하세요.');
+        super(app, plugin, t('quickSlot.openTitle'));
     }
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
         const index = slotId - 1;
         const paths = toPathArray(this.plugin.settings.quickSlots[index]);
-        el.setText(paths.length > 0 ? `[${slotId}] 슬롯: ${paths.join(', ')} (누르면 열기)` : `[${slotId}] 슬롯: (비어 있음)`);
+        el.setText(paths.length > 0
+            ? t('quickSlot.openItem', { slot: slotId, paths: paths.join(', ') })
+            : t('quickSlot.emptyItem', { slot: slotId }));
     }
 
     async onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): Promise<void> {

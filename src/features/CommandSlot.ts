@@ -1,5 +1,6 @@
 import { App, Notice, SuggestModal } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 interface CommandEntry {
     id: string;
@@ -24,14 +25,14 @@ export class CommandSlotFeature {
 
         slots[index] = commandId;
         await this.plugin.saveSettings();
-        new Notice(`슬롯 ${slotId}에 "${commandName}" 명령어를 지정했습니다.`);
+        new Notice(t('commandSlot.assigned', { slot: slotId, command: commandName }));
     }
 
     async clearSlot(slotId: number): Promise<void> {
         const index = slotId - 1;
         this.plugin.settings.commandSlots[index] = null;
         await this.plugin.saveSettings();
-        new Notice(`슬롯 ${slotId}을(를) 비웠습니다.`);
+        new Notice(t('commandSlot.cleared', { slot: slotId }));
     }
 
     executeSlot(slotId: number): void {
@@ -39,13 +40,13 @@ export class CommandSlotFeature {
         const commandId = this.plugin.settings.commandSlots[index];
 
         if (!commandId) {
-            new Notice(`명령어 슬롯 ${slotId}이 비어 있습니다.`);
+            new Notice(t('commandSlot.empty', { slot: slotId }));
             return;
         }
 
         const executed = (this.plugin.app as any).commands.executeCommandById(commandId);
         if (!executed) {
-            new Notice(`명령어를 실행할 수 없습니다: ${commandId}`);
+            new Notice(t('commandSlot.cannotRun', { command: commandId }));
         }
     }
 
@@ -89,20 +90,20 @@ abstract class BaseCommandSlotModal extends SuggestModal<number> {
 
 class CommandSlotAssignModal extends BaseCommandSlotModal {
     constructor(app: App, plugin: ATOZPlugin) {
-        super(app, plugin, '명령어를 지정할 슬롯을 선택하세요.');
+        super(app, plugin, t('commandSlot.assignTitle'));
     }
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
         const index = slotId - 1;
         const commandId = this.plugin.settings.commandSlots[index];
         if (!commandId) {
-            el.setText(`[${slotId}] 슬롯: (비어 있음)`);
+            el.setText(t('commandSlot.emptyItem', { slot: slotId }));
             return;
         }
 
         const commands = getAllCommands(this.app);
         const command = commands.find(c => c.id === commandId);
-        el.setText(`[${slotId}] 슬롯: ${command ? command.name : commandId} (누르면 제거)`);
+        el.setText(t('commandSlot.removeItem', { slot: slotId, command: command ? command.name : commandId }));
     }
 
     onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): void {
@@ -122,20 +123,20 @@ class CommandSlotAssignModal extends BaseCommandSlotModal {
 
 class CommandSlotOpenModal extends BaseCommandSlotModal {
     constructor(app: App, plugin: ATOZPlugin) {
-        super(app, plugin, '실행할 명령어 슬롯을 선택하세요.');
+        super(app, plugin, t('commandSlot.runTitle'));
     }
 
     renderSuggestion(slotId: number, el: HTMLElement): void {
         const index = slotId - 1;
         const commandId = this.plugin.settings.commandSlots[index];
         if (!commandId) {
-            el.setText(`[${slotId}] 슬롯: (비어 있음)`);
+            el.setText(t('commandSlot.emptyItem', { slot: slotId }));
             return;
         }
 
         const commands = getAllCommands(this.app);
         const command = commands.find(c => c.id === commandId);
-        el.setText(`[${slotId}] 슬롯: ${command ? command.name : commandId} (누르면 실행)`);
+        el.setText(t('commandSlot.runItem', { slot: slotId, command: command ? command.name : commandId }));
     }
 
     onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): void {
@@ -146,7 +147,7 @@ class CommandSlotOpenModal extends BaseCommandSlotModal {
 class CommandSearchModal extends SuggestModal<CommandEntry> {
     constructor(app: App, private onSubmit: (command: CommandEntry) => void) {
         super(app);
-        this.setPlaceholder('지정할 명령어를 검색하세요.');
+        this.setPlaceholder(t('commandSlot.searchPlaceholder'));
     }
 
     getSuggestions(query: string): CommandEntry[] {

@@ -1,5 +1,6 @@
 import { MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 export class WorkFeature {
     constructor(private plugin: ATOZPlugin) {}
@@ -29,7 +30,7 @@ export class WorkFeature {
         try {
             const targetFile = vault.getAbstractFileByPath(path);
             if (!(targetFile instanceof TFile)) {
-                new Notice(`File not found: ${path}`);
+                new Notice(t('work.fileNotFound', { path }));
                 return;
             }
 
@@ -54,7 +55,7 @@ export class WorkFeature {
                 leaf.view.editor.focus();
             }
         } catch {
-            new Notice('Failed to open work note.');
+            new Notice(t('work.openFailed'));
         }
     }
 }

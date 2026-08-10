@@ -11,6 +11,7 @@ import {
     normalizePath,
 } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 import { pickMostRecentLeaf } from '../utils';
 
 export const VIEW_TYPE_LATER = 'atoz-later-view';
@@ -106,11 +107,11 @@ export class LaterFeature {
 
     async moveSelectionToLater(editor: Editor, sourceFile: TFile | null): Promise<void> {
         if (!sourceFile) {
-            new Notice('활성화된 파일이 없습니다.');
+            new Notice(t('later.noActiveFile'));
             return;
         }
         if (this.hasLaterProperty(sourceFile)) {
-            new Notice('Later 노트에서는 이 명령을 사용할 수 없습니다.');
+            new Notice(t('later.unavailableInLaterNote'));
             return;
         }
 
@@ -122,24 +123,24 @@ export class LaterFeature {
         if (hasSelection) {
             const from = editor.getCursor('from');
             if (frontmatterEnd >= 0 && from.line <= frontmatterEnd) {
-                new Notice('Frontmatter가 포함된 선택 영역은 Later로 이동할 수 없습니다.');
+                new Notice(t('later.frontmatterSelection'));
                 return;
             }
             textToMove = editor.getSelection();
             if (!textToMove.trim()) {
-                new Notice('이동할 내용이 없습니다.');
+                new Notice(t('later.nothingToMove'));
                 return;
             }
         } else {
             currentLine = editor.getCursor().line;
             if (frontmatterEnd >= 0 && currentLine <= frontmatterEnd) {
-                new Notice('Frontmatter는 Later로 이동할 수 없습니다.');
+                new Notice(t('later.frontmatterLine'));
                 return;
             }
             textToMove = this.cleanMarkdownSymbols(editor.getLine(currentLine));
             if (!textToMove) {
                 this.removeLines(editor, currentLine, currentLine);
-                new Notice('빈 행이 삭제되었습니다.');
+                new Notice(t('later.emptyLineDeleted'));
                 return;
             }
         }
@@ -148,7 +149,7 @@ export class LaterFeature {
         if (targetFolder) {
             const folder = this.plugin.app.vault.getAbstractFileByPath(normalizePath(targetFolder));
             if (!(folder instanceof TFolder)) {
-                new Notice(`대상 폴더를 찾을 수 없습니다: ${targetFolder}`);
+                new Notice(t('later.folderNotFound', { folder: targetFolder }));
                 return;
             }
         }
@@ -175,29 +176,29 @@ export class LaterFeature {
             const entries = await this.readEntries(targetFile);
             this.selectedEntry = entries[entries.length - 1] ?? null;
             this.refreshView();
-            new Notice(`${targetFile.path} 파일로 이동했습니다.`);
+            new Notice(t('later.movedToFile', { file: targetFile.path }));
         } catch (error) {
             console.error(error);
-            new Notice('Later 노트에 기록하지 못해 원본은 변경하지 않았습니다.');
+            new Notice(t('later.writeFailed'));
         }
     }
 
     async resolveDuplicateLinks(): Promise<void> {
         const current = this.sourceFile;
         if (!current) {
-            new Notice('현재 원본 노트가 없습니다.');
+            new Notice(t('later.noSourceNote'));
             return;
         }
 
         const source = this.hasLaterProperty(current) ? this.resolveLaterSource(current) : current;
         if (!source) {
-            new Notice('연결된 원본 노트를 찾을 수 없습니다.');
+            new Notice(t('later.sourceNotFound'));
             return;
         }
 
         const linkedFiles = this.findLaterFilesForSource(source);
         if (linkedFiles.length < 2) {
-            new Notice('정리할 중복 Later 연결이 없습니다.');
+            new Notice(t('later.noDuplicates'));
             return;
         }
 
@@ -215,7 +216,7 @@ export class LaterFeature {
     async takeSelected(): Promise<void> {
         const entry = this.selectedEntry;
         if (!entry) {
-            new Notice('가져올 Later 문장이 선택되지 않았습니다.');
+            new Notice(t('later.noSelection'));
             return;
         }
 
@@ -223,7 +224,7 @@ export class LaterFeature {
         if (!source) {
             this.selectedEntry = null;
             this.refreshView();
-            new Notice('현재 원본 노트에서 Later 문장을 다시 선택해 주세요.');
+            new Notice(t('later.selectAgain'));
             return;
         }
 
@@ -231,7 +232,7 @@ export class LaterFeature {
         if (linkedFiles.length !== 1 || linkedFiles[0]?.path !== entry.filePath) {
             this.selectedEntry = null;
             this.refreshView();
-            new Notice('Later 연결을 정리한 뒤 문장을 다시 선택해 주세요.');
+            new Notice(t('later.resolveThenSelect'));
             return;
         }
 
@@ -239,7 +240,7 @@ export class LaterFeature {
         if (!(laterFile instanceof TFile)) {
             this.selectedEntry = null;
             this.refreshView();
-            new Notice('선택한 Later 노트를 찾을 수 없습니다.');
+            new Notice(t('later.noteNotFound'));
             return;
         }
 
@@ -248,7 +249,7 @@ export class LaterFeature {
         if (lines[entry.line] !== entry.text) {
             this.selectedEntry = null;
             this.refreshView();
-            new Notice('Later 노트가 변경되어 목록을 새로고침했습니다.');
+            new Notice(t('later.changedAndRefreshed'));
             return;
         }
 
@@ -405,12 +406,12 @@ export class LaterFeature {
             }
 
             if (this.resolveLaterSource(existing)?.path === source.path) return existing;
-            new Notice(`${finalPath} 파일이 다른 원본과 연결되어 있습니다.`);
+            new Notice(t('later.connectedElsewhere', { file: finalPath }));
             return null;
         }
 
         if (existing) {
-            new Notice(`${finalPath} 경로에 파일을 만들 수 없습니다.`);
+            new Notice(t('later.cannotCreate', { file: finalPath }));
             return null;
         }
 
@@ -446,7 +447,7 @@ export class LaterFeature {
 
         await this.setLaterLink(selected, source);
         this.refreshView();
-        new Notice(`${selected.path} 파일을 Later 노트로 유지했습니다.`);
+        new Notice(t('later.keptNote', { file: selected.path }));
         return selected;
     }
 
@@ -524,7 +525,7 @@ export class LaterView extends ItemView {
     }
 
     getViewType(): string { return VIEW_TYPE_LATER; }
-    getDisplayText(): string { return 'Later'; }
+    getDisplayText(): string { return t('later.viewName'); }
     getIcon(): string { return 'archive-restore'; }
 
     async onOpen(): Promise<void> { await this.render(); }
@@ -538,7 +539,7 @@ export class LaterView extends ItemView {
 
         if (!source) {
             container.empty();
-            container.createEl('div', { cls: 'atoz-later-empty', text: '현재 원본 노트가 없습니다.' });
+            container.createEl('div', { cls: 'atoz-later-empty', text: t('later.noSourceNote') });
             return;
         }
 
@@ -546,7 +547,7 @@ export class LaterView extends ItemView {
             const original = this.plugin.later.resolveLaterSource(source);
             container.empty();
             if (!original) {
-                container.createEl('div', { cls: 'atoz-later-empty', text: '연결된 원본 노트를 찾을 수 없습니다.' });
+                container.createEl('div', { cls: 'atoz-later-empty', text: t('later.sourceNotFound') });
                 return;
             }
             this.renderSourceLink(container, original);
@@ -557,8 +558,8 @@ export class LaterView extends ItemView {
         if (linkedFiles.length !== 1) {
             container.empty();
             const text = linkedFiles.length === 0
-                ? '현재 노트에 연결된 Later 노트가 없습니다.'
-                : '연결된 Later 노트가 여러 개입니다. Later 연결 정리 명령을 실행해 주세요.';
+                ? t('later.noLinkedNote')
+                : t('later.multipleLinkedNotes');
             container.createEl('div', { cls: 'atoz-later-empty', text });
             return;
         }
@@ -571,7 +572,7 @@ export class LaterView extends ItemView {
         this.itemEls.clear();
 
         if (entries.length === 0) {
-            container.createEl('div', { cls: 'atoz-later-empty', text: '보관된 문장이 없습니다.' });
+            container.createEl('div', { cls: 'atoz-later-empty', text: t('later.noEntries') });
             return;
         }
 
@@ -614,7 +615,7 @@ export class LaterView extends ItemView {
             ? frontmatter.title.trim()
             : source.basename;
         const row = container.createEl('div', { cls: 'atoz-later-source' });
-        row.createSpan({ text: '원본 노트: ' });
+        row.createSpan({ text: t('later.sourceLabel') });
         const link = row.createEl('a', { cls: 'internal-link', text: title, href: source.path });
         link.addEventListener('click', (event) => {
             event.preventDefault();
@@ -637,7 +638,7 @@ class LaterFilePicker extends SuggestModal<LaterCandidate> {
         private resolve: (file: TFile | null) => void,
     ) {
         super(app);
-        this.setPlaceholder('유지할 Later 노트를 선택하세요...');
+        this.setPlaceholder(t('later.resolvePlaceholder'));
     }
 
     getSuggestions(query: string): LaterCandidate[] {

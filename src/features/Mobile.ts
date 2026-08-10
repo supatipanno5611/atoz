@@ -1,5 +1,6 @@
 import type ATOZPlugin from '../main';
 import { Notice, Platform } from 'obsidian';
+import { t } from '../locales';
 
 export class MobileFeature {
     private ribbonEl: HTMLElement | null = null;
@@ -43,7 +44,7 @@ export class MobileFeature {
 
     toggleMobileToolbarHidden(): void {
         const isHidden = document.body.classList.toggle('mobile-toolbar-off');
-        new Notice(isHidden ? '모바일 툴바를 숨겼습니다.' : '모바일 툴바를 표시합니다.');
+        new Notice(isHidden ? t('mobile.toolbarHidden') : t('mobile.toolbarShown'));
     }
 
     async toggleStickyRibbon(): Promise<void> {
@@ -52,10 +53,10 @@ export class MobileFeature {
 
         if (this.plugin.settings.isMobileStickyRibbonEnabled) {
             this.checkSidebarState();
-            new Notice('사이드바 독립 리본을 사용합니다.');
+            new Notice(t('mobile.stickyRibbonEnabled'));
         } else {
             this.restoreRibbon();
-            new Notice('사이드바 독립 리본을 사용하지 않습니다.');
+            new Notice(t('mobile.stickyRibbonDisabled'));
         }
     }
 

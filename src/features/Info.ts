@@ -11,6 +11,7 @@ import {
 } from 'obsidian';
 import type ATOZPlugin from '../main';
 import type { WritingTargetPreset } from '../types';
+import { t } from '../locales';
 
 export const VIEW_TYPE_CHARACTER_COUNT = 'character-count-view';
 const UPDATE_DELAY = 100;
@@ -43,7 +44,7 @@ export class CharacterCountView extends ItemView {
     }
 
     getViewType(): string { return VIEW_TYPE_CHARACTER_COUNT; }
-    getDisplayText(): string { return '문서 정보'; }
+    getDisplayText(): string { return t('info.viewName'); }
     getIcon(): string { return 'letter-text'; }
 
     async onOpen(): Promise<void> {
@@ -55,8 +56,8 @@ export class CharacterCountView extends ItemView {
         const toolbar = wrapper.createDiv();
         toolbar.setCssProps({ display: 'flex', 'justify-content': 'flex-end', 'margin-bottom': '16px' });
         const targetButton = toolbar.createEl('button', { cls: 'clickable-icon' });
-        targetButton.setAttr('aria-label', '현재 문서 목표 글자수 지정');
-        targetButton.setAttr('title', '현재 문서 목표 글자수 지정');
+        targetButton.setAttr('aria-label', t('info.setTarget'));
+        targetButton.setAttr('title', t('info.setTarget'));
         setIcon(targetButton, 'target');
         targetButton.addEventListener('click', () => this.plugin.info.openWritingTargetPicker());
 
@@ -83,20 +84,20 @@ export class CharacterCountView extends ItemView {
         };
 
         this.withSpacesEl = createStat(
-            '공백 포함',
-            '프론트매터와 Markdown 문법을 제외하고 공백을 포함한 글자 수',
+            t('info.withSpaces.label'),
+            t('info.withSpaces.desc'),
         );
         this.withoutSpacesEl = createStat(
-            '공백 제외',
-            '프론트매터와 Markdown 문법을 제외하고 공백까지 제외한 글자 수',
+            t('info.withoutSpaces.label'),
+            t('info.withoutSpaces.desc'),
         );
         this.nonEmptyLinesEl = createStat(
-            '글자가 있는 행',
-            '실제로 읽을 수 있는 글자가 존재하는 행 수',
+            t('info.nonEmptyLines.label'),
+            t('info.nonEmptyLines.desc'),
         );
         this.readingTimeEl = createStat(
-            '읽는 시간(분)',
-            '설정한 계산 기준과 분당 글자 수로 예상한 읽는 시간',
+            t('info.readingTime.label'),
+            t('info.readingTime.desc'),
         );
         this.writingTargetSectionEl = wrapper.createDiv();
 
@@ -132,16 +133,16 @@ export class CharacterCountView extends ItemView {
         const section = this.writingTargetSectionEl.createDiv();
         section.setCssProps({ 'margin-bottom': '20px' });
 
-        const label = section.createDiv({ text: '목표 글자 수' });
+        const label = section.createDiv({ text: t('info.writingTarget') });
         label.setCssProps({
             'font-size': '0.85em',
             color: 'var(--text-muted)',
             'margin-bottom': '6px',
         });
-        label.setAttr('aria-label', '공백을 포함한 현재 글자 수와 목표 글자 수의 차이');
+        label.setAttr('aria-label', t('info.targetDifference'));
 
         if (stats.writingTarget.kind === 'invalid') {
-            const invalid = section.createDiv({ text: '올바른 목표값이 아닙니다' });
+            const invalid = section.createDiv({ text: t('info.invalidTarget') });
             invalid.setCssProps({
                 'font-size': '2em',
                 'font-weight': '600',
@@ -182,17 +183,17 @@ export class InfoFeature {
 
         this.plugin.addCommand({
             id: 'show-character-count',
-            name: '문서 정보 보기',
+            name: t('command.viewDocumentInfo'),
             callback: async () => this.activateView(),
         });
 
         this.plugin.addCommand({
             id: 'set-writing-target',
-            name: '현재 문서 목표 글자수 지정',
+            name: t('command.setWritingTarget'),
             callback: () => this.openWritingTargetPicker(),
         });
 
-        this.plugin.addRibbonIcon('letter-text', '문서 정보 보기', async () => this.activateView());
+        this.plugin.addRibbonIcon('letter-text', t('ribbon.viewDocumentInfo'), async () => this.activateView());
 
         this.plugin.registerEvent(
             this.plugin.app.workspace.on('active-leaf-change', () => this.scheduleUpdate()),
@@ -278,14 +279,14 @@ export class InfoFeature {
     openWritingTargetPicker(): void {
         const file = this.plugin.app.workspace.getActiveFile();
         if (!(file instanceof TFile) || file.extension !== 'md') {
-            new Notice('먼저 목표를 지정할 Markdown 문서를 열어 주세요.');
+            new Notice(t('info.openMarkdownFirst'));
             return;
         }
 
         const presets = this.getWritingTargetPresets();
         const current = this.getWritingTargetState(file);
         if (presets.length === 0 && current.kind === 'none') {
-            new Notice('설정에서 목표 글자수 후보를 먼저 추가해 주세요.');
+            new Notice(t('info.addPresetFirst'));
             return;
         }
 
@@ -402,7 +403,7 @@ class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
         private choose: (choice: WritingTargetChoice) => void,
     ) {
         super(plugin.app);
-        this.setPlaceholder('현재 문서의 목표 글자수를 선택하세요');
+        this.setPlaceholder(t('info.targetModalPlaceholder'));
     }
 
     getSuggestions(query: string): WritingTargetChoice[] {
@@ -416,8 +417,11 @@ class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
 
     renderSuggestion(choice: WritingTargetChoice, el: HTMLElement): void {
         el.setText(choice.kind === 'preset'
-            ? `${choice.preset.target.toLocaleString()}자 · ±${choice.preset.tolerance.toLocaleString()}자`
-            : '목표 해제');
+            ? t('info.targetChoice', {
+                target: choice.preset.target.toLocaleString(),
+                tolerance: choice.preset.tolerance.toLocaleString(),
+            })
+            : t('info.clearTarget'));
     }
 
     onChooseSuggestion(choice: WritingTargetChoice): void {

@@ -1,13 +1,14 @@
 import { App, Modal, Notice, Setting, SuggestModal, TFile, TFolder } from 'obsidian';
 import type ATOZPlugin from '../main';
+import { t } from '../locales';
 
 type MoveChoice =
     | { kind: 'move'; label: string }
     | { kind: 'new-folder'; label: string }
     | { kind: 'folder'; label: string; folder: TFolder };
 
-const MOVE_HERE_LABEL = '여기로 이동';
-const NEW_FOLDER_LABEL = '새 폴더 만들기';
+const MOVE_HERE_LABEL = t('moveFile.moveHere');
+const NEW_FOLDER_LABEL = t('moveFile.newFolder');
 
 function folderLabel(folder: TFolder): string {
     return folder.name || '/';
@@ -27,7 +28,7 @@ export class MoveCurrentFileFeature {
     moveCurrentFile(): void {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile || activeFile.extension !== 'md') {
-            new Notice('활성 마크다운 파일이 없습니다.');
+            new Notice(t('properties.noActiveMarkdown'));
             return;
         }
 
@@ -38,7 +39,7 @@ export class MoveCurrentFileFeature {
 class MoveFileModal extends SuggestModal<MoveChoice> {
     constructor(app: App, private file: TFile, private folder: TFolder) {
         super(app);
-        this.setPlaceholder(`이동할 위치 선택: ${this.folder.isRoot() ? '/' : this.folder.path}`);
+        this.setPlaceholder(t('moveFile.placeholder', { folder: this.folder.isRoot() ? '/' : this.folder.path }));
     }
 
     getSuggestions(query: string): MoveChoice[] {
@@ -80,36 +81,36 @@ class MoveFileModal extends SuggestModal<MoveChoice> {
 
     private async moveToFolder(folder: TFolder): Promise<void> {
         if (this.file.parent?.path === folder.path) {
-            new Notice('이미 이 위치에 있습니다.');
+            new Notice(t('moveFile.alreadyHere'));
             return;
         }
 
         const targetPath = childTargetPath(folder, this.file.name);
         if (this.app.vault.getAbstractFileByPath(targetPath) !== null) {
-            new Notice('대상 위치에 같은 이름의 노트가 이미 있습니다.');
+            new Notice(t('moveFile.duplicateNote'));
             return;
         }
 
         await this.app.fileManager.renameFile(this.file, targetPath);
-        new Notice('현재 파일을 이동했습니다.');
+        new Notice(t('moveFile.moved'));
     }
 
     private async createFolderAndMove(folderName: string): Promise<void> {
         const targetFolderPath = childTargetPath(this.folder, folderName);
         if (this.app.vault.getAbstractFileByPath(targetFolderPath) !== null) {
-            new Notice('같은 이름의 폴더가 이미 있습니다.');
+            new Notice(t('moveFile.duplicateFolder'));
             return;
         }
 
         const targetFilePath = `${targetFolderPath}/${this.file.name}`;
         if (this.app.vault.getAbstractFileByPath(targetFilePath) !== null) {
-            new Notice('대상 위치에 같은 이름의 노트가 이미 있습니다.');
+            new Notice(t('moveFile.duplicateNote'));
             return;
         }
 
         await this.app.vault.createFolder(targetFolderPath);
         await this.app.fileManager.renameFile(this.file, targetFilePath);
-        new Notice('새 폴더를 만들고 현재 파일을 이동했습니다.');
+        new Notice(t('moveFile.createdAndMoved'));
     }
 }
 
@@ -122,7 +123,7 @@ class NewFolderModal extends Modal {
     }
 
     onOpen(): void {
-        this.titleEl.setText('새 폴더 만들기');
+        this.titleEl.setText(t('moveFile.newFolderTitle'));
         new Setting(this.contentEl).addText((text) => {
             this.inputEl = text.inputEl;
             text.setPlaceholder(this.folder.isRoot() ? '/' : this.folder.path);
@@ -131,7 +132,7 @@ class NewFolderModal extends Modal {
         this.scope.register([], 'Enter', () => {
             const folderName = this.inputEl.value.trim();
             if (!isValidFolderName(folderName)) {
-                new Notice('올바른 폴더 이름을 입력하세요.');
+                new Notice(t('moveFile.invalidFolderName'));
                 return false;
             }
             this.close();
