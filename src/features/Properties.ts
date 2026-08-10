@@ -1,6 +1,7 @@
 import { App, SuggestModal, Notice } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
+import { isRecord } from '../utils';
 
 type FrontmatterRecord = Record<string, unknown>;
 
@@ -178,8 +179,8 @@ class TopicInputModal extends SuggestModal<string> {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return [];
         const cache = this.app.metadataCache.getFileCache(activeFile);
-        const frontmatter = cache?.frontmatter as FrontmatterRecord | undefined;
-        return readStringArray(frontmatter?.topics);
+        const frontmatter: unknown = cache?.frontmatter;
+        return readStringArray(isRecord(frontmatter) ? frontmatter.topics : undefined);
     }
 
     getSuggestions(query: string): string[] {

@@ -1,5 +1,9 @@
 import { App, WorkspaceLeaf } from 'obsidian';
 
+export function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function pickMostRecentLeaf(
     leaves: WorkspaceLeaf[],
     app: Pick<App, 'workspace'>,

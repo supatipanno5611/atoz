@@ -12,7 +12,7 @@ import {
 } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
-import { pickMostRecentLeaf } from '../utils';
+import { isRecord, pickMostRecentLeaf } from '../utils';
 
 export const VIEW_TYPE_LATER = 'atoz-later-view';
 
@@ -375,13 +375,13 @@ export class LaterFeature {
     }
 
     private hasLaterProperty(file: TFile): boolean {
-        const frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as FrontmatterRecord | undefined;
-        return frontmatter?.later !== undefined;
+        const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+        return isRecord(frontmatter) && frontmatter.later !== undefined;
     }
 
     private readLaterLinkpath(file: TFile): string | null {
-        const frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as FrontmatterRecord | undefined;
-        const value = frontmatter?.later;
+        const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+        const value = isRecord(frontmatter) ? frontmatter.later : undefined;
         const nestedValues: unknown = Array.isArray(value) ? value[0] : null;
         if (Array.isArray(value) && value.length === 1 && Array.isArray(nestedValues) && nestedValues.length === 1) {
             const nestedLinkpath: unknown = nestedValues[0];
@@ -400,8 +400,8 @@ export class LaterFeature {
         const existing = this.plugin.app.vault.getAbstractFileByPath(finalPath);
 
         if (existing instanceof TFile) {
-            const frontmatter = this.plugin.app.metadataCache.getFileCache(existing)?.frontmatter as FrontmatterRecord | undefined;
-            const laterValue = frontmatter?.later;
+            const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(existing)?.frontmatter;
+            const laterValue = isRecord(frontmatter) ? frontmatter.later : undefined;
             if (laterValue === undefined || laterValue === null || laterValue === '') {
                 await this.setLaterLink(existing, source);
                 return existing;
@@ -612,8 +612,8 @@ export class LaterView extends ItemView {
     }
 
     private renderSourceLink(container: HTMLElement, source: TFile): void {
-        const frontmatter = this.plugin.app.metadataCache.getFileCache(source)?.frontmatter as FrontmatterRecord | undefined;
-        const title = typeof frontmatter?.title === 'string' && frontmatter.title.trim()
+        const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(source)?.frontmatter;
+        const title = isRecord(frontmatter) && typeof frontmatter.title === 'string' && frontmatter.title.trim()
             ? frontmatter.title.trim()
             : source.basename;
         const row = container.createDiv({ cls: 'atoz-later-source' });
@@ -626,8 +626,8 @@ export class LaterView extends ItemView {
     }
 
     private hasLaterProperty(file: TFile): boolean {
-        const frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as FrontmatterRecord | undefined;
-        return frontmatter?.later !== undefined;
+        const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+        return isRecord(frontmatter) && frontmatter.later !== undefined;
     }
 }
 

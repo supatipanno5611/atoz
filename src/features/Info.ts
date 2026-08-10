@@ -12,6 +12,7 @@ import {
 import type ATOZPlugin from '../main';
 import type { WritingTargetPreset } from '../types';
 import { t } from '../locales';
+import { isRecord } from '../utils';
 
 export const VIEW_TYPE_CHARACTER_COUNT = 'character-count-view';
 const UPDATE_DELAY = 100;
@@ -306,8 +307,8 @@ export class InfoFeature {
     }
 
     private getWritingTargetState(file: TFile): WritingTargetState {
-        const frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as
-            Record<string, unknown> | undefined;
+        const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+        if (!isRecord(frontmatter)) return { kind: 'none' };
         const targetValue = frontmatter?.['target-characters'];
         const toleranceValue = frontmatter?.['target-tolerance'];
         if (targetValue === undefined && toleranceValue === undefined) return { kind: 'none' };

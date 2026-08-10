@@ -19,6 +19,7 @@ import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { InfoFeature } from './features/Info';
+import { isRecord } from './utils';
 
 interface PluginRegistry {
     enabledPlugins: Set<string>;
@@ -168,7 +169,7 @@ export default class ATOZPlugin extends Plugin {
         delete data.clipboardHistory;
         delete data.clipboardHistoryLimit;
         delete data.clipboardPreviewLength;
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, data) as ATOZSettings;
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
         if (this.settings.readingTimeCharacterBasis !== 'with-spaces' &&
             this.settings.readingTimeCharacterBasis !== 'without-spaces') {
             this.settings.readingTimeCharacterBasis = DEFAULT_SETTINGS.readingTimeCharacterBasis;
@@ -205,8 +206,8 @@ export default class ATOZPlugin extends Plugin {
 
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
-            const frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
-            const topics = frontmatter?.topics;
+            const frontmatter: unknown = cache?.frontmatter;
+            const topics = isRecord(frontmatter) ? frontmatter.topics : undefined;
             if (!Array.isArray(topics)) continue;
 
             for (const value of topics) {
