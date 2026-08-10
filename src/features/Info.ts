@@ -54,12 +54,10 @@ export class CharacterCountView extends ItemView {
 
         const toolbar = wrapper.createDiv();
         toolbar.setCssProps({ display: 'flex', 'justify-content': 'flex-end', 'margin-bottom': '16px' });
-        const targetButton = toolbar.createEl('button');
-        targetButton.setCssProps({ display: 'flex', 'align-items': 'center', gap: '6px' });
+        const targetButton = toolbar.createEl('button', { cls: 'clickable-icon' });
         targetButton.setAttr('aria-label', '현재 문서 목표 글자수 지정');
         targetButton.setAttr('title', '현재 문서 목표 글자수 지정');
         setIcon(targetButton, 'target');
-        targetButton.createSpan({ text: '목표 지정' });
         targetButton.addEventListener('click', () => this.plugin.info.openWritingTargetPicker());
 
         const createStat = (labelText: string, tooltip: string): HTMLElement => {
@@ -144,88 +142,30 @@ export class CharacterCountView extends ItemView {
 
         if (stats.writingTarget.kind === 'invalid') {
             const invalid = section.createDiv({ text: '올바른 목표값이 아닙니다' });
-            invalid.setCssProps({ color: 'var(--text-error)', 'margin-bottom': '8px' });
-        } else {
-            const current = section.createDiv({
-                text: `현재 ${stats.withSpaces.toLocaleString()}자`,
-            });
-            current.setCssProps({
+            invalid.setCssProps({
                 'font-size': '2em',
                 'font-weight': '600',
                 'line-height': '1.1',
-                'font-variant-numeric': 'tabular-nums',
-                'margin-bottom': '8px',
             });
-
+        } else {
             const { target, tolerance } = stats.writingTarget;
             const delta = target - stats.withSpaces;
             const lower = target - tolerance;
             const upper = target + tolerance;
-            const status = delta === 0
-                ? '목표 달성'
-                : stats.withSpaces < lower
-                    ? '분량 부족'
-                    : stats.withSpaces > upper
-                        ? '분량 초과'
-                        : '안전 범위';
-            const statusEl = section.createDiv({ text: status });
-            statusEl.setCssProps({
-                color: status === '안전 범위' || status === '목표 달성'
-                    ? 'var(--text-success)'
-                    : 'var(--text-warning)',
-                'font-weight': '600',
-            });
-            const deltaText = delta > 0 ? `+ ${delta.toLocaleString()}자`
-                : delta < 0 ? `- ${Math.abs(delta).toLocaleString()}자`
-                    : '0자';
+            const isSafe = stats.withSpaces >= lower && stats.withSpaces <= upper;
+            const deltaText = isSafe
+                ? `± ${Math.abs(delta).toLocaleString()}`
+                : delta > 0
+                    ? `+ ${delta.toLocaleString()}`
+                    : `- ${Math.abs(delta).toLocaleString()}`;
             const deltaEl = section.createDiv({ text: deltaText });
             deltaEl.setCssProps({
-                'font-size': '1.2em',
+                'font-size': '2em',
+                'font-weight': '600',
+                'line-height': '1.1',
                 'font-variant-numeric': 'tabular-nums',
-                'margin-bottom': '8px',
             });
         }
-
-        const select = section.createEl('select', { cls: 'dropdown' });
-        select.setCssProps({ width: '100%' });
-        select.createEl('option', { text: '목표 해제', value: '' });
-
-        const presets = this.plugin.info.getWritingTargetPresets();
-        let selectedValue = '';
-        presets.forEach((preset, index) => {
-            const value = `preset-${index}`;
-            select.createEl('option', {
-                text: `${preset.target.toLocaleString()}자 · ±${preset.tolerance.toLocaleString()}자`,
-                value,
-            });
-            if (stats.writingTarget.kind === 'valid' &&
-                preset.target === stats.writingTarget.target &&
-                preset.tolerance === stats.writingTarget.tolerance) {
-                selectedValue = value;
-            }
-        });
-
-        if (stats.writingTarget.kind === 'valid' && !selectedValue) {
-            selectedValue = 'current';
-            select.createEl('option', {
-                text: `${stats.writingTarget.target.toLocaleString()}자 · ±${stats.writingTarget.tolerance.toLocaleString()}자 · 설정 목록 외`,
-                value: selectedValue,
-            });
-        } else if (stats.writingTarget.kind === 'invalid') {
-            selectedValue = 'invalid';
-            const option = select.createEl('option', { text: '올바르지 않은 현재 값', value: selectedValue });
-            option.disabled = true;
-        }
-        select.value = selectedValue;
-
-        select.addEventListener('change', () => {
-            const value = select.value;
-            if (value === 'current' || value === 'invalid') return;
-            const preset = value.startsWith('preset-')
-                ? presets[Number(value.slice('preset-'.length))]
-                : null;
-            void this.plugin.info.setWritingTarget(preset ?? null);
-        });
     }
 }
 
