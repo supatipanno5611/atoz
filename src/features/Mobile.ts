@@ -1,5 +1,5 @@
 import type ATOZPlugin from '../main';
-import { Notice, Platform } from 'obsidian';
+import { Notice, Platform, WorkspaceSplit } from 'obsidian';
 import { t } from '../locales';
 
 export class MobileFeature {
@@ -28,7 +28,7 @@ export class MobileFeature {
 
         document.body.classList.add('plugin-tablet-sticky-ribbon');
 
-        const leftSplit = (this.plugin.app.workspace as any).leftSplit;
+        const leftSplit = this.plugin.app.workspace.leftSplit as WorkspaceSplit & { collapsed?: boolean };
         if (leftSplit?.collapsed) {
             document.body.classList.add('is-left-sidebar-closed');
             if (this.ribbonEl.parentElement !== this.appContainer) {

@@ -1,6 +1,14 @@
 import type ATOZPlugin from '../main';
 import { WorkspaceSplit, WorkspaceLeaf } from 'obsidian';
 
+interface WorkspaceSplitInternals {
+    children: WorkspaceLeaf[];
+}
+
+interface WorkspaceLeafInternals {
+    tabHeaderEl?: HTMLElement;
+}
+
 export class SidebarTabCycleFeature {
     constructor(private plugin: ATOZPlugin) {}
 
@@ -9,15 +17,15 @@ export class SidebarTabCycleFeature {
             ? this.plugin.app.workspace.leftSplit
             : this.plugin.app.workspace.rightSplit;
 
-        const leaves = (split as any).children as WorkspaceLeaf[];
+        const leaves = (split as WorkspaceSplit & WorkspaceSplitInternals).children;
         if (leaves.length === 0) return;
 
         const currentIndex = leaves.findIndex(
-            (leaf) => (leaf as any).tabHeaderEl?.hasClass('is-active')
+            (leaf) => (leaf as WorkspaceLeaf & WorkspaceLeafInternals).tabHeaderEl?.hasClass('is-active')
         );
         if (currentIndex === -1) return;
 
         const nextIndex = (currentIndex + direction + leaves.length) % leaves.length;
-        this.plugin.app.workspace.revealLeaf(leaves[nextIndex]!);
+        void this.plugin.app.workspace.revealLeaf(leaves[nextIndex]!);
     }
 }

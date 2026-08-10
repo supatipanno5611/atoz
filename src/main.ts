@@ -20,6 +20,11 @@ import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { InfoFeature } from './features/Info';
 
+interface PluginRegistry {
+    enabledPlugins: Set<string>;
+    plugins: Record<string, unknown>;
+}
+
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
     executes!: ExecutesFeature;
@@ -87,8 +92,7 @@ export default class ATOZPlugin extends Plugin {
             
            		const _koIme_detectionIntervalId = window.setInterval(() => {
            			try {
-           				// @ts-ignore
-           				const _koIme_targetPluginsObj = this.app.plugins;
+				const _koIme_targetPluginsObj = (this.app as typeof this.app & { plugins?: PluginRegistry }).plugins;
            				if (!_koIme_targetPluginsObj || !_koIme_targetPluginsObj.enabledPlugins || !_koIme_targetPluginsObj.plugins) {
            					return; 
            				}
@@ -126,7 +130,7 @@ export default class ATOZPlugin extends Plugin {
            						_koIme_stableTickCounter = 0;
            					}
            				}
-           			} catch (e) {
+			} catch {
            				window.clearInterval(_koIme_detectionIntervalId);
            			}
            		}, 200);
@@ -273,8 +277,12 @@ export default class ATOZPlugin extends Plugin {
             this.addCommand({ id: `open-quick-slot-${i}`, name: t('command.openQuickSlot', { slot: i }), callback: () => void this.quickSlot.openSlot(i) });
         }
 
+        // Keep these existing IDs so users do not lose configured hotkeys.
+        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
         this.addCommand({ id: 'open-command-slot-assigner', name: t('command.openCommandSlotAssigner'), callback: () => this.commandSlot.openAssignModal() });
+        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
         this.addCommand({ id: 'open-command-slot-selector', name: t('command.openCommandSlotSelector'), callback: () => this.commandSlot.openSelectModal() });
+        // eslint-disable-next-line obsidianmd/commands/no-command-in-command-id
         this.addCommand({ id: 'clear-all-command-slots', name: t('command.clearCommandSlots'), callback: async () => {
         	this.settings.commandSlots = [];
         	await this.saveSettings();

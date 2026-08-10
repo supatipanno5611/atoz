@@ -47,7 +47,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         render: (setting: Setting) => {
                             setting.addText((text) => {
                                 text.setPlaceholder('@').setValue(this.plugin.settings.snippetTrigger);
-                                text.inputEl.addEventListener('blur', async () => {
+                                text.inputEl.addEventListener('blur', () => {
                                     const trigger = text.getValue().trim();
                                     if (!trigger) {
                                         new Notice(t('settings.snippets.trigger.empty'));
@@ -56,7 +56,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     } else {
                                         this.plugin.settings.snippetTrigger = trigger;
                                     }
-                                    await this.plugin.saveSettings();
+                                    void this.plugin.saveSettings();
                                 });
                             });
                         },
@@ -74,11 +74,11 @@ export class ATOZSettingTab extends PluginSettingTab {
                             setting.addTextArea((ta) => {
                                 ta.inputEl.addClass('atoz-setting-textarea');
                                 ta.setValue(this.plugin.settings.snippets.join('\n'));
-                                ta.inputEl.addEventListener('blur', async () => {
+                                ta.inputEl.addEventListener('blur', () => {
                                     this.plugin.settings.snippets = ta.getValue()
                                         .split('\n')
                                         .filter((line) => line.length > 0);
-                                    await this.plugin.saveSettings();
+                                    void this.plugin.saveSettings();
                                 });
                             });
                         },
@@ -95,7 +95,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         render: (setting: Setting) => {
                             setting.addText((text) => {
                                 text.setPlaceholder('~').setValue(this.plugin.settings.symbolTrigger);
-                                text.inputEl.addEventListener('blur', async () => {
+                                text.inputEl.addEventListener('blur', () => {
                                     const trigger = text.getValue().trim();
                                     if (!trigger) {
                                         new Notice(t('settings.symbols.trigger.empty'));
@@ -104,7 +104,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     } else {
                                         this.plugin.settings.symbolTrigger = trigger;
                                     }
-                                    await this.plugin.saveSettings();
+                                    void this.plugin.saveSettings();
                                 });
                             });
                         },
@@ -131,7 +131,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     .onClick(async () => {
                                         this.plugin.settings.symbols.splice(i, 1);
                                         await this.plugin.saveSettings();
-                                        (this as any).update();
+                                        this.refreshSettings();
                                     })
                                 );
                             },
@@ -176,7 +176,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 .onClick(async () => {
                                     this.plugin.settings.symbols.push({ id: '', symbol: '' });
                                     await this.plugin.saveSettings();
-                                    (this as any).update();
+                                    this.refreshSettings();
                                 })
                             );
                         },
@@ -346,7 +346,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     await this.plugin.saveSettings();
                                     this.plugin.info.settingsChanged();
                                     new Notice(t('settings.reset.notice'));
-                                    (this as any).update();
+                                    this.refreshSettings();
                                 })
                             );
                         },
@@ -360,4 +360,5 @@ export class ATOZSettingTab extends PluginSettingTab {
         const settingTab = this as ATOZSettingTab & { update?: () => void };
         settingTab.update?.();
     }
+
 }

@@ -7,8 +7,17 @@ interface CommandEntry {
     name: string;
 }
 
+interface CommandManager {
+    commands: Record<string, CommandEntry>;
+    executeCommandById(commandId: string): boolean;
+}
+
+function getCommandManager(app: App): CommandManager {
+    return (app as App & { commands: CommandManager }).commands;
+}
+
 function getAllCommands(app: App): CommandEntry[] {
-    const commands = (app as any).commands.commands as Record<string, { id: string; name: string }>;
+    const commands = getCommandManager(app).commands;
     return Object.values(commands).map(c => ({ id: c.id, name: c.name }));
 }
 
@@ -44,7 +53,7 @@ export class CommandSlotFeature {
             return;
         }
 
-        const executed = (this.plugin.app as any).commands.executeCommandById(commandId);
+        const executed = getCommandManager(this.plugin.app).executeCommandById(commandId);
         if (!executed) {
             new Notice(t('commandSlot.cannotRun', { command: commandId }));
         }
@@ -66,7 +75,7 @@ abstract class BaseCommandSlotModal extends SuggestModal<number> {
     }
 
     onOpen(): void {
-        super.onOpen();
+        void super.onOpen();
         const count = this.plugin.settings.commandSlotCount;
         for (let i = 1; i <= Math.min(count, 9); i++) {
             const key = String(i);
@@ -85,7 +94,7 @@ abstract class BaseCommandSlotModal extends SuggestModal<number> {
     }
 
     abstract renderSuggestion(slotId: number, el: HTMLElement): void;
-    abstract onChooseSuggestion(slotId: number, evt: MouseEvent | KeyboardEvent): Promise<void> | void;
+    abstract onChooseSuggestion(slotId: number, evt: MouseEvent | KeyboardEvent): void;
 }
 
 class CommandSlotAssignModal extends BaseCommandSlotModal {

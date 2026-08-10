@@ -147,7 +147,7 @@ abstract class BaseSlotModal extends SuggestModal<number> {
     }
 
     onOpen(): void {
-        super.onOpen();
+        void super.onOpen();
         ['1', '2', '3', '4'].forEach((key) => {
             this.scope.register(['Alt'], key, (evt: KeyboardEvent) => {
                 evt.preventDefault();
@@ -163,7 +163,7 @@ abstract class BaseSlotModal extends SuggestModal<number> {
     }
 
     abstract renderSuggestion(slotId: number, el: HTMLElement): void;
-    abstract onChooseSuggestion(slotId: number, evt: MouseEvent | KeyboardEvent): Promise<void>;
+    abstract onChooseSuggestion(slotId: number, evt: MouseEvent | KeyboardEvent): void;
 }
 
 class SlotAssignModal extends BaseSlotModal {
@@ -192,8 +192,8 @@ class SlotAssignModal extends BaseSlotModal {
         }
     }
 
-    async onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): Promise<void> {
-        await this.plugin.quickSlot.saveOrClearSlot(slotId, this.currentFile);
+    onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): void {
+        void this.plugin.quickSlot.saveOrClearSlot(slotId, this.currentFile);
     }
 }
 
@@ -210,7 +210,7 @@ class SlotOpenModal extends BaseSlotModal {
             : t('quickSlot.emptyItem', { slot: slotId }));
     }
 
-    async onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): Promise<void> {
-        await this.plugin.quickSlot.openSlot(slotId);
+    onChooseSuggestion(slotId: number, _evt: MouseEvent | KeyboardEvent): void {
+        void this.plugin.quickSlot.openSlot(slotId);
     }
 }
