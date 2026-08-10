@@ -1,6 +1,6 @@
 {
 	"name": "atoz",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "Add writing, note organization, and input tools to Obsidian.",
 	"main": "main.js",
 	"type": "module",
