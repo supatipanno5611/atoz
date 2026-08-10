@@ -3,7 +3,6 @@ import {
     ItemView,
     MarkdownRenderer,
     MarkdownView,
-    TFile,
     WorkspaceLeaf,
 } from 'obsidian';
 import type ATOZPlugin from '../main';
@@ -92,8 +91,6 @@ export class CharacterCountView extends ItemView {
 }
 
 export class InfoFeature {
-    private lastMarkdownFile: TFile | null = null;
-    private lastMarkdownView: MarkdownView | null = null;
     private updateTimer: number | null = null;
 
     constructor(private plugin: ATOZPlugin) {}
@@ -113,33 +110,22 @@ export class InfoFeature {
         this.plugin.addRibbonIcon('letter-text', '문서 정보 보기', async () => this.activateView());
 
         this.plugin.registerEvent(
-            this.plugin.app.workspace.on('active-leaf-change', (leaf) => {
-                if (leaf?.view instanceof MarkdownView) this.rememberMarkdownView(leaf.view);
-                this.scheduleUpdate();
-            }),
+            this.plugin.app.workspace.on('active-leaf-change', () => this.scheduleUpdate()),
         );
 
         this.plugin.registerEvent(
-            this.plugin.app.workspace.on('file-open', (file) => {
-                if (file instanceof TFile && file.extension === 'md') {
-                    this.lastMarkdownFile = file;
-                    const view = this.findMarkdownViewForFile(file);
-                    if (view) this.lastMarkdownView = view;
-                }
-                this.scheduleUpdate();
-            }),
+            this.plugin.app.workspace.on('file-open', () => this.scheduleUpdate()),
         );
 
         this.plugin.registerEvent(
-            this.plugin.app.workspace.on('editor-change', (_editor, info) => {
-                if (info instanceof MarkdownView) this.rememberMarkdownView(info);
-                this.scheduleUpdate();
-            }),
+            this.plugin.app.workspace.on('editor-change', () => this.scheduleUpdate()),
+        );
+
+        this.plugin.registerEvent(
+            this.plugin.app.workspace.on('layout-change', () => this.scheduleUpdate()),
         );
 
         this.plugin.app.workspace.onLayoutReady(() => {
-            const view = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
-            if (view) this.rememberMarkdownView(view);
             this.scheduleUpdate();
         });
     }
@@ -167,30 +153,11 @@ export class InfoFeature {
     }
 
     async getCharacterStats(): Promise<CharacterStats | null> {
-        const file = this.resolveCurrentMarkdownFile();
-        if (!file) return null;
+        const leaf = this.plugin.app.workspace.getMostRecentLeaf();
+        if (!(leaf?.view instanceof MarkdownView) || !leaf.view.file) return null;
 
-        const view = this.resolveMarkdownView(file);
-        const source = view
-            ? view.editor.getValue()
-            : await this.plugin.app.vault.cachedRead(file);
-
-        return this.analyzeRenderedText(removeFrontmatter(source), file.path);
-    }
-
-    private rememberMarkdownView(view: MarkdownView): void {
-        if (!view.file) return;
-        this.lastMarkdownView = view;
-        this.lastMarkdownFile = view.file;
-    }
-
-    private findMarkdownViewForFile(file: TFile): MarkdownView | null {
-        for (const leaf of this.plugin.app.workspace.getLeavesOfType('markdown')) {
-            if (leaf.view instanceof MarkdownView && leaf.view.file?.path === file.path) {
-                return leaf.view;
-            }
-        }
-        return null;
+        const source = leaf.view.editor.getValue();
+        return this.analyzeRenderedText(removeFrontmatter(source), leaf.view.file.path);
     }
 
     private scheduleUpdate(): void {
@@ -206,29 +173,6 @@ export class InfoFeature {
         for (const leaf of leaves) {
             if (leaf.view instanceof CharacterCountView) await leaf.view.refresh();
         }
-    }
-
-    private resolveCurrentMarkdownFile(): TFile | null {
-        const activeView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
-        if (activeView?.file) {
-            this.rememberMarkdownView(activeView);
-            return activeView.file;
-        }
-
-        const activeFile = this.plugin.app.workspace.getActiveFile();
-        if (activeFile instanceof TFile && activeFile.extension === 'md') {
-            this.lastMarkdownFile = activeFile;
-            return activeFile;
-        }
-        return this.lastMarkdownFile;
-    }
-
-    private resolveMarkdownView(file: TFile): MarkdownView | null {
-        if (this.lastMarkdownView?.file?.path === file.path) return this.lastMarkdownView;
-
-        const view = this.findMarkdownViewForFile(file);
-        if (view) this.lastMarkdownView = view;
-        return view;
     }
 
     private async analyzeRenderedText(source: string, sourcePath: string): Promise<CharacterStats> {

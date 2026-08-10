@@ -3,7 +3,6 @@ export interface ATOZSettings {
 	commandSlots: (string | null)[];
 	commandSlotCount: number;
     isCursorCenterEnabled: boolean;
-    isAllFoldersHidden: boolean;
     isMobileStickyRibbonEnabled: boolean;
     snippetTrigger: string;
     snippetLimit: number;
@@ -32,7 +31,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 	commandSlots: [],
 	commandSlotCount: 4,
     isCursorCenterEnabled: false,
-    isAllFoldersHidden: false,
     isMobileStickyRibbonEnabled: false,
     snippetTrigger: '@',
     snippetLimit: 5,
