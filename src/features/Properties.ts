@@ -1,8 +1,16 @@
-import { App, SuggestModal, Notice, moment } from 'obsidian';
+import { App, SuggestModal, Notice } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 
 type FrontmatterRecord = Record<string, unknown>;
+
+function getLocalDate(): string {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 const ALLOWED_PROPERTIES = new Set([
     'date',
@@ -131,7 +139,7 @@ export class PropertiesFeature {
                 alreadyExists = true;
                 return;
             }
-            fm.date = moment().format('YYYY-MM-DD');
+            fm.date = getLocalDate();
         });
 
         if (alreadyExists) {
@@ -150,7 +158,7 @@ export class PropertiesFeature {
 
         await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
             const fm = frontmatter as FrontmatterRecord;
-            fm.date = moment().format('YYYY-MM-DD');
+            fm.date = getLocalDate();
         });
         new Notice(t('properties.dateUpdated'));
     }
