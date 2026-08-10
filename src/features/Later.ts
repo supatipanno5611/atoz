@@ -44,6 +44,9 @@ export class LaterFeature {
             }),
         );
         this.plugin.registerEvent(
+            this.plugin.app.workspace.on('layout-change', () => this.captureCurrentRootFile()),
+        );
+        this.plugin.registerEvent(
             this.plugin.app.metadataCache.on('changed', () => this.scheduleRefresh()),
         );
         this.plugin.registerEvent(
@@ -73,9 +76,8 @@ export class LaterFeature {
             if (leaf.view instanceof MarkdownView && leaf.view.file) leaves.push(leaf);
         });
         const leaf = pickMostRecentLeaf(leaves, this.plugin.app);
-        if (leaf?.view instanceof MarkdownView && leaf.view.file) {
-            this.setSourceFile(leaf.view.file);
-        }
+        const file = leaf?.view instanceof MarkdownView ? leaf.view.file : null;
+        this.setSourceFile(file);
     }
 
     private handleActiveLeafChange(leaf: WorkspaceLeaf | null): void {
@@ -98,8 +100,8 @@ export class LaterFeature {
         }
     }
 
-    private setSourceFile(file: TFile): void {
-        if (this.sourceFile?.path === file.path) return;
+    private setSourceFile(file: TFile | null): void {
+        if (this.sourceFile?.path === file?.path) return;
         this.sourceFile = file;
         this.selectedEntry = null;
         this.refreshView();
