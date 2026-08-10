@@ -12,6 +12,8 @@ const ALLOWED_PROPERTIES = new Set([
     'aliases',
     'tags',
     'later',
+    'target-characters',
+    'target-tolerance',
 ]);
 
 // 토픽 관리를 위한 마커 상수들

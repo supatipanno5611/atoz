@@ -3,9 +3,13 @@ import {
     ItemView,
     MarkdownRenderer,
     MarkdownView,
+    Notice,
+    SuggestModal,
+    TFile,
     WorkspaceLeaf,
 } from 'obsidian';
 import type ATOZPlugin from '../main';
+import type { WritingTargetPreset } from '../types';
 
 export const VIEW_TYPE_CHARACTER_COUNT = 'character-count-view';
 const UPDATE_DELAY = 100;
@@ -14,12 +18,24 @@ interface CharacterStats {
     withSpaces: number;
     withoutSpaces: number;
     nonEmptyLines: number;
+    writingTarget: WritingTargetState;
 }
+
+type WritingTargetState =
+    | { kind: 'none' }
+    | { kind: 'invalid' }
+    | { kind: 'valid'; target: number; tolerance: number };
+
+type WritingTargetChoice =
+    | { kind: 'clear' }
+    | { kind: 'preset'; preset: WritingTargetPreset };
 
 export class CharacterCountView extends ItemView {
     private withSpacesEl: HTMLElement | null = null;
     private withoutSpacesEl: HTMLElement | null = null;
     private nonEmptyLinesEl: HTMLElement | null = null;
+    private readingTimeEl: HTMLElement | null = null;
+    private writingTargetSectionEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -31,6 +47,9 @@ export class CharacterCountView extends ItemView {
 
     async onOpen(): Promise<void> {
         this.contentEl.empty();
+        this.addAction('target', '현재 문서 목표 글자수 지정', () => {
+            this.plugin.info.openWritingTargetPicker();
+        });
 
         const wrapper = this.contentEl.createDiv({ cls: 'character-count-container' });
         wrapper.setCssProps({ padding: '16px' });
@@ -69,24 +88,136 @@ export class CharacterCountView extends ItemView {
             '글자가 있는 행',
             '실제로 읽을 수 있는 글자가 존재하는 행 수',
         );
+        this.readingTimeEl = createStat(
+            '읽는 시간',
+            '설정한 계산 기준과 분당 글자 수로 예상한 읽는 시간',
+        );
+        this.writingTargetSectionEl = wrapper.createDiv();
 
         await this.refresh();
     }
 
     async refresh(): Promise<void> {
-        if (!this.withSpacesEl || !this.withoutSpacesEl || !this.nonEmptyLinesEl) return;
+        if (!this.withSpacesEl || !this.withoutSpacesEl || !this.nonEmptyLinesEl ||
+            !this.readingTimeEl || !this.writingTargetSectionEl) return;
 
         const stats = await this.plugin.info.getCharacterStats();
         if (!stats) {
             this.withSpacesEl.setText('—');
             this.withoutSpacesEl.setText('—');
             this.nonEmptyLinesEl.setText('—');
+            this.readingTimeEl.setText('—');
+            this.writingTargetSectionEl.empty();
             return;
         }
 
         this.withSpacesEl.setText(stats.withSpaces.toLocaleString());
         this.withoutSpacesEl.setText(stats.withoutSpaces.toLocaleString());
         this.nonEmptyLinesEl.setText(stats.nonEmptyLines.toLocaleString());
+        this.readingTimeEl.setText(this.plugin.info.formatReadingTime(stats));
+        this.renderWritingTarget(stats);
+    }
+
+    private renderWritingTarget(stats: CharacterStats): void {
+        if (!this.writingTargetSectionEl) return;
+        this.writingTargetSectionEl.empty();
+        if (stats.writingTarget.kind === 'none') return;
+
+        const section = this.writingTargetSectionEl.createDiv();
+        section.setCssProps({ 'margin-bottom': '20px' });
+
+        const label = section.createDiv({ text: '목표 글자 수' });
+        label.setCssProps({
+            'font-size': '0.85em',
+            color: 'var(--text-muted)',
+            'margin-bottom': '6px',
+        });
+        label.setAttr('aria-label', '공백을 포함한 현재 글자 수와 목표 글자 수의 차이');
+
+        if (stats.writingTarget.kind === 'invalid') {
+            const invalid = section.createDiv({ text: '올바른 목표값이 아닙니다' });
+            invalid.setCssProps({ color: 'var(--text-error)', 'margin-bottom': '8px' });
+        } else {
+            const current = section.createDiv({
+                text: `현재 ${stats.withSpaces.toLocaleString()}자`,
+            });
+            current.setCssProps({
+                'font-size': '2em',
+                'font-weight': '600',
+                'line-height': '1.1',
+                'font-variant-numeric': 'tabular-nums',
+                'margin-bottom': '8px',
+            });
+
+            const { target, tolerance } = stats.writingTarget;
+            const delta = target - stats.withSpaces;
+            const lower = target - tolerance;
+            const upper = target + tolerance;
+            const status = delta === 0
+                ? '목표 달성'
+                : stats.withSpaces < lower
+                    ? '분량 부족'
+                    : stats.withSpaces > upper
+                        ? '분량 초과'
+                        : '안전 범위';
+            const statusEl = section.createDiv({ text: status });
+            statusEl.setCssProps({
+                color: status === '안전 범위' || status === '목표 달성'
+                    ? 'var(--text-success)'
+                    : 'var(--text-warning)',
+                'font-weight': '600',
+            });
+            const deltaText = delta > 0 ? `+ ${delta.toLocaleString()}자`
+                : delta < 0 ? `- ${Math.abs(delta).toLocaleString()}자`
+                    : '0자';
+            const deltaEl = section.createDiv({ text: deltaText });
+            deltaEl.setCssProps({
+                'font-size': '1.2em',
+                'font-variant-numeric': 'tabular-nums',
+                'margin-bottom': '8px',
+            });
+        }
+
+        const select = section.createEl('select', { cls: 'dropdown' });
+        select.setCssProps({ width: '100%' });
+        select.createEl('option', { text: '목표 해제', value: '' });
+
+        const presets = this.plugin.info.getWritingTargetPresets();
+        let selectedValue = '';
+        presets.forEach((preset, index) => {
+            const value = `preset-${index}`;
+            select.createEl('option', {
+                text: `${preset.target.toLocaleString()}자 · ±${preset.tolerance.toLocaleString()}자`,
+                value,
+            });
+            if (stats.writingTarget.kind === 'valid' &&
+                preset.target === stats.writingTarget.target &&
+                preset.tolerance === stats.writingTarget.tolerance) {
+                selectedValue = value;
+            }
+        });
+
+        if (stats.writingTarget.kind === 'valid' && !selectedValue) {
+            selectedValue = 'current';
+            select.createEl('option', {
+                text: `${stats.writingTarget.target.toLocaleString()}자 · ±${stats.writingTarget.tolerance.toLocaleString()}자 · 설정 목록 외`,
+                value: selectedValue,
+            });
+        } else if (stats.writingTarget.kind === 'invalid') {
+            selectedValue = 'invalid';
+            const option = select.createEl('option', { text: '올바르지 않은 현재 값', value: selectedValue });
+            option.disabled = true;
+        }
+        select.value = selectedValue;
+
+        select.addEventListener('change', () => {
+            const value = select.value;
+            if (value === 'current' || value === 'invalid') return;
+            const preset = value.startsWith('preset-')
+                ? presets[Number(value.slice('preset-'.length))]
+                : null;
+            void this.plugin.info.setWritingTarget(preset ?? null);
+        });
     }
 }
 
@@ -107,6 +238,12 @@ export class InfoFeature {
             callback: async () => this.activateView(),
         });
 
+        this.plugin.addCommand({
+            id: 'set-writing-target',
+            name: '현재 문서 목표 글자수 지정',
+            callback: () => this.openWritingTargetPicker(),
+        });
+
         this.plugin.addRibbonIcon('letter-text', '문서 정보 보기', async () => this.activateView());
 
         this.plugin.registerEvent(
@@ -123,6 +260,14 @@ export class InfoFeature {
 
         this.plugin.registerEvent(
             this.plugin.app.workspace.on('layout-change', () => this.scheduleUpdate()),
+        );
+
+        this.plugin.registerEvent(
+            this.plugin.app.metadataCache.on('changed', (file) => {
+                if (file.path === this.plugin.app.workspace.getActiveFile()?.path) {
+                    this.scheduleUpdate();
+                }
+            }),
         );
 
         this.plugin.app.workspace.onLayoutReady(() => {
@@ -157,7 +302,75 @@ export class InfoFeature {
         if (!(leaf?.view instanceof MarkdownView) || !leaf.view.file) return null;
 
         const source = leaf.view.editor.getValue();
-        return this.analyzeRenderedText(removeFrontmatter(source), leaf.view.file.path);
+        const stats = await this.analyzeRenderedText(removeFrontmatter(source), leaf.view.file.path);
+        return {
+            ...stats,
+            writingTarget: this.getWritingTargetState(leaf.view.file),
+        };
+    }
+
+    formatReadingTime(stats: CharacterStats): string {
+        const characterCount = this.plugin.settings.readingTimeCharacterBasis === 'with-spaces'
+            ? stats.withSpaces
+            : stats.withoutSpaces;
+        if (characterCount === 0) return '—';
+
+        const minutes = characterCount / this.plugin.settings.readingCharactersPerMinute;
+        if (minutes < 1) return '1분 미만';
+        return `약 ${Math.max(1, Math.round(minutes)).toLocaleString()}분`;
+    }
+
+    getWritingTargetPresets(): WritingTargetPreset[] {
+        return this.plugin.settings.writingTargetPresets.filter((preset) =>
+            Number.isInteger(preset.target) && preset.target > 0 &&
+            Number.isInteger(preset.tolerance) && preset.tolerance > 0 &&
+            preset.tolerance < preset.target
+        );
+    }
+
+    openWritingTargetPicker(): void {
+        const file = this.plugin.app.workspace.getActiveFile();
+        if (!(file instanceof TFile) || file.extension !== 'md') {
+            new Notice('먼저 목표를 지정할 Markdown 문서를 열어 주세요.');
+            return;
+        }
+
+        const presets = this.getWritingTargetPresets();
+        const current = this.getWritingTargetState(file);
+        if (presets.length === 0 && current.kind === 'none') {
+            new Notice('설정에서 목표 글자수 후보를 먼저 추가해 주세요.');
+            return;
+        }
+
+        new WritingTargetPicker(
+            this.plugin,
+            presets,
+            current.kind !== 'none',
+            (choice) => {
+                void this.setWritingTarget(choice.kind === 'preset' ? choice.preset : null, file);
+            },
+        ).open();
+    }
+
+    async setWritingTarget(preset: WritingTargetPreset | null, file?: TFile): Promise<void> {
+        const targetFile = file ?? this.plugin.app.workspace.getActiveFile();
+        if (!(targetFile instanceof TFile) || targetFile.extension !== 'md') return;
+
+        await this.plugin.app.fileManager.processFrontMatter(targetFile, (frontmatter) => {
+            const properties = frontmatter as Record<string, unknown>;
+            if (preset) {
+                properties['target-characters'] = preset.target;
+                properties['target-tolerance'] = preset.tolerance;
+            } else {
+                delete properties['target-characters'];
+                delete properties['target-tolerance'];
+            }
+        });
+        this.scheduleUpdate();
+    }
+
+    settingsChanged(): void {
+        this.scheduleUpdate();
     }
 
     private scheduleUpdate(): void {
@@ -175,7 +388,28 @@ export class InfoFeature {
         }
     }
 
-    private async analyzeRenderedText(source: string, sourcePath: string): Promise<CharacterStats> {
+    private getWritingTargetState(file: TFile): WritingTargetState {
+        const frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as
+            Record<string, unknown> | undefined;
+        const targetValue = frontmatter?.['target-characters'];
+        const toleranceValue = frontmatter?.['target-tolerance'];
+        if (targetValue === undefined && toleranceValue === undefined) return { kind: 'none' };
+        if (!Number.isInteger(targetValue) || Number(targetValue) < 1 ||
+            !Number.isInteger(toleranceValue) || Number(toleranceValue) < 1 ||
+            Number(toleranceValue) >= Number(targetValue)) {
+            return { kind: 'invalid' };
+        }
+        return {
+            kind: 'valid',
+            target: Number(targetValue),
+            tolerance: Number(toleranceValue),
+        };
+    }
+
+    private async analyzeRenderedText(
+        source: string,
+        sourcePath: string,
+    ): Promise<Omit<CharacterStats, 'writingTarget'>> {
         if (source.length === 0) {
             return { withSpaces: 0, withoutSpaces: 0, nonEmptyLines: 0 };
         }
@@ -210,6 +444,37 @@ export class InfoFeature {
             component.unload();
             container.remove();
         }
+    }
+}
+
+class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
+    constructor(
+        plugin: ATOZPlugin,
+        private presets: WritingTargetPreset[],
+        private hasCurrentTarget: boolean,
+        private choose: (choice: WritingTargetChoice) => void,
+    ) {
+        super(plugin.app);
+        this.setPlaceholder('현재 문서의 목표 글자수를 선택하세요');
+    }
+
+    getSuggestions(query: string): WritingTargetChoice[] {
+        const normalized = query.trim().replace(/[,자\s]/g, '');
+        const choices = this.presets.filter((preset) => !normalized ||
+            preset.target.toString().includes(normalized) ||
+            preset.tolerance.toString().includes(normalized)
+        ).map((preset): WritingTargetChoice => ({ kind: 'preset', preset }));
+        return this.hasCurrentTarget ? [{ kind: 'clear' }, ...choices] : choices;
+    }
+
+    renderSuggestion(choice: WritingTargetChoice, el: HTMLElement): void {
+        el.setText(choice.kind === 'preset'
+            ? `${choice.preset.target.toLocaleString()}자 · ±${choice.preset.tolerance.toLocaleString()}자`
+            : '목표 해제');
+    }
+
+    onChooseSuggestion(choice: WritingTargetChoice): void {
+        this.choose(choice);
     }
 }
 

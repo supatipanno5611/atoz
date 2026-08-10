@@ -164,6 +164,22 @@ export default class ATOZPlugin extends Plugin {
         delete data.clipboardHistoryLimit;
         delete data.clipboardPreviewLength;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data) as ATOZSettings;
+        if (this.settings.readingTimeCharacterBasis !== 'with-spaces' &&
+            this.settings.readingTimeCharacterBasis !== 'without-spaces') {
+            this.settings.readingTimeCharacterBasis = DEFAULT_SETTINGS.readingTimeCharacterBasis;
+        }
+        if (!Number.isInteger(this.settings.readingCharactersPerMinute) ||
+            this.settings.readingCharactersPerMinute < 1) {
+            this.settings.readingCharactersPerMinute = DEFAULT_SETTINGS.readingCharactersPerMinute;
+        }
+        const presets = Array.isArray(this.settings.writingTargetPresets)
+            ? this.settings.writingTargetPresets
+            : DEFAULT_SETTINGS.writingTargetPresets;
+        this.settings.writingTargetPresets = presets
+            .filter((preset) => preset && Number.isInteger(preset.target) && preset.target > 0 &&
+                Number.isInteger(preset.tolerance) && preset.tolerance > 0 &&
+                preset.tolerance < preset.target)
+            .map((preset) => ({ ...preset }));
         if (hadFolderVisibilityData || hadClipboardData) await this.saveSettings();
     }
 

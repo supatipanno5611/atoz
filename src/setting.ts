@@ -184,6 +184,120 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
+                heading: '문서 정보',
+                items: [
+                    {
+                        name: '읽는 시간 계산 기준',
+                        desc: '읽는 시간을 계산할 때 사용할 글자 수입니다.',
+                        render: (setting: Setting) => {
+                            setting.addDropdown((dropdown) => dropdown
+                                .addOption('without-spaces', '공백 제외')
+                                .addOption('with-spaces', '공백 포함')
+                                .setValue(this.plugin.settings.readingTimeCharacterBasis)
+                                .onChange(async (value) => {
+                                    this.plugin.settings.readingTimeCharacterBasis = value === 'with-spaces'
+                                        ? 'with-spaces'
+                                        : 'without-spaces';
+                                    await this.plugin.saveSettings();
+                                    this.plugin.info.settingsChanged();
+                                })
+                            );
+                        },
+                    },
+                    {
+                        name: '분당 읽는 글자 수',
+                        desc: '1분 동안 읽는 글자 수입니다. 1 이상의 정수를 입력합니다.',
+                        render: (setting: Setting) => {
+                            setting.addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setValue(this.plugin.settings.readingCharactersPerMinute.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const value = Number(text.getValue());
+                                    if (!Number.isInteger(value) || value < 1) {
+                                        new Notice('분당 읽는 글자 수는 1 이상의 정수여야 합니다.');
+                                        text.setValue(this.plugin.settings.readingCharactersPerMinute.toString());
+                                        return;
+                                    }
+                                    this.plugin.settings.readingCharactersPerMinute = value;
+                                    void this.plugin.saveSettings();
+                                    this.plugin.info.settingsChanged();
+                                });
+                            });
+                        },
+                    },
+                    ...this.plugin.settings.writingTargetPresets.map((preset, i) => ({
+                        name: `목표 후보 #${i + 1}`,
+                        desc: '목표 글자 수와 허용할 오차 글자 수입니다.',
+                        render: (setting: Setting) => {
+                            setting.addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setPlaceholder('목표');
+                                text.setValue(preset.target.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const target = Number(text.getValue());
+                                    const duplicate = this.plugin.settings.writingTargetPresets
+                                        .some((item, index) => index !== i && item.target === target);
+                                    if (!Number.isInteger(target) || target < 1 || target <= preset.tolerance || duplicate) {
+                                        new Notice('목표 글자 수는 오차보다 큰 중복되지 않는 정수여야 합니다.');
+                                        text.setValue(preset.target.toString());
+                                        return;
+                                    }
+                                    preset.target = target;
+                                    void this.plugin.saveSettings();
+                                });
+                            }).addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setPlaceholder('오차');
+                                text.setValue(preset.tolerance.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const tolerance = Number(text.getValue());
+                                    if (!Number.isInteger(tolerance) || tolerance < 1 || tolerance >= preset.target) {
+                                        new Notice('오차범위는 목표 글자 수보다 작은 양의 정수여야 합니다.');
+                                        text.setValue(preset.tolerance.toString());
+                                        return;
+                                    }
+                                    preset.tolerance = tolerance;
+                                    void this.plugin.saveSettings();
+                                });
+                            }).addExtraButton((button) => button
+                                .setIcon('lucide-trash-2')
+                                .setTooltip('삭제')
+                                .onClick(async () => {
+                                    this.plugin.settings.writingTargetPresets.splice(i, 1);
+                                    await this.plugin.saveSettings();
+                                    this.refreshSettings();
+                                })
+                            );
+                        },
+                    })),
+                    {
+                        name: '',
+                        render: (setting: Setting) => {
+                            setting.addButton((button) => button
+                                .setButtonText('목표 후보 추가')
+                                .onClick(async () => {
+                                    const largestTarget = Math.max(
+                                        0,
+                                        ...this.plugin.settings.writingTargetPresets.map((preset) => preset.target),
+                                    );
+                                    const target = largestTarget + 500;
+                                    this.plugin.settings.writingTargetPresets.push({
+                                        target,
+                                        tolerance: Math.max(1, Math.round(target * 0.05)),
+                                    });
+                                    await this.plugin.saveSettings();
+                                    this.refreshSettings();
+                                })
+                            );
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'group' as const,
                 heading: '작업 문서',
                 items: [
                     {
@@ -229,6 +343,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 .onClick(async () => {
                                     this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
                                     await this.plugin.saveSettings();
+                                    this.plugin.info.settingsChanged();
                                     new Notice('설정을 기본값으로 초기화했습니다.');
                                     (this as any).update();
                                 })
@@ -238,5 +353,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
         ];
+    }
+
+    private refreshSettings(): void {
+        const settingTab = this as ATOZSettingTab & { update?: () => void };
+        settingTab.update?.();
     }
 }

@@ -14,6 +14,9 @@ export interface ATOZSettings {
     recentSymbols: Record<string, number>;
     workFilePath: string;
     moveLineTargetFolder: string;
+    readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
+    readingCharactersPerMinute: number;
+    writingTargetPresets: WritingTargetPreset[];
 }
 
 export type SnippetsItem =
@@ -24,6 +27,11 @@ export interface SymbolItem {
     id: string;
     symbol: string;
     closing?: string;
+}
+
+export interface WritingTargetPreset {
+    target: number;
+    tolerance: number;
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
@@ -54,4 +62,12 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     recentSymbols: {},
     workFilePath: 'work.md',
     moveLineTargetFolder: '',
+    readingTimeCharacterBasis: 'without-spaces',
+    readingCharactersPerMinute: 500,
+    writingTargetPresets: [
+        { target: 1000, tolerance: 50 },
+        { target: 1500, tolerance: 75 },
+        { target: 2000, tolerance: 100 },
+        { target: 3000, tolerance: 150 },
+    ],
 };
