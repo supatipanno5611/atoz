@@ -84,7 +84,6 @@ export default class ATOZPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
-            this.topicCandidates = this.collectTopicCandidates();
             this.mobile.install();
             this.later.captureCurrentRootFile();
             this.app.workspace.onLayoutReady(() => {
