@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const VERSION_FILES = ['package.json', 'package-lock.json', 'manifest.json', 'versions.json'];
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCliPath = process.env.npm_execpath;
 
 function run(command, args) {
 	return execFileSync(command, args, {
@@ -18,6 +18,11 @@ function run(command, args) {
 
 function runLive(command, args) {
 	execFileSync(command, args, { cwd: ROOT, stdio: 'inherit' });
+}
+
+function runNpm(args) {
+	if (!npmCliPath) fail('npm run release로 실행해 주세요.');
+	runLive(process.execPath, [npmCliPath, ...args]);
 }
 
 function fail(message) {
@@ -147,10 +152,10 @@ async function main() {
 	let releaseCommitted = false;
 	try {
 		versionPrepared = true;
-		runLive(npmCommand, ['version', targetVersion, '--no-git-tag-version']);
+		runNpm(['version', targetVersion, '--no-git-tag-version']);
 		verifyMetadata(targetVersion);
-		runLive(npmCommand, ['run', 'lint']);
-		runLive(npmCommand, ['run', 'build']);
+		runNpm(['run', 'lint']);
+		runNpm(['run', 'build']);
 		runLive('git', ['diff', '--check']);
 		runLive('git', ['add', '--', ...VERSION_FILES]);
 		runLive('git', ['diff', '--cached', '--check']);
