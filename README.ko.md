@@ -209,6 +209,12 @@ npm run version
 
 `version-bump.mjs`를 실행하고 `manifest.json`, `versions.json`을 git stage에 올립니다.
 
+```bash
+npm run release
+```
+
+가장 최근 릴리스 태그와 그 이후 커밋을 보여주고 major(첫째 자리), minor(둘째 자리), patch(셋째 자리) 중 다음 버전을 선택합니다. 확인 후 깨끗한 `main` 브랜치와 원격 상태를 검사하고, 모든 버전 메타데이터 갱신, lint와 build 검사, 릴리스 커밋과 태그 생성을 거쳐 `main`과 태그를 원자적으로 함께 푸시합니다. 이후 기존 GitHub Actions가 빌드, attestation, GitHub Release 생성을 담당합니다. 처음 사용할 때는 릴리스 스크립트 자체를 먼저 커밋해야 합니다.
+
 ## 프로젝트 구조
 
 ```text

@@ -211,6 +211,12 @@ npm run version
 
 Runs `version-bump.mjs`, then stages `manifest.json` and `versions.json`.
 
+```bash
+npm run release
+```
+
+Interactively shows the latest release tag and commits since that tag, then offers major, minor, and patch version choices. After confirmation, it verifies a clean `main` branch and the remote state, updates all version metadata, runs lint and build checks, creates the release commit and tag, and atomically pushes both `main` and the tag. The existing GitHub Actions workflow then builds, attests, and publishes the release. Commit the release script itself before using it for the first time.
+
 ## Project structure
 
 ```text
