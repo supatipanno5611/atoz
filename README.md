@@ -144,7 +144,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Focus main editor** | Returns focus to the main Markdown editor. |
 | **Toggle mobile toolbar** | Shows or hides the bottom toolbar on mobile. |
 | **Move current file** | Moves the current Markdown file to another folder in the vault. |
-| **Edit topics** | Adds or removes values in the current file's `topics` property. |
+| **Edit topics** | Searches vault notes, headings, and existing block IDs to add, remove, or re-alias topic wikilinks. |
 | **Insert today's date property** | Adds today's date only when the `date` property is absent. |
 | **Update date property to today** | Replaces the `date` value with today's date. |
 | **Clean up properties** | Removes unsupported empty properties and opens files that need review. |

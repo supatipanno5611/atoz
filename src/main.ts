@@ -1,4 +1,4 @@
-import { Editor, MarkdownView, Notice, Plugin, TFile, View } from 'obsidian';
+import { Editor, MarkdownView, Notice, Plugin, TFile, View, normalizePath } from 'obsidian';
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { CommandSlotFeature } from './features/CommandSlot';
@@ -8,7 +8,7 @@ import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { ExecutesFeature } from './features/Executes';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
-import { PropertiesFeature } from './features/Properties';
+import { PropertiesFeature, type TopicSource } from './features/Properties';
 import { QuickSlotFeature, toPathArray, fromPathArray } from './features/QuickSlot';
 import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
@@ -45,7 +45,6 @@ export default class ATOZPlugin extends Plugin {
 
     activeSidebarMode: 'later' | null = null;
 
-    topicCandidates: string[] = [];
     private saveTimer: number | null = null;
     private _koIme_isComposingState: boolean = false;
     private _koIme_isFeatureActivated: boolean = false;
@@ -200,23 +199,42 @@ export default class ATOZPlugin extends Plugin {
         }, 300);
     }
 
-    collectTopicCandidates(): string[] {
-        const candidates = new Set<string>();
+    collectTopicCandidates(): TopicSource[] {
+        const candidates: TopicSource[] = [];
+        const activeFile = this.app.workspace.getActiveFile();
+        const workFilePath = normalizePath(this.settings.workFilePath);
 
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const frontmatter: unknown = cache?.frontmatter;
+            const isLaterNote = isRecord(frontmatter) && frontmatter.later !== undefined;
+            const isExcludedCandidate = file.path === activeFile?.path ||
+                file.path === workFilePath || file.path === 'log.md' || isLaterNote;
+
+            if (!isExcludedCandidate) {
+                candidates.push({
+                    kind: 'note',
+                    sourcePath: activeFile?.path ?? file.path,
+                    value: file.path.replace(/\.md$/i, ''),
+                });
+            }
+
             const topics = isRecord(frontmatter) ? frontmatter.topics : undefined;
             if (!Array.isArray(topics)) continue;
 
             for (const value of topics) {
                 if (typeof value === 'string') {
-                    candidates.add(value);
+                    candidates.push({
+                        includeExcludedTarget: file.path === activeFile?.path,
+                        kind: 'topic',
+                        value,
+                        sourcePath: file.path,
+                    });
                 }
             }
         }
 
-        return [...candidates];
+        return candidates;
     }
 
     registerRibbonIcon() {
