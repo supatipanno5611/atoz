@@ -1,31 +1,26 @@
 import type ATOZPlugin from '../main';
-import { WorkspaceSplit, WorkspaceLeaf } from 'obsidian';
-
-interface WorkspaceSplitInternals {
-    children: WorkspaceLeaf[];
-}
-
-interface WorkspaceLeafInternals {
-    tabHeaderEl?: HTMLElement;
-}
+import { WorkspaceLeaf } from 'obsidian';
 
 export class SidebarTabCycleFeature {
     constructor(private plugin: ATOZPlugin) {}
 
     cycleTab(side: 'left' | 'right', direction: 1 | -1): void {
-        const split: WorkspaceSplit = side === 'left'
+        const workspace = this.plugin.app.workspace;
+        const split = side === 'left'
             ? this.plugin.app.workspace.leftSplit
             : this.plugin.app.workspace.rightSplit;
 
-        const leaves = (split as WorkspaceSplit & WorkspaceSplitInternals).children;
+        const leaves: WorkspaceLeaf[] = [];
+        workspace.iterateAllLeaves((leaf) => {
+            if (leaf.getRoot() === split) leaves.push(leaf);
+        });
         if (leaves.length === 0) return;
 
-        const currentIndex = leaves.findIndex(
-            (leaf) => (leaf as WorkspaceLeaf & WorkspaceLeafInternals).tabHeaderEl?.hasClass('is-active')
-        );
-        if (currentIndex === -1) return;
-
-        const nextIndex = (currentIndex + direction + leaves.length) % leaves.length;
-        void this.plugin.app.workspace.revealLeaf(leaves[nextIndex]!);
+        const currentLeaf = workspace.getMostRecentLeaf(split);
+        const currentIndex = currentLeaf ? leaves.indexOf(currentLeaf) : -1;
+        const nextIndex = currentIndex === -1
+            ? (direction === 1 ? 0 : leaves.length - 1)
+            : (currentIndex + direction + leaves.length) % leaves.length;
+        void workspace.revealLeaf(leaves[nextIndex]!);
     }
 }
