@@ -11,7 +11,7 @@ It brings frequently used editing actions, source-linked Later notes, frontmatte
 | Area | Main features |
 | --- | --- |
 | Editing | Copy or cut an entire document, copy or cut the current line, delete a paragraph, and focus the main editor |
-| Note organization | Move selected text to source-specific Later notes, move content to a new note, move the current file, and clean up tabs |
+| Note organization | Move selected text to source-specific Later notes, move the current file, and clean up tabs |
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
 
@@ -139,7 +139,6 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Cut entire document** | Copies the entire current document, then clears it. |
 | **Copy** | Copies the selection, or the current line when nothing is selected. |
 | **Cut** | Cuts the selection, or the current line when nothing is selected. |
-| **Cut content to new note** | Moves the selected lines or entire document to a new note in the vault root. |
 | **Delete paragraph** | Deletes the line containing the cursor. |
 | **Focus main editor** | Returns focus to the main Markdown editor. |
 | **Toggle mobile toolbar** | Shows or hides the bottom toolbar on mobile. |
@@ -169,7 +168,6 @@ Detailed feature documentation is currently available in Korean:
 | --- | --- |
 | [cursor-center.md](docs/cursor-center.md) | Cursor centering |
 | [cut-copy.md](docs/cut-copy.md) | Copy and cut actions |
-| [cut-create-new-md.md](docs/cut-create-new-md.md) | Move content to a new note |
 | [delete-paragraph.md](docs/delete-paragraph.md) | Delete the current paragraph |
 | [focus-root-leaf.md](docs/focus-root-leaf.md) | Focus the main editor |
 | [move-current-file.md](docs/move-current-file.md) | Move the current file |

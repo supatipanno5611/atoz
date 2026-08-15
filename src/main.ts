@@ -4,7 +4,6 @@ import { EditorView } from '@codemirror/view';
 import { CommandSlotFeature } from './features/CommandSlot';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
-import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { ExecutesFeature } from './features/Executes';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
@@ -34,7 +33,6 @@ export default class ATOZPlugin extends Plugin {
     cutCopy!: CutCopyFeature;
     symbols!: SymbolsFeature;
     work!: WorkFeature;
-    cutCreateNewMd!: CutCreateNewMdFeature;
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
@@ -60,7 +58,6 @@ export default class ATOZPlugin extends Plugin {
         this.cutCopy = new CutCopyFeature();
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
-        this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
@@ -254,8 +251,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cut-to-clipboard', name: t('command.cut'), icon: 'lucide-scissors', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, true) });
         this.addCommand({ id: 'copy-to-clipboard', name: t('command.copy'), icon: 'copy', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
 
-        this.addCommand({ id: 'cut-and-create-new-md', name: t('command.cutToNewNote'), icon: 'lucide-file-input', editorCallback: (editor: Editor) => void this.cutCreateNewMd.cutAndCreateNewMd(editor) });
-        
         this.addCommand({ id: 'execute-delete-paragraph', name: t('command.deleteParagraph'), icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: t('command.focusMainEditor'), callback: () => void this.executes.focusRootLeaf() });
 

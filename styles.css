@@ -61,17 +61,6 @@
     display: none;
 }
 
-/* cut-create-modal */
-.cut-create-error {
-    color: var(--text-error);
-    font-size: 0.85em;
-    margin-top: 4px;
-    display: none;
-}
-.cut-create-error.is-visible {
-    display: block;
-}
-
 /* mobile toolbar */
 body.mobile-toolbar-off .mobile-toolbar,
 body.mobile-toolbar-off .mobile-toolbar-container {
