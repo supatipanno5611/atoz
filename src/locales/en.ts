@@ -39,6 +39,7 @@ export const en = {
     'ribbon.openWorkFile': 'Open work note',
     'ribbon.toggleMobileToolbar': 'Toggle mobile toolbar',
     'ribbon.openLaterView': 'Open later sidebar',
+    'ribbon.bookmarkActiveTab': 'Bookmark active tab',
     'ribbon.openQuickSlot': 'Open quick slot {{slot}}',
     'ribbon.viewDocumentInfo': 'View document info',
 
@@ -51,6 +52,8 @@ export const en = {
     'notice.quickSlotsCleared': 'All quick slots have been cleared.',
     'notice.commandSlotsCleared': 'All command slots have been cleared.',
     'notice.selectLaterSidebarTab': 'Select the later sidebar tab.',
+    'notice.enableBookmarksCorePlugin': 'Enable the bookmarks core plugin.',
+    'notice.cannotBookmarkActiveTab': 'The active tab cannot be bookmarked.',
     'notice.saved': 'Saved.',
     'notice.quickSlotPathUpdated': 'The name or path of a file in a quick slot has been updated.',
     'notice.quickSlotFileRemoved': 'A deleted file has been removed from its quick slot.',

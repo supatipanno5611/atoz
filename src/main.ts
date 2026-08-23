@@ -25,6 +25,13 @@ interface PluginRegistry {
     plugins: Record<string, unknown>;
 }
 
+interface CommandManager {
+    commands: Record<string, unknown>;
+    executeCommandById(commandId: string): boolean;
+}
+
+const BOOKMARK_ACTIVE_TAB_COMMAND_ID = 'bookmarks:bookmark-current-view';
+
 export default class ATOZPlugin extends Plugin {
     settings!: ATOZSettings;
     executes!: ExecutesFeature;
@@ -238,8 +245,21 @@ export default class ATOZPlugin extends Plugin {
         this.addRibbonIcon('lucide-file-pen', t('ribbon.openWorkFile'), () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-panel-bottom', t('ribbon.toggleMobileToolbar'), () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-archive-restore', t('ribbon.openLaterView'), () => void this.later.activateView());
+        this.addRibbonIcon('lucide-bookmark-plus', t('ribbon.bookmarkActiveTab'), () => this.bookmarkActiveTab());
         for (let i = 1; i <= 4; i++) {
             this.addRibbonIcon(`lucide-dice-${i}`, t('ribbon.openQuickSlot', { slot: i }), () => void this.quickSlot.openSlot(i));
+        }
+    }
+
+    private bookmarkActiveTab(): void {
+        const commandManager = (this.app as typeof this.app & { commands?: CommandManager }).commands;
+        if (!commandManager?.commands[BOOKMARK_ACTIVE_TAB_COMMAND_ID]) {
+            new Notice(t('notice.enableBookmarksCorePlugin'));
+            return;
+        }
+
+        if (!commandManager.executeCommandById(BOOKMARK_ACTIVE_TAB_COMMAND_ID)) {
+            new Notice(t('notice.cannotBookmarkActiveTab'));
         }
     }
 
