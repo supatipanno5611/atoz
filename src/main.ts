@@ -18,6 +18,7 @@ import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { InfoFeature } from './features/Info';
+import { VersionManagerFeature } from './features/VersionManager';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -47,6 +48,7 @@ export default class ATOZPlugin extends Plugin {
     commandSlot!: CommandSlotFeature;
     later!: LaterFeature;
     info!: InfoFeature;
+    versionManager!: VersionManagerFeature;
 
     activeSidebarMode: 'later' | null = null;
 
@@ -72,6 +74,7 @@ export default class ATOZPlugin extends Plugin {
         this.commandSlot = new CommandSlotFeature(this);
         this.later = new LaterFeature(this);
         this.info = new InfoFeature(this);
+        this.versionManager = new VersionManagerFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -84,6 +87,7 @@ export default class ATOZPlugin extends Plugin {
         this.registerView(VIEW_TYPE_LATER, (leaf) => new LaterView(leaf, this));
         this.later.install();
         this.info.install();
+        this.versionManager.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
@@ -153,6 +157,7 @@ export default class ATOZPlugin extends Plugin {
         this.mobile.uninstall();
         this.later.uninstall();
         this.info.uninstall();
+        this.versionManager.uninstall();
     }
 
     async loadSettings() {
@@ -212,8 +217,9 @@ export default class ATOZPlugin extends Plugin {
             const cache = this.app.metadataCache.getFileCache(file);
             const frontmatter: unknown = cache?.frontmatter;
             const isLaterNote = isRecord(frontmatter) && frontmatter.later !== undefined;
+            const isVersionNote = isRecord(frontmatter) && frontmatter.version !== undefined;
             const isExcludedCandidate = file.path === activeFile?.path ||
-                file.path === workFilePath || file.path === 'log.md' || isLaterNote;
+                file.path === workFilePath || file.path === 'log.md' || isLaterNote || isVersionNote;
 
             if (!isExcludedCandidate) {
                 candidates.push({

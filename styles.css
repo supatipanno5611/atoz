@@ -150,3 +150,107 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .app-container > .worksp
 body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     padding-left: 48px;
 }
+
+.atoz-version-stamp {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-version-diff {
+    padding: 0 var(--size-4-4) var(--size-4-4);
+    user-select: text;
+}
+
+.atoz-version-diff-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--background-primary);
+    margin: 0 calc(var(--size-4-4) * -1) var(--size-4-3);
+    padding: var(--size-4-4) var(--size-4-4) var(--size-4-3);
+    border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-2);
+}
+
+.atoz-version-diff-source {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-version-diff-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--size-2-2);
+}
+
+.atoz-version-diff-side {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2-1);
+    min-width: 0;
+}
+
+.atoz-version-diff-label {
+    max-width: 14em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-version-diff-arrow:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.atoz-version-diff-sep {
+    color: var(--text-faint);
+    padding: 0 var(--size-2-1);
+}
+
+.atoz-version-diff-empty {
+    color: var(--text-muted);
+}
+
+.atoz-version-diff-block {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: var(--size-4-3);
+    line-height: var(--line-height-normal);
+}
+
+.atoz-version-diff-same {
+    color: var(--text-muted);
+}
+
+.atoz-version-diff-block.atoz-version-diff-move {
+    background-color: var(--background-modifier-hover);
+    border-radius: var(--radius-s);
+}
+
+.atoz-version-diff-block .atoz-version-diff-del {
+    background-color: rgba(var(--color-red-rgb), 0.18);
+    text-decoration: line-through;
+    text-decoration-color: rgba(var(--color-red-rgb), 0.8);
+    border-radius: var(--radius-s);
+}
+
+.atoz-version-diff-block .atoz-version-diff-add {
+    background-color: rgba(var(--color-green-rgb), 0.18);
+    border-radius: var(--radius-s);
+}
+
+.atoz-version-diff-tag {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-accent);
+    margin-right: var(--size-4-2);
+}
+
+.atoz-version-diff-gap {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+    text-align: center;
+    margin-bottom: var(--size-4-3);
+}

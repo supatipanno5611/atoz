@@ -318,6 +318,17 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
+                type: 'group' as const,
+                heading: t('settings.version.heading'),
+                items: [
+                    {
+                        name: t('settings.version.folder.name'),
+                        desc: t('settings.version.folder.desc'),
+                        control: { type: 'text' as const, key: 'versionFolder', placeholder: t('settings.version.folder.placeholder') },
+                    },
+                ],
+            },
+            {
             	type: 'group' as const,
                 heading: t('settings.commandSlots.heading'),
             	items: [

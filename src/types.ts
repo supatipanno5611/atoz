@@ -14,6 +14,7 @@ export interface ATOZSettings {
     recentSymbols: Record<string, number>;
     workFilePath: string;
     moveLineTargetFolder: string;
+    versionFolder: string;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
     writingTargetPresets: WritingTargetPreset[];
@@ -62,6 +63,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     recentSymbols: {},
     workFilePath: 'work.md',
     moveLineTargetFolder: '',
+    versionFolder: '',
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
     writingTargetPresets: [
