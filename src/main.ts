@@ -17,6 +17,7 @@ import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
+import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
 import { isRecord } from './utils';
@@ -48,6 +49,7 @@ export default class ATOZPlugin extends Plugin {
     commandSlot!: CommandSlotFeature;
     later!: LaterFeature;
     info!: InfoFeature;
+    noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
 
     activeSidebarMode: 'later' | null = null;
@@ -74,6 +76,7 @@ export default class ATOZPlugin extends Plugin {
         this.commandSlot = new CommandSlotFeature(this);
         this.later = new LaterFeature(this);
         this.info = new InfoFeature(this);
+        this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
@@ -87,6 +90,7 @@ export default class ATOZPlugin extends Plugin {
         this.registerView(VIEW_TYPE_LATER, (leaf) => new LaterView(leaf, this));
         this.later.install();
         this.info.install();
+        this.noteList.install();
         this.versionManager.install();
 
         this.app.workspace.onLayoutReady(() => {

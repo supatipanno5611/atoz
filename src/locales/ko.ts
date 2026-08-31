@@ -224,6 +224,7 @@ export const ko: Record<TranslationKey, string> = {
     'work.openFailed': '작업 문서를 열지 못했습니다.',
     'command.saveCurrentVersion': '현재 버전 저장하기',
     'command.revertToVersion': '이전 버전으로 되돌리기',
+    'command.refreshNoteList': '노트 목록 새로 고치기',
     'command.openVersionDiff': '버전 비교 창 열기',
 
     'settings.version.heading': '버전',
@@ -251,5 +252,9 @@ export const ko: Record<TranslationKey, string> = {
     'versionManager.noComparison': '노트에서 버전 비교 명령을 실행하세요.',
     'versionManager.noChanges': '두 버전이 같습니다.',
     'versionManager.omitted': '변경 없는 문단 {{count}}개 생략',
+    'noteList.refreshed': '노트 목록 {{count}}개를 갱신했습니다.',
+    'noteList.noNotes': 'notelist 속성이 true인 노트가 없습니다.',
+    'noteList.skipped': '본문이 직접 작성된 노트 {{count}}개를 건너뛰었습니다.',
+
     'versionManager.movedTag': '이동됨',
 };

@@ -234,6 +234,7 @@ export const en = {
     'work.openFailed': 'Failed to open work note.',
     'command.saveCurrentVersion': 'Save current version',
     'command.revertToVersion': 'Revert to an earlier version',
+    'command.refreshNoteList': 'Refresh note lists',
     'command.openVersionDiff': 'Open version comparison',
 
     'settings.version.heading': 'Versions',
@@ -261,6 +262,10 @@ export const en = {
     'versionManager.noComparison': 'Run the version comparison command from a note.',
     'versionManager.noChanges': 'The two versions are identical.',
     'versionManager.omitted': '{{count}} unchanged paragraph(s) hidden',
+    'noteList.refreshed': 'Updated {{count}} note list(s).',
+    'noteList.noNotes': 'No note has the notelist property set to true.',
+    'noteList.skipped': 'Skipped {{count}} note(s) because their body was written by hand.',
+
     'versionManager.movedTag': 'Moved',
 } as const;
 
