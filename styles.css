@@ -157,21 +157,81 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-version-diff {
-    padding: 0 var(--size-4-4) var(--size-4-4);
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
     user-select: text;
 }
 
 .atoz-version-diff-header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background-color: var(--background-primary);
-    margin: 0 calc(var(--size-4-4) * -1) var(--size-4-3);
+    flex: 0 0 auto;
     padding: var(--size-4-4) var(--size-4-4) var(--size-4-3);
     border-bottom: 1px solid var(--background-modifier-border);
     display: flex;
     flex-direction: column;
     gap: var(--size-4-2);
+}
+
+.atoz-version-diff-panes {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+}
+
+.atoz-version-diff-list {
+    flex: 0 0 14em;
+    overflow-y: auto;
+    padding: var(--size-4-2);
+    border-right: 1px solid var(--background-modifier-border);
+    user-select: none;
+}
+
+.atoz-version-diff.is-list-toggled .atoz-version-diff-list {
+    display: none;
+}
+
+.atoz-version-diff-row {
+    padding: var(--size-4-1) var(--size-4-2);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+}
+
+.atoz-version-diff-row:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-version-diff-row.is-active {
+    background-color: var(--background-modifier-active-hover);
+}
+
+.atoz-version-diff-row.is-before {
+    box-shadow: inset 2px 0 0 var(--text-faint);
+}
+
+.atoz-version-diff-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    padding: var(--size-4-3) var(--size-4-4) var(--size-4-4);
+}
+
+@container (max-width: 560px) {
+    .atoz-version-diff-list {
+        display: none;
+        position: absolute;
+        inset: 0 auto 0 0;
+        z-index: 1;
+        width: min(18em, 85%);
+        background-color: var(--background-secondary);
+        box-shadow: var(--shadow-s);
+    }
+
+    .atoz-version-diff.is-list-toggled .atoz-version-diff-list {
+        display: block;
+    }
 }
 
 .atoz-version-diff-source {
@@ -182,27 +242,19 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-version-diff-controls {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
     gap: var(--size-2-2);
 }
 
-.atoz-version-diff-side {
-    display: flex;
-    align-items: center;
-    gap: var(--size-2-1);
-    min-width: 0;
+.atoz-version-diff-controls .clickable-icon {
+    flex-shrink: 0;
 }
 
 .atoz-version-diff-label {
+    min-width: 0;
     max-width: 14em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.atoz-version-diff-arrow:disabled {
-    opacity: 0.35;
-    cursor: default;
 }
 
 .atoz-version-diff-sep {

@@ -24,6 +24,7 @@ const STAMP_PATTERN = /_(\d{14})$/;
 const FORBIDDEN_FILENAME = /[\\/:*?"<>|#^[\]]/g;
 const MESSAGE_LIMIT = 50;
 const CURRENT_KEY = ' current';
+const EMPTY_KEY = ' empty';
 
 type FrontmatterRecord = Record<string, unknown>;
 
@@ -34,14 +35,17 @@ interface VersionEntry {
 }
 
 type VersionChoice =
+    | { kind: 'empty' }
     | { kind: 'current' }
     | { kind: 'version'; entry: VersionEntry };
 
 function choiceKey(choice: VersionChoice): string {
+    if (choice.kind === 'empty') return EMPTY_KEY;
     return choice.kind === 'current' ? CURRENT_KEY : choice.entry.file.path;
 }
 
 function choiceLabel(choice: VersionChoice): string {
+    if (choice.kind === 'empty') return t('versionManager.emptyDocument');
     return choice.kind === 'current' ? t('versionManager.currentState') : choice.entry.message;
 }
 
@@ -212,6 +216,7 @@ export class VersionManagerFeature {
     }
 
     async readBody(choice: VersionChoice, source: TFile): Promise<string> {
+        if (choice.kind === 'empty') return '';
         if (choice.kind === 'version') {
             return splitFrontmatter(await this.plugin.app.vault.read(choice.entry.file)).body;
         }
@@ -329,7 +334,7 @@ class VersionPicker extends SuggestModal<VersionChoice> {
     getSuggestions(query: string): VersionChoice[] {
         const normalized = query.trim().toLowerCase();
         return this.choices.filter((choice) =>
-            choice.kind === 'current' || choice.entry.message.toLowerCase().includes(normalized));
+            choice.kind !== 'version' || choice.entry.message.toLowerCase().includes(normalized));
     }
 
     renderSuggestion(value: VersionChoice, el: HTMLElement): void {
@@ -363,6 +368,9 @@ export class VersionDiffView extends ItemView {
     private beforeKey = CURRENT_KEY;
     private afterKey = CURRENT_KEY;
     private blocks: DiffBlock[] = [];
+    private listToggled = false;
+    private listEl: HTMLElement | null = null;
+    private mainEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -391,7 +399,7 @@ export class VersionDiffView extends ItemView {
 
         const entries = this.plugin.versionManager.getVersionEntries(this.source);
         const older = [...entries].reverse().map((entry): VersionChoice => ({ kind: 'version', entry }));
-        this.axis = [...older, { kind: 'current' }];
+        this.axis = [{ kind: 'empty' }, ...older, { kind: 'current' }];
     }
 
     private positions(): { before: number; after: number } {
@@ -424,19 +432,10 @@ export class VersionDiffView extends ItemView {
         this.render(preserveScroll);
     }
 
-    private async step(side: 'before' | 'after', delta: number): Promise<void> {
-        const { before, after } = this.positions();
-
-        if (side === 'before') {
-            const next = before + delta;
-            if (next < 0 || next >= after) return;
-            this.beforeKey = choiceKey(this.axis[next]!);
-        } else {
-            const next = after + delta;
-            if (next <= before || next >= this.axis.length) return;
-            this.afterKey = choiceKey(this.axis[next]!);
-        }
-
+    private async selectRow(index: number): Promise<void> {
+        this.afterKey = choiceKey(this.axis[index]!);
+        this.beforeKey = choiceKey(this.axis[index - 1]!);
+        this.listToggled = false;
         await this.recompute(false);
     }
 
@@ -467,13 +466,17 @@ export class VersionDiffView extends ItemView {
 
     private render(preserveScroll: boolean): void {
         const container = this.containerEl.children[1] as HTMLElement;
-        const previousScroll = container.scrollTop;
+        const previousScroll = this.mainEl?.scrollTop ?? 0;
+        const previousListScroll = this.listEl?.scrollTop ?? 0;
 
         container.empty();
         container.addClass('atoz-version-diff');
+        container.toggleClass('is-list-toggled', this.listToggled);
 
         if (!this.source) {
-            container.createDiv({
+            this.listEl = null;
+            this.mainEl = container.createDiv({ cls: 'atoz-version-diff-main' });
+            this.mainEl.createDiv({
                 cls: 'atoz-version-diff-empty',
                 text: t('versionManager.noComparison'),
             });
@@ -481,8 +484,12 @@ export class VersionDiffView extends ItemView {
         }
 
         this.renderHeader(container);
-        this.renderBody(container);
-        container.scrollTop = preserveScroll ? previousScroll : 0;
+        const panes = container.createDiv({ cls: 'atoz-version-diff-panes' });
+        this.listEl = this.renderList(panes);
+        this.mainEl = panes.createDiv({ cls: 'atoz-version-diff-main' });
+        this.renderBody(this.mainEl);
+        this.mainEl.scrollTop = preserveScroll ? previousScroll : 0;
+        this.listEl.scrollTop = previousListScroll;
     }
 
     private renderHeader(container: HTMLElement): void {
@@ -492,56 +499,55 @@ export class VersionDiffView extends ItemView {
 
         const controls = header.createDiv({ cls: 'atoz-version-diff-controls' });
 
-        this.renderSide(controls, 'before', before, before > 0, before + 1 < after);
+        const toggle = controls.createEl('button', {
+            cls: 'clickable-icon',
+            attr: { 'aria-label': t('versionManager.toggleList') },
+        });
+        setIcon(toggle, 'lucide-list');
+        toggle.addEventListener('click', () => {
+            this.listToggled = !this.listToggled;
+            container.toggleClass('is-list-toggled', this.listToggled);
+        });
+
+        this.renderLabel(controls, 'before', before);
         controls.createSpan({ cls: 'atoz-version-diff-sep', text: '→' });
-        this.renderSide(controls, 'after', after, after - 1 > before, after < this.axis.length - 1);
+        this.renderLabel(controls, 'after', after);
 
         const refresh = controls.createEl('button', {
-            cls: 'clickable-icon atoz-version-diff-arrow',
+            cls: 'clickable-icon',
             attr: { 'aria-label': t('versionManager.refresh') },
         });
         setIcon(refresh, 'lucide-refresh-cw');
         refresh.addEventListener('click', () => void this.refresh());
     }
 
-    private renderSide(
-        parent: HTMLElement,
-        side: 'before' | 'after',
-        position: number,
-        canStepOlder: boolean,
-        canStepNewer: boolean,
-    ): void {
-        const group = parent.createDiv({ cls: 'atoz-version-diff-side' });
+    private renderLabel(parent: HTMLElement, side: 'before' | 'after', position: number): void {
         const label = choiceLabel(this.axis[position] ?? { kind: 'current' });
-
-        this.renderArrow(group, 'lucide-chevron-left', t('versionManager.stepOlder'), canStepOlder,
-            () => void this.step(side, -1));
-
-        const button = group.createEl('button', {
+        const button = parent.createEl('button', {
             cls: 'atoz-version-diff-label',
             text: label,
             attr: { title: label },
         });
         button.addEventListener('click', () => void this.pickSide(side));
-
-        this.renderArrow(group, 'lucide-chevron-right', t('versionManager.stepNewer'), canStepNewer,
-            () => void this.step(side, 1));
     }
 
-    private renderArrow(
-        parent: HTMLElement,
-        icon: string,
-        label: string,
-        enabled: boolean,
-        onClick: () => void,
-    ): void {
-        const button = parent.createEl('button', {
-            cls: 'clickable-icon atoz-version-diff-arrow',
-            attr: { 'aria-label': label },
-        });
-        setIcon(button, icon);
-        button.disabled = !enabled;
-        if (enabled) button.addEventListener('click', onClick);
+    private renderList(parent: HTMLElement): HTMLElement {
+        const { before, after } = this.positions();
+        const list = parent.createDiv({ cls: 'atoz-version-diff-list' });
+
+        for (let index = this.axis.length - 1; index > 0; index--) {
+            const choice = this.axis[index]!;
+            const row = list.createDiv({ cls: 'atoz-version-diff-row' });
+            row.toggleClass('is-active', index === after);
+            row.toggleClass('is-before', index === before && before !== after - 1);
+            row.createDiv({ text: choiceLabel(choice) });
+            if (choice.kind === 'version') {
+                row.createDiv({ cls: 'atoz-version-stamp', text: formatStamp(choice.entry.stamp) });
+            }
+            row.addEventListener('click', () => void this.selectRow(index));
+        }
+
+        return list;
     }
 
     private renderBody(container: HTMLElement): void {
