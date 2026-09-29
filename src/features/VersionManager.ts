@@ -3,9 +3,7 @@ import {
     Editor,
     ItemView,
     MarkdownView,
-    Modal,
     Notice,
-    Setting,
     SuggestModal,
     TFile,
     WorkspaceLeaf,
@@ -148,11 +146,7 @@ export class VersionManagerFeature {
         const view = this.requireSourceView();
         if (!view?.file) return;
 
-        const message = await new Promise<string | null>((resolve) => {
-            new VersionMessageModal(this.plugin.app, resolve).open();
-        });
-        if (message === null) return;
-
+        const message = this.nextNumber(view.file);
         const created = await this.createVersionNote(view.file, view.editor.getValue(), message);
         if (created) new Notice(t('versionManager.saved', { file: messageOf(created.basename) }));
     }
@@ -234,6 +228,31 @@ export class VersionManagerFeature {
         });
     }
 
+    async renameVersion(entry: VersionEntry, raw: string): Promise<string | null> {
+        if (!raw.trim()) return null;
+        const message = sanitizeMessage(raw);
+        if (message === entry.message) return null;
+
+        const basename = entry.stamp ? `${message}_${entry.stamp}` : message;
+        const parent = entry.file.parent?.isRoot() ? '' : entry.file.parent?.path ?? '';
+        const path = normalizePath(parent ? `${parent}/${basename}.md` : `${basename}.md`);
+
+        if (this.plugin.app.vault.getAbstractFileByPath(path)) {
+            new Notice(t('versionManager.duplicateNote', { file: path }));
+            return null;
+        }
+
+        await this.plugin.app.fileManager.renameFile(entry.file, path);
+        return path;
+    }
+
+    private nextNumber(source: TFile): string {
+        const numbers = this.getVersionEntries(source)
+            .filter((entry) => /^\d+$/.test(entry.message))
+            .map((entry) => Number(entry.message));
+        return String(Math.max(0, ...numbers) + 1);
+    }
+
     private findEditor(file: TFile): Editor | null {
         for (const leaf of this.plugin.app.workspace.getLeavesOfType('markdown')) {
             const view = leaf.view;
@@ -283,38 +302,6 @@ export class VersionManagerFeature {
         });
 
         return created;
-    }
-}
-
-class VersionMessageModal extends Modal {
-    private inputEl!: HTMLInputElement;
-    private submitted = false;
-
-    constructor(app: App, private onClose_: (message: string | null) => void) {
-        super(app);
-        this.modalEl.addClass('prompt');
-    }
-
-    onOpen(): void {
-        this.titleEl.setText(t('versionManager.messageTitle'));
-        new Setting(this.contentEl).addText((text) => {
-            this.inputEl = text.inputEl;
-            text.setPlaceholder(t('versionManager.messagePlaceholder'));
-            window.setTimeout(() => text.inputEl.focus(), 0);
-        });
-
-        this.scope.register([], 'Enter', () => {
-            this.submitted = true;
-            const value = this.inputEl.value;
-            this.close();
-            this.onClose_(value);
-            return false;
-        });
-    }
-
-    onClose(): void {
-        this.contentEl.empty();
-        if (!this.submitted) this.onClose_(null);
     }
 }
 
@@ -439,6 +426,44 @@ export class VersionDiffView extends ItemView {
         await this.recompute(false);
     }
 
+    private startRename(title: HTMLElement, entry: VersionEntry): void {
+        const input = createEl('input', {
+            cls: 'atoz-version-diff-rename',
+            type: 'text',
+            value: entry.message,
+        });
+        title.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let done = false;
+        const finish = (commit: boolean) => {
+            if (done) return;
+            done = true;
+            if (commit) void this.renameEntry(entry, input.value);
+            else input.replaceWith(title);
+        };
+
+        input.addEventListener('click', (event) => event.stopPropagation());
+        input.addEventListener('blur', () => finish(false));
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') finish(true);
+            else if (event.key === 'Escape') finish(false);
+            else return;
+            event.preventDefault();
+        });
+    }
+
+    private async renameEntry(entry: VersionEntry, raw: string): Promise<void> {
+        const oldPath = entry.file.path;
+        const newPath = await this.plugin.versionManager.renameVersion(entry, raw);
+        if (newPath) {
+            if (this.beforeKey === oldPath) this.beforeKey = newPath;
+            if (this.afterKey === oldPath) this.afterKey = newPath;
+        }
+        await this.refresh();
+    }
+
     private async pickSide(side: 'before' | 'after'): Promise<void> {
         if (!this.source) return;
 
@@ -540,11 +565,14 @@ export class VersionDiffView extends ItemView {
             const row = list.createDiv({ cls: 'atoz-version-diff-row' });
             row.toggleClass('is-active', index === after);
             row.toggleClass('is-before', index === before && before !== after - 1);
-            row.createDiv({ text: choiceLabel(choice) });
+            const title = row.createDiv({ text: choiceLabel(choice) });
             if (choice.kind === 'version') {
                 row.createDiv({ cls: 'atoz-version-stamp', text: formatStamp(choice.entry.stamp) });
             }
-            row.addEventListener('click', () => void this.selectRow(index));
+            row.addEventListener('click', () => {
+                if (index === after && choice.kind === 'version') this.startRename(title, choice.entry);
+                else void this.selectRow(index);
+            });
         }
 
         return list;

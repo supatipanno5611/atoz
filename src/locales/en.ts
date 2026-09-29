@@ -245,8 +245,6 @@ export const en = {
     'versionManager.viewName': 'Version comparison',
     'versionManager.noActiveMarkdown': 'There is no active Markdown note.',
     'versionManager.onVersionNote': 'This command is not available in a version note.',
-    'versionManager.messageTitle': 'Describe this version',
-    'versionManager.messagePlaceholder': 'Example: removed an unnecessary paragraph',
     'versionManager.defaultMessage': 'Version',
     'versionManager.saved': 'Saved version {{file}}.',
     'versionManager.duplicateNote': 'A note already exists at {{file}}.',

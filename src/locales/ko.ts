@@ -235,8 +235,6 @@ export const ko: Record<TranslationKey, string> = {
     'versionManager.viewName': '버전 비교',
     'versionManager.noActiveMarkdown': '활성화된 마크다운 노트가 없습니다.',
     'versionManager.onVersionNote': '버전 노트에서는 이 명령을 사용할 수 없습니다.',
-    'versionManager.messageTitle': '이번 버전을 설명하세요',
-    'versionManager.messagePlaceholder': '예: 필요 없는 문단 삭제',
     'versionManager.defaultMessage': '변경사항',
     'versionManager.saved': '{{file}} 버전을 저장했습니다.',
     'versionManager.duplicateNote': '{{file}} 위치에 같은 이름의 노트가 이미 있습니다.',

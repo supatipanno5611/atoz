@@ -207,6 +207,10 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background-color: var(--background-modifier-active-hover);
 }
 
+.atoz-version-diff-rename {
+    width: 100%;
+}
+
 .atoz-version-diff-row.is-before {
     box-shadow: inset 2px 0 0 var(--text-faint);
 }
