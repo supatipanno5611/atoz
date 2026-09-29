@@ -30,9 +30,54 @@ export interface SymbolItem {
     closing?: string;
 }
 
-export interface WritingTargetPreset {
-    target: number;
-    tolerance: number;
+export type WritingTargetPreset =
+    | { kind: 'range'; target: number; tolerance: number }
+    | { kind: 'min'; value: number }
+    | { kind: 'max'; value: number };
+
+export function isValidWritingTarget(preset: WritingTargetPreset): boolean {
+    if (preset.kind === 'range') {
+        return Number.isInteger(preset.target) && Number.isInteger(preset.tolerance) &&
+            preset.tolerance > 0 && preset.tolerance < preset.target;
+    }
+    if (preset.kind === 'min' || preset.kind === 'max') {
+        return Number.isInteger(preset.value) && preset.value > 0;
+    }
+    return false;
+}
+
+// 같은 종류이면서 기준 글자 수가 같으면 중복 후보로 본다.
+export function isSameWritingTargetKey(a: WritingTargetPreset, b: WritingTargetPreset): boolean {
+    if (a.kind === 'range' && b.kind === 'range') return a.target === b.target;
+    if (a.kind !== 'range' && b.kind !== 'range') return a.kind === b.kind && a.value === b.value;
+    return false;
+}
+
+export function isSameWritingTarget(a: WritingTargetPreset, b: WritingTargetPreset): boolean {
+    if (a.kind === 'range' && b.kind === 'range') return a.target === b.target && a.tolerance === b.tolerance;
+    return isSameWritingTargetKey(a, b);
+}
+
+export function defaultWritingTolerance(target: number): number {
+    return Math.max(1, Math.round(target * 0.05));
+}
+
+// 2000 / 2000 100 / 2000±100 / 1500 이상 / 3000 이하 / 1500 min / 3000 max
+export function parseWritingTargetInput(query: string): WritingTargetPreset | null {
+    const normalized = query.trim().replace(/[,자]/g, '').replace(/\s+/g, ' ');
+    let preset: WritingTargetPreset | null = null;
+    let match: RegExpExecArray | null;
+    if ((match = /^(\d+) ?(이상|min)$/i.exec(normalized))) {
+        preset = { kind: 'min', value: Number(match[1]) };
+    } else if ((match = /^(\d+) ?(이하|max)$/i.exec(normalized))) {
+        preset = { kind: 'max', value: Number(match[1]) };
+    } else if ((match = /^(\d+) ?[ ±] ?(\d+)$/.exec(normalized))) {
+        preset = { kind: 'range', target: Number(match[1]), tolerance: Number(match[2]) };
+    } else if ((match = /^(\d+)$/.exec(normalized))) {
+        const target = Number(match[1]);
+        preset = { kind: 'range', target, tolerance: defaultWritingTolerance(target) };
+    }
+    return preset && isValidWritingTarget(preset) ? preset : null;
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
@@ -67,9 +112,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
     writingTargetPresets: [
-        { target: 1000, tolerance: 50 },
-        { target: 1500, tolerance: 75 },
-        { target: 2000, tolerance: 100 },
-        { target: 3000, tolerance: 150 },
+        { kind: 'range', target: 1000, tolerance: 50 },
+        { kind: 'range', target: 1500, tolerance: 75 },
+        { kind: 'range', target: 2000, tolerance: 100 },
+        { kind: 'range', target: 3000, tolerance: 150 },
     ],
 };

@@ -14,7 +14,7 @@ import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
-import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { ATOZSettings, DEFAULT_SETTINGS, isValidWritingTarget, type WritingTargetPreset } from './types';
 import { t } from './locales';
 import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { NoteListFeature } from './features/NoteList';
@@ -189,14 +189,14 @@ export default class ATOZPlugin extends Plugin {
             this.settings.readingCharactersPerMinute < 1) {
             this.settings.readingCharactersPerMinute = DEFAULT_SETTINGS.readingCharactersPerMinute;
         }
-        const presets = Array.isArray(this.settings.writingTargetPresets)
+        const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets
             : DEFAULT_SETTINGS.writingTargetPresets;
+        // kind가 없는 이전 후보는 범위 목표로 본다.
         this.settings.writingTargetPresets = presets
-            .filter((preset) => preset && Number.isInteger(preset.target) && preset.target > 0 &&
-                Number.isInteger(preset.tolerance) && preset.tolerance > 0 &&
-                preset.tolerance < preset.target)
-            .map((preset) => ({ ...preset }));
+            .map((preset) => isRecord(preset) ? { kind: 'range', ...preset } : preset)
+            .filter((preset): preset is WritingTargetPreset =>
+                isRecord(preset) && isValidWritingTarget(preset as WritingTargetPreset));
         if (hadFolderVisibilityData || hadClipboardData) await this.saveSettings();
     }
 

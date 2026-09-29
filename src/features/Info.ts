@@ -10,7 +10,13 @@ import {
     WorkspaceLeaf,
 } from 'obsidian';
 import type ATOZPlugin from '../main';
-import type { WritingTargetPreset } from '../types';
+import {
+    isSameWritingTarget,
+    isSameWritingTargetKey,
+    isValidWritingTarget,
+    parseWritingTargetInput,
+    type WritingTargetPreset,
+} from '../types';
 import { t } from '../locales';
 import { isRecord } from '../utils';
 
@@ -27,11 +33,14 @@ interface CharacterStats {
 type WritingTargetState =
     | { kind: 'none' }
     | { kind: 'invalid' }
-    | { kind: 'valid'; target: number; tolerance: number };
+    | { kind: 'valid'; preset: WritingTargetPreset };
 
 type WritingTargetChoice =
     | { kind: 'clear' }
-    | { kind: 'preset'; preset: WritingTargetPreset };
+    | { kind: 'preset'; preset: WritingTargetPreset }
+    | { kind: 'custom'; preset: WritingTargetPreset; save: boolean };
+
+const WRITING_TARGET_KEYS = ['target-characters', 'target-tolerance', 'min-characters', 'max-characters'];
 
 export class CharacterCountView extends ItemView {
     private withSpacesEl: HTMLElement | null = null;
@@ -118,14 +127,22 @@ export class CharacterCountView extends ItemView {
         if (stats.writingTarget.kind === 'none') return;
 
         const section = this.writingTargetSectionEl.createDiv({ cls: 'character-count-stat' });
+        const preset = stats.writingTarget.kind === 'valid' ? stats.writingTarget.preset : null;
 
-        const label = section.createDiv({ cls: 'character-count-label', text: t('info.writingTarget') });
-        label.setAttr('aria-label', t('info.targetDifference'));
+        const label = section.createDiv({
+            cls: 'character-count-label',
+            text: preset?.kind === 'min'
+                ? t('info.minTarget')
+                : preset?.kind === 'max' ? t('info.maxTarget') : t('info.writingTarget'),
+        });
+        label.setAttr('aria-label', preset?.kind === 'min'
+            ? t('info.minDifference')
+            : preset?.kind === 'max' ? t('info.maxDifference') : t('info.targetDifference'));
 
-        if (stats.writingTarget.kind === 'invalid') {
+        if (!preset) {
             section.createDiv({ cls: 'character-count-value', text: t('info.invalidTarget') });
-        } else {
-            const { target, tolerance } = stats.writingTarget;
+        } else if (preset.kind === 'range') {
+            const { target, tolerance } = preset;
             const delta = target - stats.withSpaces;
             const lower = target - tolerance;
             const upper = target + tolerance;
@@ -135,6 +152,15 @@ export class CharacterCountView extends ItemView {
                 : delta > 0
                     ? `+ ${delta.toLocaleString()}`
                     : `- ${Math.abs(delta).toLocaleString()}`;
+            section.createDiv({ cls: 'character-count-value', text: deltaText });
+        } else {
+            // 조건을 만족하면 ✓와 여유분, 아니면 채우거나 줄여야 할 글자 수를 표시한다.
+            const margin = preset.kind === 'min'
+                ? stats.withSpaces - preset.value
+                : preset.value - stats.withSpaces;
+            const deltaText = margin >= 0
+                ? `✓ ${margin.toLocaleString()}`
+                : `${preset.kind === 'min' ? '+' : '-'} ${Math.abs(margin).toLocaleString()}`;
             section.createDiv({ cls: 'character-count-value', text: deltaText });
         }
     }
@@ -239,11 +265,7 @@ export class InfoFeature {
     }
 
     getWritingTargetPresets(): WritingTargetPreset[] {
-        return this.plugin.settings.writingTargetPresets.filter((preset) =>
-            Number.isInteger(preset.target) && preset.target > 0 &&
-            Number.isInteger(preset.tolerance) && preset.tolerance > 0 &&
-            preset.tolerance < preset.target
-        );
+        return this.plugin.settings.writingTargetPresets.filter(isValidWritingTarget);
     }
 
     openWritingTargetPicker(): void {
@@ -253,19 +275,13 @@ export class InfoFeature {
             return;
         }
 
-        const presets = this.getWritingTargetPresets();
-        const current = this.getWritingTargetState(file);
-        if (presets.length === 0 && current.kind === 'none') {
-            new Notice(t('info.addPresetFirst'));
-            return;
-        }
-
         new WritingTargetPicker(
             this.plugin,
-            presets,
-            current.kind !== 'none',
+            this.getWritingTargetPresets(),
+            this.getWritingTargetState(file).kind !== 'none',
             (choice) => {
-                void this.setWritingTarget(choice.kind === 'preset' ? choice.preset : null, file);
+                void this.setWritingTarget(choice.kind === 'clear' ? null : choice.preset, file);
+                if (choice.kind === 'custom' && choice.save) void this.addWritingTargetPreset(choice.preset);
             },
         ).open();
     }
@@ -276,15 +292,23 @@ export class InfoFeature {
 
         await this.plugin.app.fileManager.processFrontMatter(targetFile, (frontmatter) => {
             const properties = frontmatter as Record<string, unknown>;
-            if (preset) {
+            for (const key of WRITING_TARGET_KEYS) delete properties[key];
+            if (preset?.kind === 'range') {
                 properties['target-characters'] = preset.target;
                 properties['target-tolerance'] = preset.tolerance;
-            } else {
-                delete properties['target-characters'];
-                delete properties['target-tolerance'];
+            } else if (preset?.kind === 'min') {
+                properties['min-characters'] = preset.value;
+            } else if (preset?.kind === 'max') {
+                properties['max-characters'] = preset.value;
             }
         });
         this.scheduleUpdate();
+    }
+
+    private async addWritingTargetPreset(preset: WritingTargetPreset): Promise<void> {
+        this.plugin.settings.writingTargetPresets.push(preset);
+        await this.plugin.saveSettings();
+        new Notice(t('info.presetSaved', { target: formatWritingTarget(preset) }));
     }
 
     settingsChanged(): void {
@@ -309,19 +333,23 @@ export class InfoFeature {
     private getWritingTargetState(file: TFile): WritingTargetState {
         const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
         if (!isRecord(frontmatter)) return { kind: 'none' };
-        const targetValue = frontmatter?.['target-characters'];
-        const toleranceValue = frontmatter?.['target-tolerance'];
-        if (targetValue === undefined && toleranceValue === undefined) return { kind: 'none' };
-        if (!Number.isInteger(targetValue) || Number(targetValue) < 1 ||
-            !Number.isInteger(toleranceValue) || Number(toleranceValue) < 1 ||
-            Number(toleranceValue) >= Number(targetValue)) {
-            return { kind: 'invalid' };
-        }
-        return {
-            kind: 'valid',
-            target: Number(targetValue),
-            tolerance: Number(toleranceValue),
-        };
+        const targetValue = frontmatter['target-characters'];
+        const toleranceValue = frontmatter['target-tolerance'];
+        const minValue = frontmatter['min-characters'];
+        const maxValue = frontmatter['max-characters'];
+        const hasRange = targetValue !== undefined || toleranceValue !== undefined;
+        const kindCount = [hasRange, minValue !== undefined, maxValue !== undefined].filter(Boolean).length;
+        if (kindCount === 0) return { kind: 'none' };
+        if (kindCount > 1) return { kind: 'invalid' };
+
+        // 문자열 숫자는 받지 않도록 정수가 아니면 NaN으로 넘겨 검증에서 걸러낸다.
+        const toInteger = (value: unknown): number => Number.isInteger(value) ? Number(value) : NaN;
+        const preset: WritingTargetPreset = hasRange
+            ? { kind: 'range', target: toInteger(targetValue), tolerance: toInteger(toleranceValue) }
+            : minValue !== undefined
+                ? { kind: 'min', value: toInteger(minValue) }
+                : { kind: 'max', value: toInteger(maxValue) };
+        return isValidWritingTarget(preset) ? { kind: 'valid', preset } : { kind: 'invalid' };
     }
 
     private async analyzeRenderedText(
@@ -377,26 +405,55 @@ class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
     }
 
     getSuggestions(query: string): WritingTargetChoice[] {
+        // 입력값과 똑같은 후보가 있으면 직접 입력 대신 그 후보를 맨 위에 보여준다.
+        const custom = parseWritingTargetInput(query);
+        const exact = custom ? this.presets.find((preset) => isSameWritingTarget(preset, custom)) : undefined;
+        const head: WritingTargetChoice[] = [];
+        if (exact) {
+            head.push({ kind: 'preset', preset: exact });
+        } else if (custom) {
+            head.push({ kind: 'custom', preset: custom, save: false });
+            if (!this.presets.some((preset) => isSameWritingTargetKey(preset, custom))) {
+                head.push({ kind: 'custom', preset: custom, save: true });
+            }
+        }
+
         const normalized = query.trim().replace(/[,자\s]/g, '');
-        const choices = this.presets.filter((preset) => !normalized ||
-            preset.target.toString().includes(normalized) ||
-            preset.tolerance.toString().includes(normalized)
-        ).map((preset): WritingTargetChoice => ({ kind: 'preset', preset }));
-        return this.hasCurrentTarget ? [{ kind: 'clear' }, ...choices] : choices;
+        const choices = this.presets.filter((preset) => preset !== exact && (!normalized ||
+            (preset.kind === 'range' ? [preset.target, preset.tolerance] : [preset.value])
+                .some((value) => value.toString().includes(normalized))
+        )).map((preset): WritingTargetChoice => ({ kind: 'preset', preset }));
+        const clear: WritingTargetChoice[] = this.hasCurrentTarget ? [{ kind: 'clear' }] : [];
+        return [...head, ...clear, ...choices];
     }
 
     renderSuggestion(choice: WritingTargetChoice, el: HTMLElement): void {
-        el.setText(choice.kind === 'preset'
-            ? t('info.targetChoice', {
-                target: choice.preset.target.toLocaleString(),
-                tolerance: choice.preset.tolerance.toLocaleString(),
-            })
-            : t('info.clearTarget'));
+        if (choice.kind === 'clear') {
+            el.setText(t('info.clearTarget'));
+        } else if (choice.kind === 'preset') {
+            el.setText(formatWritingTarget(choice.preset));
+        } else {
+            el.setText(t(choice.save ? 'info.customSaveChoice' : 'info.customChoice', {
+                target: formatWritingTarget(choice.preset),
+            }));
+        }
     }
 
     onChooseSuggestion(choice: WritingTargetChoice): void {
         this.choose(choice);
     }
+}
+
+function formatWritingTarget(preset: WritingTargetPreset): string {
+    if (preset.kind === 'range') {
+        return t('info.targetChoice', {
+            target: preset.target.toLocaleString(),
+            tolerance: preset.tolerance.toLocaleString(),
+        });
+    }
+    return t(preset.kind === 'min' ? 'info.minChoice' : 'info.maxChoice', {
+        value: preset.value.toLocaleString(),
+    });
 }
 
 function removeFrontmatter(source: string): string {

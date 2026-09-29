@@ -83,6 +83,8 @@ const ALLOWED_PROPERTIES = new Set([
     'later',
     'target-characters',
     'target-tolerance',
+    'min-characters',
+    'max-characters',
 ]);
 
 // 토픽 관리를 위한 마커 상수들

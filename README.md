@@ -83,7 +83,7 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Enable cursor centering | Off | Keeps the cursor near the center of the screen while editing. |
 | Reading time basis | Without spaces | Character-count basis used to estimate reading time. |
 | Reading speed | `500` | Personal reading speed in characters per minute. |
-| Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets and their allowed ranges. |
+| Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets. Each preset is a range (target ± tolerance), a minimum, or a maximum. |
 | Snippet trigger character | `@` | Opens snippet suggestions while typing. |
 | Snippet suggestion limit | `5` | Maximum number of snippet suggestions shown. |
 | Snippet list | Empty | Stores reusable text, one snippet per line. |
@@ -120,6 +120,8 @@ tags:
 later:
 target-characters:
 target-tolerance:
+min-characters:
+max-characters:
 ```
 
 Unsupported empty properties are removed automatically. Files containing unsupported properties with values are opened in new tabs for review. `log.md` and the configured work note are excluded.
@@ -148,7 +150,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Update date property to today** | Replaces the `date` value with today's date. |
 | **Clean up properties** | Removes unsupported empty properties and opens files that need review. |
 | **View document info** | Shows character counts, reading time, and the writing target in the left sidebar. |
-| **Set writing target for current document** | Assigns one of the configured target presets or clears the current target. |
+| **Set writing target for current document** | Assigns a configured preset or a typed target, or clears the current target. |
 | **Open work note** | Opens the configured work note. |
 | **Close all tabs** | Closes unpinned tabs in the main workspace. |
 | **Move selection or current line to later** | Moves the exact selection or current line into a source-linked later note. |

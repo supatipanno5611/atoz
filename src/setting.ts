@@ -1,6 +1,13 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type ATOZPlugin from './main';
-import { DEFAULT_SETTINGS, SymbolItem } from './types';
+import {
+    DEFAULT_SETTINGS,
+    defaultWritingTolerance,
+    isSameWritingTargetKey,
+    isValidWritingTarget,
+    SymbolItem,
+    type WritingTargetPreset,
+} from './types';
 import { t } from './locales';
 
 export class ATOZSettingTab extends PluginSettingTab {
@@ -229,39 +236,81 @@ export class ATOZSettingTab extends PluginSettingTab {
                         name: t('settings.info.targetPreset.name', { index: i + 1 }),
                         desc: t('settings.info.targetPreset.desc'),
                         render: (setting: Setting) => {
-                            setting.addText((text) => {
-                                text.inputEl.type = 'number';
-                                text.inputEl.min = '1';
-                                text.setPlaceholder(t('settings.info.targetPlaceholder'));
-                                text.setValue(preset.target.toString());
-                                text.inputEl.addEventListener('blur', () => {
-                                    const target = Number(text.getValue());
-                                    const duplicate = this.plugin.settings.writingTargetPresets
-                                        .some((item, index) => index !== i && item.target === target);
-                                    if (!Number.isInteger(target) || target < 1 || target <= preset.tolerance || duplicate) {
-                                        new Notice(t('settings.info.targetInvalid'));
-                                        text.setValue(preset.target.toString());
+                            const presets = this.plugin.settings.writingTargetPresets;
+                            const isDuplicate = (next: WritingTargetPreset): boolean =>
+                                presets.some((item, index) => index !== i && isSameWritingTargetKey(item, next));
+                            setting.addDropdown((dropdown) => dropdown
+                                .addOption('range', t('settings.info.kind.range'))
+                                .addOption('min', t('settings.info.kind.min'))
+                                .addOption('max', t('settings.info.kind.max'))
+                                .setValue(preset.kind)
+                                .onChange(async (kind) => {
+                                    // 종류를 바꿔도 기준 글자 수는 유지한다.
+                                    const value = preset.kind === 'range' ? preset.target : preset.value;
+                                    const next: WritingTargetPreset = kind === 'range'
+                                        ? { kind: 'range', target: value, tolerance: defaultWritingTolerance(value) }
+                                        : { kind: kind === 'min' ? 'min' : 'max', value };
+                                    if (!isValidWritingTarget(next) || isDuplicate(next)) {
+                                        new Notice(t('settings.info.valueInvalid'));
+                                        dropdown.setValue(preset.kind);
                                         return;
                                     }
-                                    preset.target = target;
-                                    void this.plugin.saveSettings();
+                                    presets[i] = next;
+                                    await this.plugin.saveSettings();
+                                    this.refreshSettings();
+                                })
+                            );
+                            if (preset.kind === 'range') {
+                                setting.addText((text) => {
+                                    text.inputEl.type = 'number';
+                                    text.inputEl.min = '1';
+                                    text.setPlaceholder(t('settings.info.targetPlaceholder'));
+                                    text.setValue(preset.target.toString());
+                                    text.inputEl.addEventListener('blur', () => {
+                                        const next = { ...preset, target: Number(text.getValue()) };
+                                        if (!isValidWritingTarget(next) || isDuplicate(next)) {
+                                            new Notice(t('settings.info.targetInvalid'));
+                                            text.setValue(preset.target.toString());
+                                            return;
+                                        }
+                                        preset.target = next.target;
+                                        void this.plugin.saveSettings();
+                                    });
+                                }).addText((text) => {
+                                    text.inputEl.type = 'number';
+                                    text.inputEl.min = '1';
+                                    text.setPlaceholder(t('settings.info.tolerancePlaceholder'));
+                                    text.setValue(preset.tolerance.toString());
+                                    text.inputEl.addEventListener('blur', () => {
+                                        const next = { ...preset, tolerance: Number(text.getValue()) };
+                                        if (!isValidWritingTarget(next)) {
+                                            new Notice(t('settings.info.toleranceInvalid'));
+                                            text.setValue(preset.tolerance.toString());
+                                            return;
+                                        }
+                                        preset.tolerance = next.tolerance;
+                                        void this.plugin.saveSettings();
+                                    });
                                 });
-                            }).addText((text) => {
-                                text.inputEl.type = 'number';
-                                text.inputEl.min = '1';
-                                text.setPlaceholder(t('settings.info.tolerancePlaceholder'));
-                                text.setValue(preset.tolerance.toString());
-                                text.inputEl.addEventListener('blur', () => {
-                                    const tolerance = Number(text.getValue());
-                                    if (!Number.isInteger(tolerance) || tolerance < 1 || tolerance >= preset.target) {
-                                        new Notice(t('settings.info.toleranceInvalid'));
-                                        text.setValue(preset.tolerance.toString());
-                                        return;
-                                    }
-                                    preset.tolerance = tolerance;
-                                    void this.plugin.saveSettings();
+                            } else {
+                                setting.addText((text) => {
+                                    text.inputEl.type = 'number';
+                                    text.inputEl.min = '1';
+                                    text.setPlaceholder(t('settings.info.valuePlaceholder'));
+                                    text.setValue(preset.value.toString());
+                                    text.inputEl.addEventListener('blur', () => {
+                                        const next = { ...preset, value: Number(text.getValue()) };
+                                        if (!isValidWritingTarget(next) || isDuplicate(next)) {
+                                            new Notice(t('settings.info.valueInvalid'));
+                                            text.setValue(preset.value.toString());
+                                            return;
+                                        }
+                                        preset.value = next.value;
+                                        void this.plugin.saveSettings();
+                                    });
                                 });
-                            }).addExtraButton((button) => button
+                            }
+                            setting.addExtraButton((button) => button
                                 .setIcon('lucide-trash-2')
                                 .setTooltip(t('settings.symbols.delete'))
                                 .onClick(async () => {
@@ -280,12 +329,14 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 .onClick(async () => {
                                     const largestTarget = Math.max(
                                         0,
-                                        ...this.plugin.settings.writingTargetPresets.map((preset) => preset.target),
+                                        ...this.plugin.settings.writingTargetPresets.map((preset) =>
+                                            preset.kind === 'range' ? preset.target : preset.value),
                                     );
                                     const target = largestTarget + 500;
                                     this.plugin.settings.writingTargetPresets.push({
+                                        kind: 'range',
                                         target,
-                                        tolerance: Math.max(1, Math.round(target * 0.05)),
+                                        tolerance: defaultWritingTolerance(target),
                                     });
                                     await this.plugin.saveSettings();
                                     this.refreshSettings();
