@@ -147,6 +147,8 @@ export const ko: Record<TranslationKey, string> = {
     'info.customChoice': '{{target}} (직접 입력)',
     'info.customSaveChoice': '{{target}} (직접 입력 · 후보에 저장)',
     'info.presetSaved': '{{target}}을(를) 목표 후보에 추가했습니다.',
+    'info.saveCommand': '저장',
+    'info.saveInstruction': '입력 뒤에 붙이면 후보에 저장',
     'info.clearTarget': '목표 해제',
     'mobile.toolbarHidden': '모바일 툴바를 숨겼습니다.',
     'mobile.toolbarShown': '모바일 툴바를 표시합니다.',

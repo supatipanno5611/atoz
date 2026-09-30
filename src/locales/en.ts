@@ -150,6 +150,8 @@ export const en = {
     'info.customChoice': '{{target}} (custom)',
     'info.customSaveChoice': '{{target}} (custom · save as preset)',
     'info.presetSaved': 'Added {{target}} to target presets.',
+    'info.saveCommand': 'Save',
+    'info.saveInstruction': 'Append to save as a preset',
     'info.clearTarget': 'Clear target',
 
     'mobile.toolbarHidden': 'The mobile toolbar has been hidden.',

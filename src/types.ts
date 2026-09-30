@@ -63,21 +63,29 @@ export function defaultWritingTolerance(target: number): number {
 }
 
 // 2000 / 2000 100 / 2000±100 / 1500 이상 / 3000 이하 / 1500 min / 3000 max
-export function parseWritingTargetInput(query: string): WritingTargetPreset | null {
-    const normalized = query.trim().replace(/[,자]/g, '').replace(/\s+/g, ' ');
-    let preset: WritingTargetPreset | null = null;
+// 숫자만 입력하면 범위·이상·이하를 모두 돌려주고, 끝에 저장(save)을 붙이면 save가 true다.
+export function parseWritingTargetInput(query: string): { presets: WritingTargetPreset[]; save: boolean } {
+    let normalized = query.trim().replace(/[,자]/g, '').replace(/\s+/g, ' ');
+    const saveMatch = / ?(저장|save)$/i.exec(normalized);
+    if (saveMatch) normalized = normalized.slice(0, saveMatch.index);
+
+    let presets: WritingTargetPreset[] = [];
     let match: RegExpExecArray | null;
     if ((match = /^(\d+) ?(이상|min)$/i.exec(normalized))) {
-        preset = { kind: 'min', value: Number(match[1]) };
+        presets = [{ kind: 'min', value: Number(match[1]) }];
     } else if ((match = /^(\d+) ?(이하|max)$/i.exec(normalized))) {
-        preset = { kind: 'max', value: Number(match[1]) };
+        presets = [{ kind: 'max', value: Number(match[1]) }];
     } else if ((match = /^(\d+) ?[ ±] ?(\d+)$/.exec(normalized))) {
-        preset = { kind: 'range', target: Number(match[1]), tolerance: Number(match[2]) };
+        presets = [{ kind: 'range', target: Number(match[1]), tolerance: Number(match[2]) }];
     } else if ((match = /^(\d+)$/.exec(normalized))) {
-        const target = Number(match[1]);
-        preset = { kind: 'range', target, tolerance: defaultWritingTolerance(target) };
+        const value = Number(match[1]);
+        presets = [
+            { kind: 'range', target: value, tolerance: defaultWritingTolerance(value) },
+            { kind: 'min', value },
+            { kind: 'max', value },
+        ];
     }
-    return preset && isValidWritingTarget(preset) ? preset : null;
+    return { presets: presets.filter(isValidWritingTarget), save: saveMatch !== null };
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {

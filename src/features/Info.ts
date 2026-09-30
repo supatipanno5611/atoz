@@ -402,24 +402,29 @@ class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
     ) {
         super(plugin.app);
         this.setPlaceholder(t('info.targetModalPlaceholder'));
+        this.setInstructions([{ command: t('info.saveCommand'), purpose: t('info.saveInstruction') }]);
     }
 
     getSuggestions(query: string): WritingTargetChoice[] {
-        // 입력값과 똑같은 후보가 있으면 직접 입력 대신 그 후보를 맨 위에 보여준다.
-        const custom = parseWritingTargetInput(query);
-        const exact = custom ? this.presets.find((preset) => isSameWritingTarget(preset, custom)) : undefined;
+        // 입력과 겹치는 후보가 있으면 직접 입력 대신 그 후보를 맨 위에 보여준다.
+        // 저장할 때는 같은 종류와 글자 수의 후보도 겹치는 것으로 본다.
+        const { presets: customs, save } = parseWritingTargetInput(query);
         const head: WritingTargetChoice[] = [];
-        if (exact) {
-            head.push({ kind: 'preset', preset: exact });
-        } else if (custom) {
-            head.push({ kind: 'custom', preset: custom, save: false });
-            if (!this.presets.some((preset) => isSameWritingTargetKey(preset, custom))) {
-                head.push({ kind: 'custom', preset: custom, save: true });
+        const existing: WritingTargetPreset[] = [];
+        for (const custom of customs) {
+            const match = this.presets.find((preset) => save
+                ? isSameWritingTargetKey(preset, custom)
+                : isSameWritingTarget(preset, custom));
+            if (match) {
+                head.push({ kind: 'preset', preset: match });
+                existing.push(match);
+            } else {
+                head.push({ kind: 'custom', preset: custom, save });
             }
         }
 
         const normalized = query.trim().replace(/[,자\s]/g, '');
-        const choices = this.presets.filter((preset) => preset !== exact && (!normalized ||
+        const choices = this.presets.filter((preset) => !existing.includes(preset) && (!normalized ||
             (preset.kind === 'range' ? [preset.target, preset.tolerance] : [preset.value])
                 .some((value) => value.toString().includes(normalized))
         )).map((preset): WritingTargetChoice => ({ kind: 'preset', preset }));
