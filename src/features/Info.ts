@@ -9,6 +9,7 @@ import {
     TFile,
     WorkspaceLeaf,
 } from 'obsidian';
+import { EditorView } from '@codemirror/view';
 import type ATOZPlugin from '../main';
 import {
     isSameWritingTarget,
@@ -27,6 +28,7 @@ interface CharacterStats {
     withSpaces: number;
     withoutSpaces: number;
     nonEmptyLines: number;
+    selection: { withSpaces: number; withoutSpaces: number } | null;
     writingTarget: WritingTargetState;
 }
 
@@ -114,8 +116,13 @@ export class CharacterCountView extends ItemView {
             return;
         }
 
-        this.withSpacesEl.setText(stats.withSpaces.toLocaleString());
-        this.withoutSpacesEl.setText(stats.withoutSpaces.toLocaleString());
+        // 선택 영역이 있으면 공백 포함·제외 글자 수를 `선택 / 전체`로 표시한다.
+        const withSelection = (selected: number | undefined, total: number): string =>
+            selected === undefined
+                ? total.toLocaleString()
+                : `${selected.toLocaleString()} / ${total.toLocaleString()}`;
+        this.withSpacesEl.setText(withSelection(stats.selection?.withSpaces, stats.withSpaces));
+        this.withoutSpacesEl.setText(withSelection(stats.selection?.withoutSpaces, stats.withoutSpaces));
         this.nonEmptyLinesEl.setText(stats.nonEmptyLines.toLocaleString());
         this.readingTimeEl.setText(this.plugin.info.formatReadingTime(stats));
         this.renderWritingTarget(stats);
@@ -207,6 +214,13 @@ export class InfoFeature {
             this.plugin.app.workspace.on('layout-change', () => this.scheduleUpdate()),
         );
 
+        // Obsidian에는 선택 변경 이벤트가 없어서 CodeMirror에서 직접 받는다.
+        this.plugin.registerEditorExtension(
+            EditorView.updateListener.of((update) => {
+                if (update.selectionSet) this.scheduleUpdate();
+            }),
+        );
+
         this.plugin.registerEvent(
             this.plugin.app.metadataCache.on('changed', (file) => {
                 if (file.path === this.plugin.app.workspace.getActiveFile()?.path) {
@@ -246,10 +260,27 @@ export class InfoFeature {
         const leaf = this.plugin.app.workspace.getMostRecentLeaf();
         if (!(leaf?.view instanceof MarkdownView) || !leaf.view.file) return null;
 
-        const source = leaf.view.editor.getValue();
-        const stats = await this.analyzeRenderedText(removeFrontmatter(source), leaf.view.file.path);
+        const { editor, file } = leaf.view;
+        const stats = await this.analyzeRenderedText(removeFrontmatter(editor.getValue()), file.path);
+
+        // 읽기 모드에서는 에디터 선택이 화면에 보이지 않으므로 편집 모드에서만 센다.
+        let selection: CharacterStats['selection'] = null;
+        if (leaf.view.getMode() === 'source' && editor.somethingSelected()) {
+            const selectedText = editor.listSelections()
+                .map(({ anchor, head }) => editor.posToOffset(anchor) <= editor.posToOffset(head)
+                    ? editor.getRange(anchor, head)
+                    : editor.getRange(head, anchor))
+                .join('\n');
+            const { withSpaces, withoutSpaces } = await this.analyzeRenderedText(
+                removeFrontmatter(selectedText),
+                file.path,
+            );
+            selection = { withSpaces, withoutSpaces };
+        }
+
         return {
             ...stats,
+            selection,
             writingTarget: this.getWritingTargetState(leaf.view.file),
         };
     }
@@ -355,7 +386,7 @@ export class InfoFeature {
     private async analyzeRenderedText(
         source: string,
         sourcePath: string,
-    ): Promise<Omit<CharacterStats, 'writingTarget'>> {
+    ): Promise<Omit<CharacterStats, 'selection' | 'writingTarget'>> {
         if (source.length === 0) {
             return { withSpaces: 0, withoutSpaces: 0, nonEmptyLines: 0 };
         }
