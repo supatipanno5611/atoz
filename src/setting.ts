@@ -380,6 +380,17 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
+                type: 'group' as const,
+                heading: 'Daynight',
+                items: [
+                    {
+                        name: t('settings.daynight.folder.name'),
+                        desc: t('settings.daynight.folder.desc'),
+                        control: { type: 'text' as const, key: 'daynightFolder', placeholder: t('settings.daynight.folder.placeholder') },
+                    },
+                ],
+            },
+            {
             	type: 'group' as const,
                 heading: t('settings.commandSlots.heading'),
             	items: [
@@ -405,6 +416,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
                                     await this.plugin.saveSettings();
                                     this.plugin.info.settingsChanged();
+                                    this.plugin.daynight.settingsChanged();
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
@@ -414,6 +426,11 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
         ];
+    }
+
+    async setControlValue(key: string, value: unknown): Promise<void> {
+        await super.setControlValue(key, value);
+        if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
     }
 
     private refreshSettings(): void {

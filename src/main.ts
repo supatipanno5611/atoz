@@ -20,6 +20,7 @@ import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
+import { DaynightFeature } from './features/Daynight';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -51,6 +52,7 @@ export default class ATOZPlugin extends Plugin {
     info!: InfoFeature;
     noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
+    daynight!: DaynightFeature;
 
     activeSidebarMode: 'later' | null = null;
 
@@ -78,6 +80,7 @@ export default class ATOZPlugin extends Plugin {
         this.info = new InfoFeature(this);
         this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
+        this.daynight = new DaynightFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -92,6 +95,7 @@ export default class ATOZPlugin extends Plugin {
         this.info.install();
         this.noteList.install();
         this.versionManager.install();
+        this.daynight.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
@@ -162,6 +166,7 @@ export default class ATOZPlugin extends Plugin {
         this.later.uninstall();
         this.info.uninstall();
         this.versionManager.uninstall();
+        this.daynight.uninstall();
     }
 
     async loadSettings() {

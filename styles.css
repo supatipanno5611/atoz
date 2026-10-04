@@ -310,3 +310,128 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     text-align: center;
     margin-bottom: var(--size-4-3);
 }
+
+/* ── Daynight ── */
+.workspace-leaf-content .view-content.atoz-daynight {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+}
+
+.atoz-daynight-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 사이드바가 낮아도 차트가 줄어들지 않고 스크롤되게 한다. */
+.atoz-daynight-body > * {
+    flex-shrink: 0;
+}
+
+.atoz-daynight-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.atoz-daynight-range {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--font-ui-small);
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.atoz-daynight-controls {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.atoz-daynight-controls .clickable-icon:disabled {
+    opacity: 0.4;
+    cursor: default;
+    background-color: transparent;
+}
+
+.atoz-daynight-chart {
+    width: 100%;
+    height: auto;
+}
+
+.atoz-daynight-track {
+    fill: var(--background-secondary);
+}
+
+.atoz-daynight-grid {
+    stroke: var(--background-modifier-border);
+    stroke-width: 0.5;
+}
+
+.atoz-daynight-midnight {
+    stroke-width: 1;
+}
+
+.atoz-daynight-label {
+    fill: var(--text-muted);
+    font-size: 10px;
+}
+
+.atoz-daynight-sleep {
+    fill: var(--color-purple);
+}
+
+.atoz-daynight-now {
+    stroke: var(--color-red);
+    stroke-width: 1.5;
+}
+
+.atoz-daynight-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: var(--font-small);
+}
+
+.atoz-daynight-muted {
+    color: var(--text-muted);
+}
+
+.atoz-daynight-recent {
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+    font-size: var(--font-small);
+}
+
+.atoz-daynight-record {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 28px;
+    padding: 0 6px;
+    border-radius: var(--radius-s);
+}
+
+.atoz-daynight-last {
+    cursor: pointer;
+}
+
+.atoz-daynight-last:hover {
+    background: var(--background-modifier-hover);
+}
+
+.atoz-daynight-delete {
+    margin-left: auto;
+}
+
+.atoz-daynight-toggle {
+    flex-shrink: 0;
+    height: 44px;
+    font-size: var(--font-ui-medium);
+}

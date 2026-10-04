@@ -15,6 +15,7 @@ export interface ATOZSettings {
     workFilePath: string;
     moveLineTargetFolder: string;
     versionFolder: string;
+    daynightFolder: string;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
     writingTargetPresets: WritingTargetPreset[];
@@ -117,6 +118,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     workFilePath: 'work.md',
     moveLineTargetFolder: '',
     versionFolder: '',
+    daynightFolder: '',
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
     writingTargetPresets: [

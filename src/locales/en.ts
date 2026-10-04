@@ -280,6 +280,26 @@ export const en = {
     'noteList.skipped': 'Skipped {{count}} note(s) because their body was written by hand.',
 
     'versionManager.movedTag': 'Moved',
+
+    'command.openDaynightView': 'Open daynight sidebar',
+    'ribbon.openDaynightView': 'Open daynight sidebar',
+    'settings.daynight.folder.name': 'Sleep record folder',
+    'settings.daynight.folder.desc': 'Leave blank to save monthly sleep records in the sleep folder.',
+    'settings.daynight.folder.placeholder': 'Example: sleep',
+    'daynight.viewName': 'Daynight',
+    'daynight.previous': 'Previous day',
+    'daynight.next': 'Next day',
+    'daynight.now': 'Back to now',
+    'daynight.awake': 'Awake {{duration}}',
+    'daynight.asleep': 'Asleep {{duration}}',
+    'daynight.last24h': 'Last 24h {{duration}}',
+    'daynight.before24h': '24h before {{time}}: {{duration}}',
+    'daynight.sleep': 'Sleep',
+    'daynight.wake': 'Wake',
+    'daynight.sleepNow': 'Sleep now',
+    'daynight.wakeNow': 'Wake up now',
+    'daynight.noRecords': 'There are no records yet.',
+    'daynight.deleteLast': 'Delete last record',
 } as const;
 
 export type TranslationKey = keyof typeof en;
