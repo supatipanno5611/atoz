@@ -10,7 +10,7 @@ const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const WINDOW = 2 * DAY;
-const RECENT_COUNT = 5;
+const RECENT_COUNT = 3;
 const RELOAD_DELAY = 100;
 
 // 차트 좌표계
@@ -31,7 +31,7 @@ const pad = (value: number): string => String(value).padStart(2, '0');
 
 function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
-    return `${Math.floor(minutes / 60)}h${pad(minutes % 60)}`;
+    return `${Math.floor(minutes / 60)}h ${pad(minutes % 60)}m`;
 }
 
 function formatShortDate(time: number): string {
@@ -39,9 +39,13 @@ function formatShortDate(time: number): string {
     return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function formatShortDateTime(time: number): string {
+function formatTime(time: number): string {
     const date = new Date(time);
-    return `${formatShortDate(time)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatShortDateTime(time: number): string {
+    return `${formatShortDate(time)} ${formatTime(time)}`;
 }
 
 // sleep 다음의 wake를 짝지어 구간으로 만든다. 마지막 sleep은 지금까지 진행 중인 구간이다.
@@ -98,54 +102,60 @@ export class DaynightView extends ItemView {
         const segments = toSegments(records, now);
         const oldest = records[0]?.time ?? now;
 
+        const last = records[records.length - 1];
+
         // 버튼은 스크롤 영역 밖에 두어 사이드바가 낮아도 항상 하단에 보이게 한다.
         const body = container.createDiv({ cls: 'atoz-daynight-body' });
-        const nav = body.createDiv({ cls: 'atoz-daynight-nav' });
-        nav.createSpan({ cls: 'atoz-daynight-range', text: `${formatShortDateTime(start)} – ${formatShortDateTime(end)}` });
-        const controls = nav.createDiv({ cls: 'atoz-daynight-controls' });
-        const addNavButton = (icon: string, label: string, disabled: boolean, target: () => number | null): void => {
-            const button = controls.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
-            setIcon(button, icon);
-            button.disabled = disabled;
-            button.addEventListener('click', () => {
-                this.windowEnd = target();
-                this.render();
-            });
-        };
-        addNavButton('chevron-left', t('daynight.previous'), start <= oldest, () => end - DAY);
-        addNavButton('rotate-ccw', t('daynight.now'), this.windowEnd === null, () => null);
-        addNavButton('chevron-right', t('daynight.next'), this.windowEnd === null,
-            () => end + DAY >= Date.now() ? null : end + DAY);
-
-        this.renderChart(body, segments, start, end, this.windowEnd === null ? now : null);
-
-        const summary = body.createDiv({ cls: 'atoz-daynight-summary' });
-        const last = records[records.length - 1];
-        if (this.windowEnd === null) {
-            if (last) {
-                const key = last.type === 'sleep' ? 'daynight.asleep' : 'daynight.awake';
-                summary.createSpan({ text: t(key, { duration: formatDuration(now - last.time) }) });
-            }
-            summary.createSpan({
-                cls: 'atoz-daynight-muted',
-                text: t('daynight.last24h', { duration: formatDuration(sleptBetween(segments, now - DAY, now)) }),
-            });
+        const hero = body.createDiv({ cls: 'atoz-daynight-hero' });
+        if (!last) {
+            hero.createDiv({ cls: 'atoz-daynight-empty-title', text: t('daynight.noRecords') });
+            hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: t('daynight.noRecordsHint') });
+        } else if (this.windowEnd === null) {
+            const isAsleep = last.type === 'sleep';
+            const status = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
+            status.createSpan({ cls: `atoz-daynight-dot ${isAsleep ? 'is-asleep' : 'is-awake'}` });
+            status.createSpan({ text: t(isAsleep ? 'daynight.asleep' : 'daynight.awake') });
+            hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(now - last.time) });
+            const lastTime = formatShortDate(last.time) === formatShortDate(now)
+                ? formatTime(last.time)
+                : formatShortDateTime(last.time);
+            const lastText = t(isAsleep ? 'daynight.sleptAt' : 'daynight.wokeAt', { time: lastTime });
+            const totalText = t('daynight.last24h', { duration: formatDuration(sleptBetween(segments, now - DAY, now)) });
+            hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${lastText} · ${totalText}` });
         } else {
-            summary.createSpan({
-                cls: 'atoz-daynight-muted',
-                text: t('daynight.before24h', {
-                    time: formatShortDateTime(end),
-                    duration: formatDuration(sleptBetween(segments, end - DAY, end)),
-                }),
-            });
+            // 과거 구간을 볼 때는 상태 대신 그 구간 끝 기준 24시간 수면 합계를 보여 준다.
+            hero.createDiv({ cls: 'atoz-daynight-hero-label', text: t('daynight.before24h', { time: formatShortDateTime(end) }) });
+            hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(sleptBetween(segments, end - DAY, end)) });
         }
 
-        this.renderRecent(body, records);
+        if (last) {
+            const nav = body.createDiv({ cls: 'atoz-daynight-nav' });
+            nav.createSpan({ cls: 'atoz-daynight-range', text: `${formatShortDateTime(start)} – ${formatShortDateTime(end)}` });
+            const controls = nav.createDiv({ cls: 'atoz-daynight-controls' });
+            const addNavButton = (icon: string, label: string, disabled: boolean, target: () => number | null): void => {
+                const button = controls.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
+                setIcon(button, icon);
+                button.disabled = disabled;
+                button.addEventListener('click', () => {
+                    this.windowEnd = target();
+                    this.render();
+                });
+            };
+            addNavButton('chevron-left', t('daynight.previous'), start <= oldest, () => end - DAY);
+            addNavButton('rotate-ccw', t('daynight.now'), this.windowEnd === null, () => null);
+            addNavButton('chevron-right', t('daynight.next'), this.windowEnd === null,
+                () => end + DAY >= Date.now() ? null : end + DAY);
 
+            this.renderChart(body, segments, start, end, this.windowEnd === null ? now : null);
+            this.renderRecent(body, records);
+        }
+
+        const isAsleep = last?.type === 'sleep';
         const toggleButton = container.createEl('button', {
-            cls: 'atoz-daynight-toggle',
-            text: last?.type === 'sleep' ? t('daynight.wakeNow') : t('daynight.sleepNow'),
+            cls: `atoz-daynight-toggle ${isAsleep ? 'is-asleep' : 'is-awake'}`,
         });
+        setIcon(toggleButton, isAsleep ? 'sun' : 'moon');
+        toggleButton.createSpan({ text: isAsleep ? t('daynight.wakeNow') : t('daynight.sleepNow') });
         toggleButton.addEventListener('click', () => void this.plugin.daynight.toggle());
     }
 
@@ -163,7 +173,7 @@ export class DaynightView extends ItemView {
         });
         svg.createSvg('rect', {
             cls: 'atoz-daynight-track',
-            attr: { x: 0, y: BAR_TOP, width: CHART_WIDTH, height: BAR_HEIGHT, rx: 4 },
+            attr: { x: 0, y: BAR_TOP, width: CHART_WIDTH, height: BAR_HEIGHT, rx: 6 },
         });
 
         // 시계 기준 6시간 눈금
@@ -197,7 +207,7 @@ export class DaynightView extends ItemView {
             if (clippedTo <= clippedFrom) continue;
             svg.createSvg('rect', {
                 cls: 'atoz-daynight-sleep',
-                attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 2 },
+                attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
         }
 
@@ -212,16 +222,11 @@ export class DaynightView extends ItemView {
 
     private renderRecent(container: HTMLElement, records: DaynightRecord[]): void {
         const section = container.createDiv({ cls: 'atoz-daynight-recent' });
-        if (records.length === 0) {
-            section.createDiv({ cls: 'atoz-daynight-muted', text: t('daynight.noRecords') });
-            return;
-        }
-
         const recent = records.slice(-RECENT_COUNT).reverse();
         recent.forEach((record, index) => {
             const row = section.createDiv({ cls: 'atoz-daynight-record' });
-            row.createSpan({ cls: 'atoz-daynight-muted', text: formatShortDateTime(record.time) });
-            row.createSpan({ text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake') });
+            row.createSpan({ cls: 'atoz-daynight-record-time', text: formatShortDateTime(record.time) });
+            row.createSpan({ cls: 'atoz-daynight-muted', text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake') });
             if (index !== 0) return;
 
             // 마지막 기록만 지울 수 있어서 기록은 항상 sleep과 wake가 번갈아 나온다.

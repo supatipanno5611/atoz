@@ -313,6 +313,12 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 /* ── Daynight ── */
 .workspace-leaf-content .view-content.atoz-daynight {
+    --atoz-daynight-night: #1f3a5f;
+    --atoz-daynight-night-hover: #284a78;
+    --atoz-daynight-on-night: #e6f1fb;
+    --atoz-daynight-morning: #f0a640;
+    --atoz-daynight-morning-hover: #f5b75e;
+    --atoz-daynight-on-morning: #412402;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -325,7 +331,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     overflow: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 
 /* 사이드바가 낮아도 차트가 줄어들지 않고 스크롤되게 한다. */
@@ -333,17 +339,72 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     flex-shrink: 0;
 }
 
+/* ── 상태 ── */
+.atoz-daynight-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 2px 0;
+}
+
+.atoz-daynight-hero-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}
+
+.atoz-daynight-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.atoz-daynight-dot.is-awake {
+    background-color: var(--atoz-daynight-morning);
+}
+
+.atoz-daynight-dot.is-asleep {
+    background-color: var(--interactive-accent);
+}
+
+.atoz-daynight-hero-value {
+    font-size: 2em;
+    font-weight: var(--font-semibold);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+}
+
+.atoz-daynight-hero-sub {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight-empty-title {
+    font-size: var(--font-ui-large);
+    font-weight: var(--font-semibold);
+    color: var(--text-normal);
+}
+
+/* ── 구간 이동 ── */
 .atoz-daynight-nav {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--background-modifier-border);
 }
 
 .atoz-daynight-range {
     flex: 1;
     min-width: 0;
     font-size: var(--font-ui-small);
-    color: var(--text-normal);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -354,12 +415,21 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     flex-shrink: 0;
 }
 
+.atoz-daynight-controls .clickable-icon {
+    transition: transform 120ms ease-out;
+}
+
+.atoz-daynight-controls .clickable-icon:not(:disabled):active {
+    transform: scale(0.92);
+}
+
 .atoz-daynight-controls .clickable-icon:disabled {
     opacity: 0.4;
     cursor: default;
     background-color: transparent;
 }
 
+/* ── 차트 ── */
 .atoz-daynight-chart {
     width: 100%;
     height: auto;
@@ -384,7 +454,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-sleep {
-    fill: var(--color-purple);
+    fill: var(--interactive-accent);
 }
 
 .atoz-daynight-now {
@@ -392,30 +462,29 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     stroke-width: 1.5;
 }
 
-.atoz-daynight-summary {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: var(--font-small);
-}
-
+/* ── 최근 기록 ── */
 .atoz-daynight-muted {
     color: var(--text-muted);
 }
 
 .atoz-daynight-recent {
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 8px;
-    font-size: var(--font-small);
+    display: flex;
+    flex-direction: column;
+    font-size: var(--font-ui-small);
 }
 
 .atoz-daynight-record {
     display: flex;
     align-items: center;
     gap: 12px;
-    min-height: 28px;
+    min-height: 30px;
     padding: 0 6px;
     border-radius: var(--radius-s);
+}
+
+.atoz-daynight-record-time {
+    flex: 1;
+    font-variant-numeric: tabular-nums;
 }
 
 .atoz-daynight-last {
@@ -426,12 +495,40 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background: var(--background-modifier-hover);
 }
 
-.atoz-daynight-delete {
-    margin-left: auto;
-}
-
-.atoz-daynight-toggle {
+/* ── 기록 버튼 ── */
+.atoz-daynight .atoz-daynight-toggle {
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     height: 44px;
     font-size: var(--font-ui-medium);
+    font-weight: var(--font-medium);
+    border: none;
+    box-shadow: none;
+    transition: transform 120ms ease-out, background-color 150ms ease-out;
+}
+
+.atoz-daynight .atoz-daynight-toggle:active {
+    transform: scale(0.98);
+}
+
+/* 깨어 있을 때는 밤색 '지금 자기', 자는 중에는 아침색 '지금 일어나기' */
+.atoz-daynight .atoz-daynight-toggle.is-awake {
+    background-color: var(--atoz-daynight-night);
+    color: var(--atoz-daynight-on-night);
+}
+
+.atoz-daynight .atoz-daynight-toggle.is-awake:hover {
+    background-color: var(--atoz-daynight-night-hover);
+}
+
+.atoz-daynight .atoz-daynight-toggle.is-asleep {
+    background-color: var(--atoz-daynight-morning);
+    color: var(--atoz-daynight-on-morning);
+}
+
+.atoz-daynight .atoz-daynight-toggle.is-asleep:hover {
+    background-color: var(--atoz-daynight-morning-hover);
 }
