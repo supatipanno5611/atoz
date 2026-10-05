@@ -295,4 +295,9 @@ export const ko: Record<TranslationKey, string> = {
     'daynight.noRecords': '아직 기록이 없어요',
     'daynight.noRecordsHint': '아래 버튼으로 첫 기록을 남겨 보세요',
     'daynight.deleteLast': '마지막 기록 삭제',
+    'daynight.editLast': '마지막 기록 시각 고치기',
+    'daynight.save': '저장',
+    'daynight.cancel': '취소',
+    'daynight.editTooEarly': '{{time}}보다 늦어야 해요',
+    'daynight.editFuture': '지금보다 늦을 수 없어요',
 };

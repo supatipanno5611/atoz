@@ -305,6 +305,11 @@ export const en = {
     'daynight.noRecords': 'No records yet',
     'daynight.noRecordsHint': 'Use the button below to add your first record.',
     'daynight.deleteLast': 'Delete last record',
+    'daynight.editLast': 'Edit last record time',
+    'daynight.save': 'Save',
+    'daynight.cancel': 'Cancel',
+    'daynight.editTooEarly': 'Must be later than {{time}}',
+    'daynight.editFuture': 'Cannot be later than now',
 } as const;
 
 export type TranslationKey = keyof typeof en;

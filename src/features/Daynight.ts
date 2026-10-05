@@ -50,6 +50,11 @@ function formatShortDateTime(time: number): string {
     return `${formatShortDate(time)} ${formatTime(time)}`;
 }
 
+function formatRow(date: Date, type: DaynightType): string {
+    const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    return `| ${day} | ${pad(date.getHours())}:${pad(date.getMinutes())} | ${type} |`;
+}
+
 // sleep 다음의 wake를 짝지어 구간으로 만든다. 마지막 sleep은 지금까지 진행 중인 구간이다.
 function toSegments(records: DaynightRecord[], now: number): [number, number][] {
     const segments: [number, number][] = [];
@@ -77,7 +82,10 @@ function sleptBetween(segments: [number, number][], start: number, end: number):
 export class DaynightView extends ItemView {
     // 선택한 수면 구간의 시작 시각. null이면 현재 시각에서 끝나는 24시간을 보여 준다.
     private selectedStart: number | null = null;
-    private isDeleteShown = false;
+    private isActionsShown = false;
+    // 시각을 고치는 중인 기록의 시각과 입력 중인 값
+    private editingTime: number | null = null;
+    private editDraft = '';
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -88,7 +96,10 @@ export class DaynightView extends ItemView {
     getIcon(): string { return 'moon'; }
 
     async onOpen(): Promise<void> {
-        this.registerInterval(window.setInterval(() => this.render(), 60 * 1000));
+        // 시각을 고치는 중에는 다시 그리면 입력과 시각 선택기가 닫히므로 건너뛴다.
+        this.registerInterval(window.setInterval(() => {
+            if (this.editingTime === null) this.render();
+        }, 60 * 1000));
         this.render();
     }
 
@@ -110,6 +121,7 @@ export class DaynightView extends ItemView {
         const start = end - DAY;
 
         const last = records[records.length - 1];
+        if (this.editingTime !== last?.time) this.editingTime = null;
 
         // 버튼은 스크롤 영역 밖에 두어 사이드바가 낮아도 항상 하단에 보이게 한다.
         const body = container.createDiv({ cls: 'atoz-daynight-body' });
@@ -268,28 +280,90 @@ export class DaynightView extends ItemView {
         const recent = records.slice(-RECENT_COUNT);
         recent.forEach((record, index) => {
             const row = section.createDiv({ cls: 'atoz-daynight-record' });
+            const isLast = index === recent.length - 1;
+            if (isLast && this.editingTime === record.time) {
+                this.renderEditor(section, row, record, records[records.length - 2]);
+                return;
+            }
             row.createSpan({ cls: 'atoz-daynight-record-time', text: formatShortDateTime(record.time) });
             row.createSpan({ cls: 'atoz-daynight-muted', text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake') });
-            if (index !== recent.length - 1) return;
+            if (!isLast) return;
 
-            // 마지막 기록만 지울 수 있어서 기록은 항상 sleep과 wake가 번갈아 나온다.
+            // 마지막 기록만 고치거나 지울 수 있어서 기록은 항상 sleep과 wake가 번갈아 나온다.
             row.addClass('atoz-daynight-last');
             row.addEventListener('click', () => {
-                this.isDeleteShown = !this.isDeleteShown;
+                this.isActionsShown = !this.isActionsShown;
                 this.render();
             });
-            if (!this.isDeleteShown) return;
-            const deleteButton = row.createEl('button', {
-                cls: 'atoz-daynight-delete',
-                attr: { 'aria-label': t('daynight.deleteLast') },
+            if (!this.isActionsShown) return;
+            this.addRecordAction(row, 'pencil', t('daynight.editLast'), () => {
+                this.editingTime = record.time;
+                this.editDraft = formatTime(record.time);
+                this.render();
             });
-            setIcon(deleteButton, 'x');
-            deleteButton.addEventListener('click', (evt) => {
-                evt.stopPropagation();
-                this.isDeleteShown = false;
+            this.addRecordAction(row, 'x', t('daynight.deleteLast'), () => {
+                this.isActionsShown = false;
                 void this.plugin.daynight.deleteLast();
             });
         });
+    }
+
+    // 날짜는 그대로 두고 시각만 고친다. 앞 기록보다 뒤, 지금보다 앞이어야 순서가 유지된다.
+    private renderEditor(
+        section: HTMLElement,
+        row: HTMLElement,
+        record: DaynightRecord,
+        previous: DaynightRecord | undefined,
+    ): void {
+        row.createSpan({ cls: 'atoz-daynight-muted', text: formatShortDate(record.time) });
+        const input = row.createEl('input', { cls: 'atoz-daynight-time-input', type: 'time' });
+        input.value = this.editDraft;
+        row.createSpan({ cls: 'atoz-daynight-muted', text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake') });
+
+        const getTime = (): number | null => {
+            const match = /^(\d{2}):(\d{2})$/.exec(input.value);
+            if (!match) return null;
+            const date = new Date(record.time);
+            date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+            return date.getTime();
+        };
+        const saveButton = this.addRecordAction(row, 'check', t('daynight.save'), () => {
+            const time = getTime();
+            if (time === null) return;
+            this.editingTime = null;
+            this.isActionsShown = false;
+            void this.plugin.daynight.editLast(time);
+        });
+        this.addRecordAction(row, 'x', t('daynight.cancel'), () => {
+            this.editingTime = null;
+            this.render();
+        });
+        const message = section.createDiv({ cls: 'atoz-daynight-edit-message' });
+
+        const validate = (): void => {
+            this.editDraft = input.value;
+            const time = getTime();
+            let error = '';
+            if (time !== null && previous && time <= previous.time) {
+                error = t('daynight.editTooEarly', { time: formatShortDateTime(previous.time) });
+            } else if (time !== null && time > Date.now()) {
+                error = t('daynight.editFuture');
+            }
+            saveButton.disabled = time === null || error !== '';
+            message.setText(error);
+        };
+        input.addEventListener('input', validate);
+        validate();
+    }
+
+    private addRecordAction(row: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
+        const button = row.createEl('button', { cls: 'atoz-daynight-action', attr: { 'aria-label': label } });
+        setIcon(button, icon);
+        button.addEventListener('click', (evt) => {
+            evt.stopPropagation();
+            onClick();
+        });
+        return button;
     }
 }
 
@@ -359,8 +433,7 @@ export class DaynightFeature {
         const last = this.records[this.records.length - 1];
         const type: DaynightType = last?.type === 'sleep' ? 'wake' : 'sleep';
         const now = new Date();
-        const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-        const row = `| ${date} | ${pad(now.getHours())}:${pad(now.getMinutes())} | ${type} |`;
+        const row = formatRow(now, type);
         const folder = this.getFolder();
         const path = normalizePath(`${folder}/sleep-${now.getFullYear()}-${pad(now.getMonth() + 1)}.md`);
 
@@ -378,13 +451,26 @@ export class DaynightFeature {
     }
 
     async deleteLast(): Promise<void> {
+        await this.replaceLast(() => null);
+    }
+
+    // 날짜와 종류는 그대로 두고 시각만 바꾼다.
+    async editLast(time: number): Promise<void> {
+        await this.replaceLast((last) => formatRow(new Date(time), last.type));
+    }
+
+    // 마지막 기록의 줄을 새 줄로 바꾸고, null이면 지운다.
+    private async replaceLast(replacement: (last: DaynightRecord) => string | null): Promise<void> {
         const last = this.records[this.records.length - 1];
         if (!last) return;
+        const row = replacement(last);
 
         await this.write(last.file.path, () => this.plugin.app.vault.process(last.file, (data) => {
             const lines = data.split('\n');
             const index = lines.map((line) => line.trim()).lastIndexOf(last.line);
-            if (index !== -1) lines.splice(index, 1);
+            if (index === -1) return data;
+            if (row === null) lines.splice(index, 1);
+            else lines[index] = row;
             return lines.join('\n');
         }));
     }

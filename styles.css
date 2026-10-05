@@ -510,8 +510,8 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background: var(--background-modifier-hover);
 }
 
-/* 버튼 모양 없이 x 아이콘만 보이게 한다. */
-.atoz-daynight .atoz-daynight-delete {
+/* 버튼 모양 없이 아이콘만 보이게 한다. */
+.atoz-daynight .atoz-daynight-action {
     display: flex;
     align-items: center;
     height: auto;
@@ -522,13 +522,36 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     color: var(--text-muted);
 }
 
-.atoz-daynight .atoz-daynight-delete:hover {
+.atoz-daynight .atoz-daynight-action:not(:disabled):hover {
     color: var(--text-normal);
 }
 
-.atoz-daynight .atoz-daynight-delete svg {
+.atoz-daynight .atoz-daynight-action:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.atoz-daynight .atoz-daynight-action svg {
     width: 16px;
     height: 16px;
+}
+
+.atoz-daynight .atoz-daynight-time-input {
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+    padding: 0 6px;
+    font-size: var(--font-ui-small);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight-edit-message {
+    padding: 0 6px;
+    color: var(--text-error);
+}
+
+.atoz-daynight-edit-message:empty {
+    display: none;
 }
 
 /* ── 기록 버튼 ── */
