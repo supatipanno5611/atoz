@@ -208,11 +208,11 @@ export class LaterFeature {
     }
 
     selectPrev(): void {
-        void this.selectByOffset(1);
+        void this.selectByOffset(-1);
     }
 
     selectNext(): void {
-        void this.selectByOffset(-1);
+        void this.selectByOffset(1);
     }
 
     async takeSelected(): Promise<void> {
