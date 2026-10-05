@@ -495,6 +495,27 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background: var(--background-modifier-hover);
 }
 
+/* 버튼 모양 없이 x 아이콘만 보이게 한다. */
+.atoz-daynight .atoz-daynight-delete {
+    display: flex;
+    align-items: center;
+    height: auto;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+.atoz-daynight .atoz-daynight-delete:hover {
+    color: var(--text-normal);
+}
+
+.atoz-daynight .atoz-daynight-delete svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* ── 기록 버튼 ── */
 .atoz-daynight .atoz-daynight-toggle {
     flex-shrink: 0;

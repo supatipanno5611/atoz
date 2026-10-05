@@ -224,12 +224,13 @@ export class DaynightView extends ItemView {
 
     private renderRecent(container: HTMLElement, records: DaynightRecord[]): void {
         const section = container.createDiv({ cls: 'atoz-daynight-recent' });
-        const recent = records.slice(-RECENT_COUNT).reverse();
+        // 시간순으로 두어 가장 최근 기록이 맨 아래에 온다.
+        const recent = records.slice(-RECENT_COUNT);
         recent.forEach((record, index) => {
             const row = section.createDiv({ cls: 'atoz-daynight-record' });
             row.createSpan({ cls: 'atoz-daynight-record-time', text: formatShortDateTime(record.time) });
             row.createSpan({ cls: 'atoz-daynight-muted', text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake') });
-            if (index !== 0) return;
+            if (index !== recent.length - 1) return;
 
             // 마지막 기록만 지울 수 있어서 기록은 항상 sleep과 wake가 번갈아 나온다.
             row.addClass('atoz-daynight-last');
