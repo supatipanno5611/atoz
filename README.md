@@ -2,18 +2,24 @@
 
 English | [한국어](README.ko.md)
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/supatipanno5611)
+
 `a to z` is an Obsidian plugin designed to streamline writing workflows, with particular support for Korean users.
 
-It brings frequently used editing actions, source-linked Later notes, frontmatter and topic management, snippets, and symbol input together as commands and settings.
+It brings frequently used editing actions, source-linked Later notes, note versions, frontmatter and topic management, document info, snippets, symbol input, and a sleep log together as commands and settings.
 
 ## Features
 
 | Area | Main features |
 | --- | --- |
 | Editing | Copy or cut an entire document, copy or cut the current line, delete a paragraph, and focus the main editor |
-| Note organization | Move selected text to source-specific Later notes, move the current file, and clean up tabs |
+| Note organization | Move selected text to source-specific Later notes, move the current file, clean up tabs, and keep auto-generated note lists |
+| Versions | Save numbered versions of a note, revert to one, and compare two versions side by side |
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
+| Document info | Character counts for the document or selection, reading time, and per-document writing targets |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
+| Navigation | Quick slots for files, command slots, and cycling through sidebar tabs |
+| Sleep log | Record sleep and wake times with one button and view them as a 24-hour chart in the Daynight sidebar |
 
 The plugin automatically uses Korean UI text when Obsidian's interface language is Korean. All other interface languages use English.
 
@@ -60,20 +66,6 @@ styles.css
 
 The minimum supported Obsidian version is `1.13.0`. The plugin supports both desktop and mobile.
 
-### Optional CSS snippets
-
-[`extras/delete_unnecessary_filemenues.css`](extras/delete_unnecessary_filemenues.css) is a personal CSS snippet that hides selected items from Obsidian file menus. It is not included in or loaded by the plugin.
-
-[`extras/mobile_notice_bottom.css`](extras/mobile_notice_bottom.css) places notices at the bottom of the screen on phones. It uses `!important` because Obsidian's notice position otherwise takes precedence. This snippet is also optional and is not loaded by the plugin.
-
-To use either snippet:
-
-1. Copy the file to `<your-vault>/.obsidian/snippets/`.
-2. Open **Settings → Appearance → CSS snippets**.
-3. Reload snippets and enable the snippet you copied.
-
-The snippet uses `:has()` selectors. This can affect menu rendering performance and may also hide menu items from other plugins that use the same icons. Enable it only if you want this behavior.
-
 ## Recommended initial settings
 
 After enabling the plugin, open **Settings → a to z** and configure only the features you need.
@@ -81,6 +73,7 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Setting | Default | Description |
 | --- | --- | --- |
 | Enable cursor centering | Off | Keeps the cursor near the center of the screen while editing. |
+| Enable standalone sidebar ribbon | Off | Pins the ribbon to the left edge when the left sidebar is closed. Mobile and tablet only. |
 | Reading time basis | Without spaces | Character-count basis used to estimate reading time. |
 | Reading speed | `500` | Personal reading speed in characters per minute. |
 | Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets. Each preset is a range (target ± tolerance), a minimum, or a maximum. |
@@ -91,6 +84,10 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Symbol suggestion limit | `5` | Maximum number of symbol suggestions shown. |
 | Symbol list | Default symbol set | Configures each symbol's ID, displayed character, and optional closing character. |
 | Work note path | `work.md` | File opened by the **Open work note** command. |
+| Later note folder | Empty (vault root) | Folder where source-specific Later notes are created. |
+| Version note folder | Empty (next to the source note) | Folder where version notes are created. |
+| Sleep record folder | Empty (`sleep`) | Folder where monthly sleep records are saved. |
+| Number of slots | `4` | Number of slots shown in command slot modals. |
 
 Use **Reset all settings** to restore these defaults.
 
@@ -104,6 +101,20 @@ Use **Reset all settings** to restore these defaults.
 4. Select an entry in the later sidebar to move it back to the source note.
 
 Each Later note is linked to its source by the `later: "[[Source note]]"` property.
+
+### Save and compare versions
+
+1. Run **Save current version** in a note. A version note named `<number>_<timestamp>` is created with a `version` property that links back to the source.
+2. Run **Revert to an earlier version** to replace the note body with a saved version. The current frontmatter is kept.
+3. Run **Open version comparison** to compare two versions, the current note, or an empty note side by side. Version names can be changed from the comparison view.
+
+### Keep note lists
+
+Set `notelist: true` in a note's frontmatter. The plugin fills the note body with a `- [[link]]` list of every note that links to it, sorted by name. Lists refresh when Obsidian starts and when you run **Refresh note lists**. Notes whose body contains anything other than such a list are skipped, so hand-written content is never overwritten.
+
+### Log sleep with Daynight
+
+Open the Daynight sidebar from the moon ribbon icon or the **Open daynight sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the three most recent records. Only the last record can be edited or deleted, so sleep and wake records always alternate.
 
 ### Clean up frontmatter
 
@@ -144,6 +155,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Delete paragraph** | Deletes the line containing the cursor. |
 | **Focus main editor** | Returns focus to the main Markdown editor. |
 | **Toggle mobile toolbar** | Shows or hides the bottom toolbar on mobile. |
+| **Toggle standalone sidebar ribbon** | Turns the standalone sidebar ribbon on or off. |
 | **Move current file** | Moves the current Markdown file to another folder in the vault. |
 | **Edit topics** | Searches vault notes, headings, and existing block IDs to add, remove, or re-alias topic wikilinks. |
 | **Insert today's date property** | Adds today's date only when the `date` property is absent. |
@@ -159,8 +171,21 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Select next sidebar item** | Selects the next entry in the later sidebar. |
 | **Take selected sidebar item** | Moves the selected later entry back into the source editor. |
 | **Resolve later links** | Keeps one linked later note when multiple notes point to the same source. |
+| **Save current version** | Saves the current note as a numbered version note. |
+| **Revert to an earlier version** | Replaces the note body with a saved version. |
+| **Open version comparison** | Compares two versions of the current note side by side. |
+| **Refresh note lists** | Rebuilds the body of every note with `notelist: true`. |
+| **Open daynight sidebar** | Shows the sleep log in the right sidebar. |
+| **Left/Right sidebar: next/previous tab** | Cycles through the tabs of the left or right sidebar. |
+| **Open quick slot assignment menu** | Assigns the current file to a quick slot or clears a slot. |
+| **Open quick slot file** / **Open quick slot 1–4 file** | Opens a file assigned to a quick slot. |
+| **Clear all quick slots** | Clears every quick slot. |
+| **Open command slot assignment menu** | Assigns a command to a command slot. |
+| **Run command slot** | Runs a command assigned to a command slot. |
+| **Clear all command slots** | Clears every command slot. |
+| **Restart input method fix** | Restarts the Korean input method fix. |
 
-Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, document info, and quick slots.
+Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, bookmarking the active tab, quick slots 1–4, document info, and the Daynight sidebar.
 
 ## Documentation
 
@@ -182,6 +207,11 @@ Detailed feature documentation is currently available in Korean:
 | [mobile-toolbar.md](docs/mobile-toolbar.md) | Mobile toolbar visibility |
 | [snippets.md](docs/snippets.md) | Snippet suggestions |
 | [symbols.md](docs/symbols.md) | Symbol suggestions and paired deletion |
+| [daynight.md](docs/daynight.md) | Daynight sleep log sidebar |
+
+## Support
+
+If this plugin helps your writing, you can support its development on [Buy Me a Coffee](https://buymeacoffee.com/supatipanno5611).
 
 ## Development
 
@@ -224,7 +254,6 @@ Interactively shows the latest release tag and commits since that tag, then offe
 ├── manifest.json        # Obsidian plugin metadata
 ├── main.js              # Bundle generated by esbuild
 ├── styles.css           # Plugin styles
-├── extras/              # Optional CSS snippets not loaded by the plugin
 ├── src/
 │   ├── locales/         # English and Korean UI text
 │   ├── main.ts          # Plugin loading, commands, and events
