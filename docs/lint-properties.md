@@ -9,11 +9,14 @@ vault의 마크다운 파일 frontmatter를 검사해 빈 비허용 속성을 �
 - 명령 팔레트에서 `속성을 형식에 맞게 정리`를 실행합니다.
 - 빈 값인 비허용 속성은 자동으로 삭제됩니다.
 - 값이 들어 있는 비허용 속성이 있는 파일은 새 탭으로 열립니다.
+- `topics` 값 앞에 붙은 `.`을 지웁니다.
+- 검사한 모든 파일의 속성을 이름 알파벳순으로 다시 정렬합니다.
 
 ## 허용 속성
 
 - `date`, `topics`, `title`, `description`
 - `cssclasses`, `aliases`, `tags`, `later`, `version`, `notelist`
+- `target-characters`, `target-tolerance`, `min-characters`, `max-characters`
 
 ## 제외 파일
 
