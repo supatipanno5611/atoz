@@ -457,6 +457,11 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     fill: var(--interactive-accent);
 }
 
+/* 수면 구간을 선택하면 나머지 막대를 흐리게 한다. */
+.atoz-daynight-dim {
+    opacity: 0.35;
+}
+
 .atoz-daynight-now {
     stroke: var(--color-red);
     stroke-width: 1.5;

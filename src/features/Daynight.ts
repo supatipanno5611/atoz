@@ -9,7 +9,6 @@ const ROW_PATTERN = /^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|\s
 const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const WINDOW = 2 * DAY;
 const RECENT_COUNT = 3;
 const RELOAD_DELAY = 100;
 
@@ -73,8 +72,8 @@ function sleptBetween(segments: [number, number][], start: number, end: number):
 }
 
 export class DaynightView extends ItemView {
-    // null이면 현재 시각에서 끝나는 구간을 보여 준다.
-    private windowEnd: number | null = null;
+    // 선택한 수면 구간의 시작 시각. null이면 현재 시각에서 끝나는 24시간을 보여 준다.
+    private selectedStart: number | null = null;
     private isDeleteShown = false;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
@@ -97,10 +96,15 @@ export class DaynightView extends ItemView {
 
         const records = this.plugin.daynight.records;
         const now = Date.now();
-        const end = this.windowEnd ?? now;
-        const start = end - WINDOW;
         const segments = toSegments(records, now);
-        const oldest = records[0]?.time ?? now;
+        // 기록이 지워져 선택한 구간이 없어지면 현재로 돌아간다.
+        const selectedIndex = segments.findIndex(([from]) => from === this.selectedStart);
+        const selected = segments[selectedIndex] ?? null;
+        if (!selected) this.selectedStart = null;
+
+        // 선택한 구간을 가운데에 두되 현재 시각 너머로는 넘어가지 않는다.
+        const end = selected ? Math.min((selected[0] + selected[1] + DAY) / 2, now) : now;
+        const start = end - DAY;
 
         const last = records[records.length - 1];
 
@@ -110,7 +114,7 @@ export class DaynightView extends ItemView {
         if (!last) {
             hero.createDiv({ cls: 'atoz-daynight-empty-title', text: t('daynight.noRecords') });
             hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: t('daynight.noRecordsHint') });
-        } else if (this.windowEnd === null) {
+        } else if (!selected) {
             const isAsleep = last.type === 'sleep';
             const status = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
             status.createSpan({ cls: `atoz-daynight-dot ${isAsleep ? 'is-asleep' : 'is-awake'}` });
@@ -123,30 +127,35 @@ export class DaynightView extends ItemView {
             const totalText = t('daynight.last24h', { duration: formatDuration(sleptBetween(segments, now - DAY, now)) });
             hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${lastText} · ${totalText}` });
         } else {
-            // 과거 구간을 볼 때는 상태 대신 그 구간 끝 기준 24시간 수면 합계를 보여 준다.
-            hero.createDiv({ cls: 'atoz-daynight-hero-label', text: t('daynight.before24h', { time: formatShortDateTime(end) }) });
-            hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(sleptBetween(segments, end - DAY, end)) });
+            // 수면 구간을 선택하면 상태 대신 그 구간의 시각과 길이를 보여 준다.
+            const [from, to] = selected;
+            const toText = selectedIndex === segments.length - 1 && last.type === 'sleep'
+                ? t('daynight.ongoing')
+                : formatShortDateTime(to);
+            hero.createDiv({ cls: 'atoz-daynight-hero-label', text: `${formatShortDateTime(from)} – ${toText}` });
+            hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(to - from) });
         }
 
         if (last) {
             const nav = body.createDiv({ cls: 'atoz-daynight-nav' });
             nav.createSpan({ cls: 'atoz-daynight-range', text: `${formatShortDateTime(start)} – ${formatShortDateTime(end)}` });
             const controls = nav.createDiv({ cls: 'atoz-daynight-controls' });
-            const addNavButton = (icon: string, label: string, disabled: boolean, target: () => number | null): void => {
+            // 현재에서 ‹는 가장 최근 수면을, 마지막 수면에서 ›는 현재를 연다.
+            const addNavButton = (icon: string, label: string, disabled: boolean, targetIndex: number): void => {
                 const button = controls.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
                 setIcon(button, icon);
                 button.disabled = disabled;
                 button.addEventListener('click', () => {
-                    this.windowEnd = target();
+                    this.selectedStart = segments[targetIndex]?.[0] ?? null;
                     this.render();
                 });
             };
-            addNavButton('chevron-left', t('daynight.previous'), start <= oldest, () => end - DAY);
-            addNavButton('rotate-ccw', t('daynight.now'), this.windowEnd === null, () => null);
-            addNavButton('chevron-right', t('daynight.next'), this.windowEnd === null,
-                () => end + DAY >= Date.now() ? null : end + DAY);
+            const currentIndex = selected ? selectedIndex : segments.length;
+            addNavButton('chevron-left', t('daynight.previous'), currentIndex === 0, currentIndex - 1);
+            addNavButton('rotate-ccw', t('daynight.now'), !selected, -1);
+            addNavButton('chevron-right', t('daynight.next'), !selected, currentIndex + 1);
 
-            this.renderChart(body, segments, start, end, this.windowEnd === null ? now : null);
+            this.renderChart(body, segments, start, end, end === now ? now : null, selected);
             this.renderRecent(body, records);
         }
 
@@ -165,6 +174,7 @@ export class DaynightView extends ItemView {
         start: number,
         end: number,
         now: number | null,
+        selected: [number, number] | null,
     ): void {
         const x = (time: number): number => (time - start) / (end - start) * CHART_WIDTH;
         const svg = container.createSvg('svg', {
@@ -176,11 +186,11 @@ export class DaynightView extends ItemView {
             attr: { x: 0, y: BAR_TOP, width: CHART_WIDTH, height: BAR_HEIGHT, rx: 6 },
         });
 
-        // 시계 기준 6시간 눈금
+        // 시계 기준 3시간 눈금
         const tick = new Date(start);
         tick.setMinutes(0, 0, 0);
-        while (tick.getTime() < start || tick.getHours() % 6 !== 0) tick.setHours(tick.getHours() + 1);
-        for (; tick.getTime() <= end; tick.setHours(tick.getHours() + 6)) {
+        while (tick.getTime() < start || tick.getHours() % 3 !== 0) tick.setHours(tick.getHours() + 1);
+        for (; tick.getTime() <= end; tick.setHours(tick.getHours() + 3)) {
             const tickX = x(tick.getTime());
             const isMidnight = tick.getHours() === 0;
             // createSvg는 cls를 classList.add로 넣어서 공백이 든 문자열을 주면 예외가 난다.
@@ -207,10 +217,11 @@ export class DaynightView extends ItemView {
             const clippedFrom = Math.max(from, start);
             const clippedTo = Math.min(to, end);
             if (clippedTo <= clippedFrom) continue;
-            svg.createSvg('rect', {
+            const bar = svg.createSvg('rect', {
                 cls: 'atoz-daynight-sleep',
                 attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
+            if (selected && from !== selected[0]) bar.addClass('atoz-daynight-dim');
         }
 
         if (now !== null) {
