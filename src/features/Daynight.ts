@@ -295,8 +295,13 @@ export class DaynightView extends ItemView {
 
 export class DaynightFeature {
     records: DaynightRecord[] = [];
+    // 파일 경로별로 읽어 둔 기록. 바뀐 파일만 다시 읽어 바꿔 끼운다.
+    private fileRecords = new Map<string, DaynightRecord[]>();
     private reloadTimer: number | null = null;
-    private loadId = 0;
+    private pendingPaths = new Set<string>();
+    private isFullReloadPending = false;
+    // 읽기를 한 줄로 세워, 늦게 끝난 이전 읽기가 새 결과를 덮어쓰지 않게 한다.
+    private loadQueue: Promise<void> = Promise.resolve();
     private isWriting = false;
 
     constructor(private plugin: ATOZPlugin) {}
@@ -318,9 +323,10 @@ export class DaynightFeature {
             this.plugin.registerEvent(vault.on('modify', (file) => this.onFileEvent(file)));
             this.plugin.registerEvent(vault.on('delete', (file) => this.onFileEvent(file)));
             this.plugin.registerEvent(vault.on('rename', (file, oldPath) => {
-                if (this.isRecordFile(file) || this.isRecordPath(oldPath)) this.scheduleReload();
+                if (this.isRecordPath(oldPath)) this.scheduleReload(oldPath);
+                this.onFileEvent(file);
             }));
-            void this.load();
+            void this.enqueue(() => this.loadAll());
         });
     }
 
@@ -355,12 +361,12 @@ export class DaynightFeature {
         const now = new Date();
         const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
         const row = `| ${date} | ${pad(now.getHours())}:${pad(now.getMinutes())} | ${type} |`;
+        const folder = this.getFolder();
+        const path = normalizePath(`${folder}/sleep-${now.getFullYear()}-${pad(now.getMonth() + 1)}.md`);
 
-        await this.write(async () => {
+        await this.write(path, async () => {
             const vault = this.plugin.app.vault;
-            const folder = this.getFolder();
             if (!vault.getFolderByPath(folder)) await vault.createFolder(folder);
-            const path = normalizePath(`${folder}/sleep-${now.getFullYear()}-${pad(now.getMonth() + 1)}.md`);
             const file = vault.getFileByPath(path);
             if (file) {
                 await vault.process(file, (data) =>
@@ -375,7 +381,7 @@ export class DaynightFeature {
         const last = this.records[this.records.length - 1];
         if (!last) return;
 
-        await this.write(() => this.plugin.app.vault.process(last.file, (data) => {
+        await this.write(last.file.path, () => this.plugin.app.vault.process(last.file, (data) => {
             const lines = data.split('\n');
             const index = lines.map((line) => line.trim()).lastIndexOf(last.line);
             if (index !== -1) lines.splice(index, 1);
@@ -384,53 +390,91 @@ export class DaynightFeature {
     }
 
     // 버튼을 연달아 눌러도 기록을 다시 읽기 전에 같은 종류를 두 번 쓰지 않게 한다.
-    private async write(action: () => Promise<unknown>): Promise<void> {
+    private async write(path: string, action: () => Promise<unknown>): Promise<void> {
         if (this.isWriting) return;
         this.isWriting = true;
         try {
             await action();
-            await this.load();
+            await this.enqueue(() => this.loadFiles([path]));
         } finally {
             this.isWriting = false;
         }
     }
 
-    private async load(): Promise<void> {
-        const currentLoad = ++this.loadId;
-        const records: DaynightRecord[] = [];
-        const files = this.plugin.app.vault.getMarkdownFiles().filter((file) => this.isRecordFile(file));
-        for (const file of files) {
-            const content = await this.plugin.app.vault.cachedRead(file);
-            for (const rawLine of content.split('\n')) {
-                const line = rawLine.trim();
-                const match = ROW_PATTERN.exec(line);
-                if (!match) continue;
-                const [, year, month, day, hour, minute, type] = match;
-                records.push({
-                    time: new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)).getTime(),
-                    type: type as DaynightType,
-                    file,
-                    line,
-                });
+    private enqueue(job: () => Promise<void>): Promise<void> {
+        const run = this.loadQueue.then(job);
+        this.loadQueue = run.catch(() => undefined);
+        return run;
+    }
+
+    // 볼트 전체가 아니라 기록 폴더 안의 파일만 읽는다.
+    private async loadAll(): Promise<void> {
+        const fileRecords = new Map<string, DaynightRecord[]>();
+        const children = this.plugin.app.vault.getFolderByPath(this.getFolder())?.children ?? [];
+        for (const file of children) {
+            if (this.isRecordFile(file)) fileRecords.set(file.path, await this.readFile(file));
+        }
+        this.fileRecords = fileRecords;
+        this.publish();
+    }
+
+    // 지워졌거나 기록 파일이 아니게 된 경로는 목록에서 뺀다.
+    private async loadFiles(paths: Iterable<string>): Promise<void> {
+        for (const path of paths) {
+            const file = this.plugin.app.vault.getFileByPath(path);
+            if (file && this.isRecordFile(file)) {
+                this.fileRecords.set(path, await this.readFile(file));
+            } else {
+                this.fileRecords.delete(path);
             }
         }
-        if (currentLoad !== this.loadId) return;
+        this.publish();
+    }
 
-        this.records = records.sort((a, b) => a.time - b.time);
+    private async readFile(file: TFile): Promise<DaynightRecord[]> {
+        const records: DaynightRecord[] = [];
+        const content = await this.plugin.app.vault.cachedRead(file);
+        for (const rawLine of content.split('\n')) {
+            const line = rawLine.trim();
+            const match = ROW_PATTERN.exec(line);
+            if (!match) continue;
+            const [, year, month, day, hour, minute, type] = match;
+            records.push({
+                time: new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)).getTime(),
+                type: type as DaynightType,
+                file,
+                line,
+            });
+        }
+        return records;
+    }
+
+    // 파일 이름이 연·월 순이라 이름순으로 이어 붙이면 거의 정렬된 상태가 된다.
+    private publish(): void {
+        this.records = [...this.fileRecords.keys()].sort()
+            .flatMap((path) => this.fileRecords.get(path) ?? [])
+            .sort((a, b) => a.time - b.time);
         this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT).forEach((leaf) => {
             if (leaf.view instanceof DaynightView) leaf.view.render();
         });
     }
 
     private onFileEvent(file: TAbstractFile): void {
-        if (this.isRecordFile(file)) this.scheduleReload();
+        if (this.isRecordFile(file)) this.scheduleReload(file.path);
     }
 
-    private scheduleReload(): void {
+    // 경로를 주면 그 파일만, 주지 않으면 폴더 전체를 다시 읽는다.
+    private scheduleReload(path?: string): void {
+        if (path === undefined) this.isFullReloadPending = true;
+        else this.pendingPaths.add(path);
         if (this.reloadTimer !== null) window.clearTimeout(this.reloadTimer);
         this.reloadTimer = window.setTimeout(() => {
             this.reloadTimer = null;
-            void this.load();
+            const isFull = this.isFullReloadPending;
+            const paths = [...this.pendingPaths];
+            this.isFullReloadPending = false;
+            this.pendingPaths.clear();
+            void this.enqueue(() => isFull ? this.loadAll() : this.loadFiles(paths));
         }, RELOAD_DELAY);
     }
 
@@ -438,7 +482,7 @@ export class DaynightFeature {
         return normalizePath(this.plugin.settings.daynightFolder.trim() || DEFAULT_FOLDER);
     }
 
-    private isRecordFile(file: TAbstractFile): boolean {
+    private isRecordFile(file: TAbstractFile): file is TFile {
         return file instanceof TFile && this.isRecordPath(file.path);
     }
 
