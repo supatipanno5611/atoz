@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out tagged source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -65,6 +67,22 @@ jobs:
             manifest.json
             styles.css
 
+      - name: Write release notes
+        run: |
+          # 직전 릴리스 태그부터 이번 태그까지의 커밋 제목을 노트로 쓴다. 제목 안의 " - " 항목은 하위 목록으로 나눈다.
+          previous=$(git tag --merged "$GITHUB_REF_NAME^" --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+          {
+            echo "## Changes"
+            echo
+            git log --no-merges --format=%s --invert-grep --grep='^Release [0-9]' "${previous:+$previous..}$GITHUB_REF_NAME" \
+              | sed -e 's/^/- /' -e 's/ - /\n  - /g'
+            if [ -n "$previous" ]; then
+              echo
+              echo "**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/$previous...$GITHUB_REF_NAME"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,5 +92,5 @@ jobs:
             manifest.json \
             styles.css \
             --verify-tag \
-            --generate-notes \
+            --notes-file release-notes.md \
             --title "$GITHUB_REF_NAME"

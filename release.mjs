@@ -156,9 +156,9 @@ async function main() {
 		verifyMetadata(targetVersion);
 		runNpm(['run', 'lint']);
 		runNpm(['run', 'build']);
-		runLive('git', ['diff', '--check']);
+		runLive('git', ['--no-pager', 'diff', '--check']);
 		runLive('git', ['add', '--', ...VERSION_FILES]);
-		runLive('git', ['diff', '--cached', '--check']);
+		runLive('git', ['--no-pager', 'diff', '--cached', '--check']);
 
 		const staged = run('git', ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
 		if (staged.length !== VERSION_FILES.length || VERSION_FILES.some((file) => !staged.includes(file))) {
