@@ -1,3 +1,5 @@
+// 일부 코드는 slash-snippets-plugin(https://github.com/echo-saurav/slash-snippets-plugin, MIT License, Copyright (c) 2025 Saurav)에서 가져왔습니다.
+// 라이선스 전문은 THIRD_PARTY_NOTICES.md를 참고하세요.
 import type ATOZPlugin from '../main';
 import { MarkdownView, Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, prepareFuzzySearch } from 'obsidian';
 import { SymbolItem } from '../types';

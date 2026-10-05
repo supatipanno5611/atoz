@@ -211,6 +211,10 @@ notelist:
 | [slots.md](docs/slots.md) | 퀵 슬롯과 명령어 슬롯 |
 | [others.md](docs/others.md) | 사이드바 탭 순환, 독립 리본, 파일 메뉴 항목, 북마크, 한글 입력 버그 픽스 |
 
+## 사용한 오픈소스
+
+조각글 추천과 기호 추천에는 Saurav의 [slash-snippets-plugin](https://github.com/echo-saurav/slash-snippets-plugin) 코드를 MIT 라이선스에 따라 가져와 고친 부분이 있습니다. 라이선스 전문은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.
+
 ## 후원하기
 
 이 플러그인이 글쓰기에 도움이 되었다면 [Buy Me a Coffee](https://buymeacoffee.com/supatipanno5611)에서 개발을 응원해 주세요.

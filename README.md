@@ -215,6 +215,10 @@ Detailed feature documentation is currently available in Korean:
 | [slots.md](docs/slots.md) | Quick slots and command slots |
 | [others.md](docs/others.md) | Sidebar tab cycling, standalone ribbon, file menu items, bookmarks, and the Korean input method fix |
 
+## Credits
+
+The snippet and symbol suggestions include code adapted from [slash-snippets-plugin](https://github.com/echo-saurav/slash-snippets-plugin) by Saurav, used under the MIT License. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full license text.
+
 ## Support
 
 If this plugin helps your writing, you can support its development on [Buy Me a Coffee](https://buymeacoffee.com/supatipanno5611).
