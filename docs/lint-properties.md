@@ -13,7 +13,7 @@ vault의 마크다운 파일 frontmatter를 검사해 빈 비허용 속성을 �
 ## 허용 속성
 
 - `date`, `topics`, `title`, `description`
-- `cssclasses`, `aliases`, `tags`, `later`
+- `cssclasses`, `aliases`, `tags`, `later`, `version`, `notelist`
 
 ## 제외 파일
 

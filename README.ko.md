@@ -129,6 +129,8 @@ target-characters:
 target-tolerance:
 min-characters:
 max-characters:
+version:
+notelist:
 ```
 
 빈 값인 비허용 속성은 자동으로 지우고, 값이 들어 있는 비허용 속성이 있는 파일은 검토할 수 있도록 새 탭으로 엽니다. `log.md`와 설정된 작업 문서는 검사에서 제외됩니다.
@@ -249,7 +251,7 @@ npm run release
 .
 ├── manifest.json        # Obsidian 플러그인 메타데이터
 ├── main.js              # esbuild가 만든 번들 파일
-├── styles.css           # 설정 화면과 모바일/폴더 표시 제어 스타일
+├── styles.css           # 플러그인 스타일
 ├── src/
 │   ├── locales/         # 영어와 한국어 UI 문구
 │   ├── main.ts          # 플러그인 로딩, 명령어 등록, 이벤트 등록

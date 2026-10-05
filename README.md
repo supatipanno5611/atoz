@@ -133,6 +133,8 @@ target-characters:
 target-tolerance:
 min-characters:
 max-characters:
+version:
+notelist:
 ```
 
 Unsupported empty properties are removed automatically. Files containing unsupported properties with values are opened in new tabs for review. `log.md` and the configured work note are excluded.
