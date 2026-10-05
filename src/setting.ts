@@ -241,15 +241,23 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 presets.some((item, index) => index !== i && isSameWritingTargetKey(item, next));
                             setting.addDropdown((dropdown) => dropdown
                                 .addOption('range', t('settings.info.kind.range'))
+                                .addOption('between', t('settings.info.kind.between'))
                                 .addOption('min', t('settings.info.kind.min'))
                                 .addOption('max', t('settings.info.kind.max'))
                                 .setValue(preset.kind)
                                 .onChange(async (kind) => {
-                                    // 종류를 바꿔도 기준 글자 수는 유지한다.
-                                    const value = preset.kind === 'range' ? preset.target : preset.value;
+                                    // 종류를 바꿔도 기준 글자 수는 유지한다. 범위의 기준은 최소와 최대의 중간이다.
+                                    const value = preset.kind === 'range'
+                                        ? preset.target
+                                        : preset.kind === 'between'
+                                            ? Math.round((preset.min + preset.max) / 2)
+                                            : preset.value;
+                                    const tolerance = defaultWritingTolerance(value);
                                     const next: WritingTargetPreset = kind === 'range'
-                                        ? { kind: 'range', target: value, tolerance: defaultWritingTolerance(value) }
-                                        : { kind: kind === 'min' ? 'min' : 'max', value };
+                                        ? { kind: 'range', target: value, tolerance }
+                                        : kind === 'between'
+                                            ? { kind: 'between', min: value - tolerance, max: value + tolerance }
+                                            : { kind: kind === 'min' ? 'min' : 'max', value };
                                     if (!isValidWritingTarget(next) || isDuplicate(next)) {
                                         new Notice(t('settings.info.valueInvalid'));
                                         dropdown.setValue(preset.kind);
@@ -292,6 +300,27 @@ export class ATOZSettingTab extends PluginSettingTab {
                                         void this.plugin.saveSettings();
                                     });
                                 });
+                            } else if (preset.kind === 'between') {
+                                for (const bound of ['min', 'max'] as const) {
+                                    setting.addText((text) => {
+                                        text.inputEl.type = 'number';
+                                        text.inputEl.min = '1';
+                                        text.setPlaceholder(t(bound === 'min'
+                                            ? 'settings.info.minPlaceholder'
+                                            : 'settings.info.maxPlaceholder'));
+                                        text.setValue(preset[bound].toString());
+                                        text.inputEl.addEventListener('blur', () => {
+                                            const next = { ...preset, [bound]: Number(text.getValue()) };
+                                            if (!isValidWritingTarget(next) || isDuplicate(next)) {
+                                                new Notice(t('settings.info.betweenInvalid'));
+                                                text.setValue(preset[bound].toString());
+                                                return;
+                                            }
+                                            preset[bound] = next[bound];
+                                            void this.plugin.saveSettings();
+                                        });
+                                    });
+                                }
                             } else {
                                 setting.addText((text) => {
                                     text.inputEl.type = 'number';
@@ -330,7 +359,9 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     const largestTarget = Math.max(
                                         0,
                                         ...this.plugin.settings.writingTargetPresets.map((preset) =>
-                                            preset.kind === 'range' ? preset.target : preset.value),
+                                            preset.kind === 'range'
+                                                ? preset.target
+                                                : preset.kind === 'between' ? preset.max : preset.value),
                                     );
                                     const target = largestTarget + 500;
                                     this.plugin.settings.writingTargetPresets.push({

@@ -76,7 +76,7 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Enable standalone sidebar ribbon | Off | Pins the ribbon to the left edge when the left sidebar is closed. Mobile and tablet only. |
 | Reading time basis | Without spaces | Character-count basis used to estimate reading time. |
 | Reading speed | `500` | Personal reading speed in characters per minute. |
-| Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets. Each preset is a range (target ± tolerance), a minimum, or a maximum. |
+| Target presets | `1,000±50`, `1,500±75`, `2,000±100`, `3,000±150` | Writing targets. Each preset is a target ± tolerance, a range (minimum to maximum), a minimum, or a maximum. |
 | Snippet trigger character | `@` | Opens snippet suggestions while typing. |
 | Snippet suggestion limit | `5` | Maximum number of snippet suggestions shown. |
 | Snippet list | Empty | Stores reusable text, one snippet per line. |

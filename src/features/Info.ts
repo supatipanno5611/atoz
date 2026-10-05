@@ -140,11 +140,15 @@ export class CharacterCountView extends ItemView {
             cls: 'character-count-label',
             text: preset?.kind === 'min'
                 ? t('info.minTarget')
-                : preset?.kind === 'max' ? t('info.maxTarget') : t('info.writingTarget'),
+                : preset?.kind === 'max'
+                    ? t('info.maxTarget')
+                    : preset?.kind === 'between' ? t('info.betweenTarget') : t('info.writingTarget'),
         });
         label.setAttr('aria-label', preset?.kind === 'min'
             ? t('info.minDifference')
-            : preset?.kind === 'max' ? t('info.maxDifference') : t('info.targetDifference'));
+            : preset?.kind === 'max'
+                ? t('info.maxDifference')
+                : preset?.kind === 'between' ? t('info.betweenDifference') : t('info.targetDifference'));
 
         if (!preset) {
             section.createDiv({ cls: 'character-count-value', text: t('info.invalidTarget') });
@@ -159,6 +163,15 @@ export class CharacterCountView extends ItemView {
                 : delta > 0
                     ? `+ ${delta.toLocaleString()}`
                     : `- ${Math.abs(delta).toLocaleString()}`;
+            section.createDiv({ cls: 'character-count-value', text: deltaText });
+        } else if (preset.kind === 'between') {
+            // 범위 안이면 ✓와 최대까지 남은 여유, 밖이면 가까운 경계까지 채우거나 줄여야 할 글자 수를 표시한다.
+            const { min, max } = preset;
+            const deltaText = stats.withSpaces < min
+                ? `+ ${(min - stats.withSpaces).toLocaleString()}`
+                : stats.withSpaces > max
+                    ? `- ${(stats.withSpaces - max).toLocaleString()}`
+                    : `✓ ${(max - stats.withSpaces).toLocaleString()}`;
             section.createDiv({ cls: 'character-count-value', text: deltaText });
         } else {
             // 조건을 만족하면 ✓와 여유분, 아니면 채우거나 줄여야 할 글자 수를 표시한다.
@@ -327,6 +340,9 @@ export class InfoFeature {
             if (preset?.kind === 'range') {
                 properties['target-characters'] = preset.target;
                 properties['target-tolerance'] = preset.tolerance;
+            } else if (preset?.kind === 'between') {
+                properties['min-characters'] = preset.min;
+                properties['max-characters'] = preset.max;
             } else if (preset?.kind === 'min') {
                 properties['min-characters'] = preset.value;
             } else if (preset?.kind === 'max') {
@@ -369,17 +385,21 @@ export class InfoFeature {
         const minValue = frontmatter['min-characters'];
         const maxValue = frontmatter['max-characters'];
         const hasRange = targetValue !== undefined || toleranceValue !== undefined;
-        const kindCount = [hasRange, minValue !== undefined, maxValue !== undefined].filter(Boolean).length;
-        if (kindCount === 0) return { kind: 'none' };
-        if (kindCount > 1) return { kind: 'invalid' };
+        const hasMin = minValue !== undefined;
+        const hasMax = maxValue !== undefined;
+        if (!hasRange && !hasMin && !hasMax) return { kind: 'none' };
+        // 최소와 최대는 함께 쓰면 범위가 되지만, 목표±오차와는 함께 쓸 수 없다.
+        if (hasRange && (hasMin || hasMax)) return { kind: 'invalid' };
 
         // 문자열 숫자는 받지 않도록 정수가 아니면 NaN으로 넘겨 검증에서 걸러낸다.
         const toInteger = (value: unknown): number => Number.isInteger(value) ? Number(value) : NaN;
         const preset: WritingTargetPreset = hasRange
             ? { kind: 'range', target: toInteger(targetValue), tolerance: toInteger(toleranceValue) }
-            : minValue !== undefined
-                ? { kind: 'min', value: toInteger(minValue) }
-                : { kind: 'max', value: toInteger(maxValue) };
+            : hasMin && hasMax
+                ? { kind: 'between', min: toInteger(minValue), max: toInteger(maxValue) }
+                : hasMin
+                    ? { kind: 'min', value: toInteger(minValue) }
+                    : { kind: 'max', value: toInteger(maxValue) };
         return isValidWritingTarget(preset) ? { kind: 'valid', preset } : { kind: 'invalid' };
     }
 
@@ -456,7 +476,9 @@ class WritingTargetPicker extends SuggestModal<WritingTargetChoice> {
 
         const normalized = query.trim().replace(/[,자\s]/g, '');
         const choices = this.presets.filter((preset) => !existing.includes(preset) && (!normalized ||
-            (preset.kind === 'range' ? [preset.target, preset.tolerance] : [preset.value])
+            (preset.kind === 'range'
+                ? [preset.target, preset.tolerance]
+                : preset.kind === 'between' ? [preset.min, preset.max] : [preset.value])
                 .some((value) => value.toString().includes(normalized))
         )).map((preset): WritingTargetChoice => ({ kind: 'preset', preset }));
         const clear: WritingTargetChoice[] = this.hasCurrentTarget ? [{ kind: 'clear' }] : [];
@@ -485,6 +507,12 @@ function formatWritingTarget(preset: WritingTargetPreset): string {
         return t('info.targetChoice', {
             target: preset.target.toLocaleString(),
             tolerance: preset.tolerance.toLocaleString(),
+        });
+    }
+    if (preset.kind === 'between') {
+        return t('info.betweenChoice', {
+            min: preset.min.toLocaleString(),
+            max: preset.max.toLocaleString(),
         });
     }
     return t(preset.kind === 'min' ? 'info.minChoice' : 'info.maxChoice', {
