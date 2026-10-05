@@ -6,17 +6,17 @@ English | [한국어](README.ko.md)
 
 `a to z` is an Obsidian plugin designed to streamline writing workflows, with particular support for Korean users.
 
-It brings frequently used editing actions, source-linked Later notes, note versions, frontmatter and topic management, document info, snippets, symbol input, and a sleep log together as commands and settings.
+It brings frequently used editing actions, source-linked Later notes, note versions, frontmatter and topic management, note info, snippets, symbol input, and a sleep log together as commands and settings.
 
 ## Features
 
 | Area | Main features |
 | --- | --- |
-| Editing | Copy or cut an entire document, copy or cut the current line, delete a paragraph, and focus the main editor |
+| Editing | Copy or cut an entire note, copy or cut the selection or current line, delete the current line, and focus the main editor |
 | Note organization | Move selected text to source-specific Later notes, move the current file, clean up tabs, and keep auto-generated note lists |
 | Versions | Save numbered versions of a note, revert to one, and see what changed between two versions |
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
-| Document info | Character counts for the document or selection, reading time, and per-document writing targets |
+| Note info | Character counts for the note or selection, reading time, and per-note writing targets |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
 | Navigation | Quick slots for files, command slots, and cycling through sidebar tabs |
 | Sleep log | Record sleep and wake times with one button and view them as a 24-hour chart in the Daynight sidebar |
@@ -96,7 +96,7 @@ Use **Reset all settings** to restore these defaults.
 ### Save text for Later
 
 1. Select text in a regular note or `work.md`, or place the cursor on a line.
-2. Run **Move selection or current line to Later**.
+2. Run **Later: Send selection or current line**.
 3. The content is saved in `<source-name>_later.md` and removed from the source note.
 4. Select an entry in the later sidebar to move it back to the source note.
 
@@ -104,21 +104,21 @@ Each Later note is linked to its source by the `later: "[[Source note]]"` proper
 
 ### Save and compare versions
 
-1. Run **Save current version** in a note. A version note named `<number>_<timestamp>` is created with a `version` property that links back to the source.
-2. Run **Revert to an earlier version** to replace the note body with a saved version. The current frontmatter is kept.
-3. Run **Open version comparison** to see what changed between two points: saved versions, the current note, or an empty note. Changes are highlighted down to the word, and moved paragraphs are marked. Version names can be changed from the comparison view.
+1. Run **Version: Save current state** in a note. A version note named `<number>_<timestamp>` is created with a `version` property that links back to the source.
+2. Run **Version: Revert to saved version** to replace the note body with a saved version. The current frontmatter is kept.
+3. Run **Version: Open comparison view** to see what changed between two points: saved versions, the current note, or an empty note. Changes are highlighted down to the word, and moved paragraphs are marked. Version names can be changed from the comparison view.
 
 ### Keep note lists
 
-Set `notelist: true` in a note's frontmatter. The plugin fills the note body with a `- [[link]]` list of every note that links to it, sorted by name. Lists refresh when Obsidian starts and when you run **Refresh note lists**. Notes whose body contains anything other than such a list are skipped, so hand-written content is never overwritten.
+Set `notelist: true` in a note's frontmatter. The plugin fills the note body with a `- [[link]]` list of every note that links to it, sorted by name. Lists refresh when Obsidian starts and when you run **Note list: Refresh all**. Notes whose body contains anything other than such a list are skipped, so hand-written content is never overwritten.
 
 ### Log sleep with Daynight
 
-Open the Daynight sidebar from the moon ribbon icon or the **Open daynight sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the three most recent records. Only the last record can be edited or deleted, so sleep and wake records always alternate.
+Open the Daynight sidebar from the moon ribbon icon or the **Daynight: Open sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the three most recent records. Only the last record can be edited or deleted, so sleep and wake records always alternate.
 
 ### Clean up frontmatter
 
-**Clean up properties** checks Markdown files in the vault against the supported property list:
+**Clean up properties in entire vault** checks Markdown files in the vault against the supported property list:
 
 ```yaml
 date:
@@ -149,45 +149,45 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 
 | Command | Description |
 | --- | --- |
-| **Toggle cursor centering** | Keeps the cursor near the center of the screen while editing. |
-| **Copy entire document** | Copies the entire current document to the clipboard. |
-| **Cut entire document** | Copies the entire current document, then clears it. |
-| **Copy** | Copies the selection, or the current line when nothing is selected. |
-| **Cut** | Cuts the selection, or the current line when nothing is selected. |
-| **Delete paragraph** | Deletes the line containing the cursor. |
+| **Toggle Cursor centering** | Keeps the cursor near the center of the screen while editing. |
+| **Copy entire note** | Copies the entire current note to the clipboard. |
+| **Cut entire note** | Copies the entire current note, then clears it. |
+| **Copy selection or current line** | Copies the selection, or the current line when nothing is selected. |
+| **Cut selection or current line** | Cuts the selection, or the current line when nothing is selected. |
+| **Delete current line** | Deletes the line containing the cursor. |
 | **Focus main editor** | Returns focus to the main Markdown editor. |
 | **Toggle mobile toolbar** | Shows or hides the bottom toolbar on mobile. |
 | **Toggle standalone sidebar ribbon** | Turns the standalone sidebar ribbon on or off. |
 | **Move current file** | Moves the current Markdown file to another folder in the vault. |
 | **Edit topics** | Searches vault notes, headings, and existing block IDs to add, remove, or re-alias topic wikilinks. |
-| **Insert today's date property** | Adds today's date only when the `date` property is absent. |
-| **Update date property to today** | Replaces the `date` value with today's date. |
-| **Clean up properties** | Removes unsupported empty properties and opens files that need review. |
-| **View document info** | Shows character counts, reading time, and the writing target in the left sidebar. |
-| **Set writing target for current document** | Assigns a configured preset or a typed target, or clears the current target. |
+| **Date: Insert today's date if empty** | Adds today's date only when the `date` property is absent. |
+| **Date: Change to today's date** | Replaces the `date` value with today's date. |
+| **Clean up properties in entire vault** | Removes unsupported empty properties and opens files that need review. |
+| **Note info: Open sidebar** | Shows character counts, reading time, and the writing target in the left sidebar. |
+| **Note info: Set writing target** | Assigns a configured preset or a typed target, or clears the current target. |
 | **Open work note** | Opens the configured work note. |
-| **Close all tabs** | Closes unpinned tabs in the main workspace. |
-| **Move selection or current line to later** | Moves the exact selection or current line into a source-linked later note. |
-| **Open later sidebar** | Shows later entries linked to the current note. |
-| **Select previous sidebar item** | Selects the previous entry in the later sidebar. |
-| **Select next sidebar item** | Selects the next entry in the later sidebar. |
-| **Take selected sidebar item** | Moves the selected later entry back into the source editor. |
-| **Resolve later links** | Keeps one linked later note when multiple notes point to the same source. |
-| **Save current version** | Saves the current note as a numbered version note. |
-| **Revert to an earlier version** | Replaces the note body with a saved version. |
-| **Open version comparison** | Shows what changed between two versions of the current note. |
-| **Refresh note lists** | Rebuilds the body of every note with `notelist: true`. |
-| **Open daynight sidebar** | Shows the sleep log in the right sidebar. |
+| **Close all unpinned tabs** | Closes unpinned tabs in the main workspace. |
+| **Later: Send selection or current line** | Moves the exact selection or current line into a source-linked later note. |
+| **Later: Open sidebar** | Shows later entries linked to the current note. |
+| **Later: Select previous item** | Selects the previous entry in the later sidebar. |
+| **Later: Select next item** | Selects the next entry in the later sidebar. |
+| **Later: Insert selected item into source** | Moves the selected later entry back into the source editor. |
+| **Later: Resolve duplicate links** | Keeps one linked later note when multiple notes point to the same source. |
+| **Version: Save current state** | Saves the current note as a numbered version note. |
+| **Version: Revert to saved version** | Replaces the note body with a saved version. |
+| **Version: Open comparison view** | Shows what changed between two versions of the current note. |
+| **Note list: Refresh all** | Rebuilds the body of every note with `notelist: true`. |
+| **Daynight: Open sidebar** | Shows the sleep log in the right sidebar. |
 | **Left/Right sidebar: next/previous tab** | Cycles through the tabs of the left or right sidebar. |
-| **Open quick slot assignment menu** | Assigns the current file to a quick slot or clears a slot. |
-| **Open quick slot file** / **Open quick slot 1–4 file** | Opens a file assigned to a quick slot. |
-| **Clear all quick slots** | Clears every quick slot. |
-| **Open command slot assignment menu** | Assigns a command to a command slot. |
-| **Run command slot** | Runs a command assigned to a command slot. |
-| **Clear all command slots** | Clears every command slot. |
+| **Quick slot: Add or remove current file** | Assigns the current file to a quick slot or clears a slot. |
+| **Quick slot: Choose and open** / **Quick slot: Open slot 1–4** | Opens a file assigned to a quick slot. |
+| **Quick slot: Clear all** | Clears every quick slot. |
+| **Command slot: Assign or clear command** | Assigns a command to a command slot. |
+| **Command slot: Choose and run** | Runs a command assigned to a command slot. |
+| **Command slot: Clear all** | Clears every command slot. |
 | **Restart input method fix** | Restarts the Korean input method fix. |
 
-Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, bookmarking the active tab, quick slots 1–4, document info, and the Daynight sidebar.
+Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, bookmarking the active tab, quick slots 1–4, note info, and the Daynight sidebar.
 
 ## Documentation
 
@@ -197,7 +197,7 @@ Detailed feature documentation is currently available in Korean:
 | --- | --- |
 | [cursor-center.md](docs/cursor-center.md) | Cursor centering |
 | [cut-copy.md](docs/cut-copy.md) | Copy and cut actions |
-| [delete-paragraph.md](docs/delete-paragraph.md) | Delete the current paragraph |
+| [delete-paragraph.md](docs/delete-paragraph.md) | Delete the current line |
 | [focus-root-leaf.md](docs/focus-root-leaf.md) | Focus the main editor |
 | [move-current-file.md](docs/move-current-file.md) | Move the current file |
 | [work.md](docs/work.md) | Work note and tab cleanup |
