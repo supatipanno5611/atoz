@@ -14,7 +14,7 @@ It brings frequently used editing actions, source-linked Later notes, note versi
 | --- | --- |
 | Editing | Copy or cut an entire document, copy or cut the current line, delete a paragraph, and focus the main editor |
 | Note organization | Move selected text to source-specific Later notes, move the current file, clean up tabs, and keep auto-generated note lists |
-| Versions | Save numbered versions of a note, revert to one, and compare two versions side by side |
+| Versions | Save numbered versions of a note, revert to one, and see what changed between two versions |
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
 | Document info | Character counts for the document or selection, reading time, and per-document writing targets |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
@@ -106,7 +106,7 @@ Each Later note is linked to its source by the `later: "[[Source note]]"` proper
 
 1. Run **Save current version** in a note. A version note named `<number>_<timestamp>` is created with a `version` property that links back to the source.
 2. Run **Revert to an earlier version** to replace the note body with a saved version. The current frontmatter is kept.
-3. Run **Open version comparison** to compare two versions, the current note, or an empty note side by side. Version names can be changed from the comparison view.
+3. Run **Open version comparison** to see what changed between two points: saved versions, the current note, or an empty note. Changes are highlighted down to the word, and moved paragraphs are marked. Version names can be changed from the comparison view.
 
 ### Keep note lists
 
@@ -175,7 +175,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Resolve later links** | Keeps one linked later note when multiple notes point to the same source. |
 | **Save current version** | Saves the current note as a numbered version note. |
 | **Revert to an earlier version** | Replaces the note body with a saved version. |
-| **Open version comparison** | Compares two versions of the current note side by side. |
+| **Open version comparison** | Shows what changed between two versions of the current note. |
 | **Refresh note lists** | Rebuilds the body of every note with `notelist: true`. |
 | **Open daynight sidebar** | Shows the sleep log in the right sidebar. |
 | **Left/Right sidebar: next/previous tab** | Cycles through the tabs of the left or right sidebar. |
@@ -210,6 +210,10 @@ Detailed feature documentation is currently available in Korean:
 | [snippets.md](docs/snippets.md) | Snippet suggestions |
 | [symbols.md](docs/symbols.md) | Symbol suggestions and paired deletion |
 | [daynight.md](docs/daynight.md) | Daynight sleep log sidebar |
+| [versions.md](docs/versions.md) | Saving, reverting, and comparing versions |
+| [note-list.md](docs/note-list.md) | Auto-generated note lists |
+| [slots.md](docs/slots.md) | Quick slots and command slots |
+| [others.md](docs/others.md) | Sidebar tab cycling, standalone ribbon, file menu items, bookmarks, and the Korean input method fix |
 
 ## Support
 
