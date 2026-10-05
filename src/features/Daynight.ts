@@ -183,10 +183,12 @@ export class DaynightView extends ItemView {
         for (; tick.getTime() <= end; tick.setHours(tick.getHours() + 6)) {
             const tickX = x(tick.getTime());
             const isMidnight = tick.getHours() === 0;
-            svg.createSvg('line', {
-                cls: isMidnight ? 'atoz-daynight-grid atoz-daynight-midnight' : 'atoz-daynight-grid',
+            // createSvg는 cls를 classList.add로 넣어서 공백이 든 문자열을 주면 예외가 난다.
+            const grid = svg.createSvg('line', {
+                cls: 'atoz-daynight-grid',
                 attr: { x1: tickX, y1: BAR_TOP, x2: tickX, y2: BAR_TOP + BAR_HEIGHT },
             });
+            if (isMidnight) grid.addClass('atoz-daynight-midnight');
             const label = svg.createSvg('text', {
                 cls: 'atoz-daynight-label',
                 attr: { x: Math.min(Math.max(tickX, 6), CHART_WIDTH - 6), y: BAR_TOP + BAR_HEIGHT + 13, 'text-anchor': 'middle' },
