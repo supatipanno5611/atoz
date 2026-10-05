@@ -131,7 +131,7 @@ export const en = {
     'settings.support.heading': 'Support',
     'settings.support.name': 'Support development',
     'settings.support.desc': 'If this plugin helps you, you can support its development with a coffee.',
-    'settings.support.button': '☕ Buy me a coffee',
+    'settings.support.button': 'Buy me a coffee',
 
     'info.viewName': 'Note info',
     'info.setTarget': 'Set writing target',
