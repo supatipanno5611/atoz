@@ -369,6 +369,11 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background-color: var(--interactive-accent);
 }
 
+/* 지난 수면을 볼 때는 상태가 아니라 기록이므로 회색으로 둔다. */
+.atoz-daynight-dot.is-past {
+    background-color: var(--text-faint);
+}
+
 .atoz-daynight-hero-value {
     font-size: 2em;
     font-weight: var(--font-semibold);
@@ -437,6 +442,11 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-daynight-track {
     fill: var(--background-secondary);
+}
+
+.atoz-daynight-night {
+    fill: var(--text-normal);
+    opacity: 0.06;
 }
 
 .atoz-daynight-grid {

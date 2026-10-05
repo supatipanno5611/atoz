@@ -11,6 +11,9 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const RECENT_COUNT = 3;
 const RELOAD_DELAY = 100;
+// 차트 배경을 어둡게 칠하는 밤 시간대
+const NIGHT_START_HOUR = 18;
+const NIGHT_END_HOUR = 6;
 
 // 차트 좌표계
 const CHART_WIDTH = 300;
@@ -30,7 +33,7 @@ const pad = (value: number): string => String(value).padStart(2, '0');
 
 function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
-    return `${Math.floor(minutes / 60)}h ${pad(minutes % 60)}m`;
+    return t('daynight.duration', { hours: Math.floor(minutes / 60), minutes: minutes % 60, paddedMinutes: pad(minutes % 60) });
 }
 
 function formatShortDate(time: number): string {
@@ -127,13 +130,19 @@ export class DaynightView extends ItemView {
             const totalText = t('daynight.last24h', { duration: formatDuration(sleptBetween(segments, now - DAY, now)) });
             hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${lastText} · ${totalText}` });
         } else {
-            // 수면 구간을 선택하면 상태 대신 그 구간의 시각과 길이를 보여 준다.
+            // 이동해도 레이아웃이 흔들리지 않도록 현재 상태와 같은 세 줄 구조로 보여 준다.
             const [from, to] = selected;
-            const toText = selectedIndex === segments.length - 1 && last.type === 'sleep'
-                ? t('daynight.ongoing')
-                : formatShortDateTime(to);
-            hero.createDiv({ cls: 'atoz-daynight-hero-label', text: `${formatShortDateTime(from)} – ${toText}` });
+            const isOngoing = selectedIndex === segments.length - 1 && last.type === 'sleep';
+            const status = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
+            status.createSpan({ cls: 'atoz-daynight-dot is-past' });
+            status.createSpan({ text: t('daynight.sleepOn', { date: formatShortDate(from) }) });
             hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(to - from) });
+            const sameDay = formatShortDate(from) === formatShortDate(to);
+            const sleptText = t('daynight.sleptAt', { time: sameDay ? formatTime(from) : formatShortDateTime(from) });
+            const wokeText = isOngoing
+                ? t('daynight.stillAsleep')
+                : t('daynight.wokeAt', { time: sameDay ? formatTime(to) : formatShortDateTime(to) });
+            hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${sleptText} · ${wokeText}` });
         }
 
         if (last) {
@@ -185,6 +194,26 @@ export class DaynightView extends ItemView {
             cls: 'atoz-daynight-track',
             attr: { x: 0, y: BAR_TOP, width: CHART_WIDTH, height: BAR_HEIGHT, rx: 6 },
         });
+
+        // 밤 시간대 배경은 띠의 둥근 모서리 안으로 잘라 그린다.
+        const clipPath = svg.createSvg('defs').createSvg('clipPath', { attr: { id: 'atoz-daynight-track-clip' } });
+        clipPath.createSvg('rect', { attr: { x: 0, y: BAR_TOP, width: CHART_WIDTH, height: BAR_HEIGHT, rx: 6 } });
+        const nights = svg.createSvg('g', { attr: { 'clip-path': 'url(#atoz-daynight-track-clip)' } });
+        const night = new Date(start);
+        night.setDate(night.getDate() - 1);
+        night.setHours(NIGHT_START_HOUR, 0, 0, 0);
+        for (; night.getTime() < end; night.setDate(night.getDate() + 1)) {
+            const nightEnd = new Date(night);
+            nightEnd.setDate(nightEnd.getDate() + 1);
+            nightEnd.setHours(NIGHT_END_HOUR);
+            const from = Math.max(night.getTime(), start);
+            const to = Math.min(nightEnd.getTime(), end);
+            if (to <= from) continue;
+            nights.createSvg('rect', {
+                cls: 'atoz-daynight-night',
+                attr: { x: x(from), y: BAR_TOP, width: x(to) - x(from), height: BAR_HEIGHT },
+            });
+        }
 
         // 시계 기준 3시간 눈금
         const tick = new Date(start);
