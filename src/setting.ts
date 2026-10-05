@@ -10,6 +10,9 @@ import {
 } from './types';
 import { t } from './locales';
 
+// manifest.json의 fundingUrl과 같은 주소다. PluginManifest 타입에는 fundingUrl이 없다.
+const FUNDING_URL = 'https://buymeacoffee.com/supatipanno5611';
+
 export class ATOZSettingTab extends PluginSettingTab {
     plugin: ATOZPlugin;
 
@@ -451,6 +454,22 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
+                            );
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'group' as const,
+                heading: t('settings.support.heading'),
+                items: [
+                    {
+                        name: t('settings.support.name'),
+                        desc: t('settings.support.desc'),
+                        render: (setting: Setting) => {
+                            setting.addButton((btn) => btn
+                                .setButtonText(t('settings.support.button'))
+                                .onClick(() => window.open(FUNDING_URL))
                             );
                         },
                     },

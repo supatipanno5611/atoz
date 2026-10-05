@@ -128,6 +128,10 @@ export const en = {
     'settings.reset.desc': 'Restore all plugin settings to their defaults.',
     'settings.reset.button': 'Reset',
     'settings.reset.notice': 'Settings have been restored to their defaults.',
+    'settings.support.heading': 'Support',
+    'settings.support.name': 'Support development',
+    'settings.support.desc': 'If this plugin helps you, you can support its development with a coffee.',
+    'settings.support.button': '☕ Buy me a coffee',
 
     'info.viewName': 'Note info',
     'info.setTarget': 'Set writing target',
