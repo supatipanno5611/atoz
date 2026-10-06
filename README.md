@@ -114,7 +114,7 @@ Set `notelist: true` in a note's frontmatter. The plugin fills the note body wit
 
 ### Log sleep with Daynight
 
-Open the Daynight sidebar from the moon ribbon icon or the **Daynight: Open sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the three most recent records. Only the last record can be edited or deleted, so sleep and wake records always alternate.
+Open the Daynight sidebar from the moon ribbon icon or the **Daynight: Open sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the most recent records (four by default, adjustable in settings). Only the last record can be edited or deleted, so sleep and wake records always alternate.
 
 ### Clean up frontmatter
 

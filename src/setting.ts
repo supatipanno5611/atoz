@@ -422,6 +422,28 @@ export class ATOZSettingTab extends PluginSettingTab {
                         desc: t('settings.daynight.folder.desc'),
                         control: { type: 'text' as const, key: 'daynightFolder', placeholder: t('settings.daynight.folder.placeholder') },
                     },
+                    {
+                        name: t('settings.daynight.recentCount.name'),
+                        desc: t('settings.daynight.recentCount.desc'),
+                        render: (setting: Setting) => {
+                            setting.addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const value = Number(text.getValue());
+                                    if (!Number.isInteger(value) || value < 1) {
+                                        new Notice(t('settings.daynight.recentCount.invalid'));
+                                        text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                        return;
+                                    }
+                                    this.plugin.settings.daynightRecentCount = value;
+                                    void this.plugin.saveSettings();
+                                    this.plugin.daynight.settingsChanged();
+                                });
+                            });
+                        },
+                    },
                 ],
             },
             {

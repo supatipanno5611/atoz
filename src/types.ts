@@ -16,6 +16,7 @@ export interface ATOZSettings {
     moveLineTargetFolder: string;
     versionFolder: string;
     daynightFolder: string;
+    daynightRecentCount: number;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
     writingTargetPresets: WritingTargetPreset[];
@@ -141,6 +142,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     moveLineTargetFolder: '',
     versionFolder: '',
     daynightFolder: '',
+    daynightRecentCount: 4,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
     writingTargetPresets: [

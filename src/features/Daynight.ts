@@ -9,7 +9,6 @@ const ROW_PATTERN = /^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|\s
 const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const RECENT_COUNT = 3;
 const RELOAD_DELAY = 100;
 // 차트 배경을 어둡게 칠하는 밤 시간대
 const NIGHT_START_HOUR = 18;
@@ -277,7 +276,7 @@ export class DaynightView extends ItemView {
     private renderRecent(container: HTMLElement, records: DaynightRecord[]): void {
         const section = container.createDiv({ cls: 'atoz-daynight-recent' });
         // 시간순으로 두어 가장 최근 기록이 맨 아래에 온다.
-        const recent = records.slice(-RECENT_COUNT);
+        const recent = records.slice(-this.plugin.settings.daynightRecentCount);
         recent.forEach((record, index) => {
             const row = section.createDiv({ cls: 'atoz-daynight-record' });
             const isLast = index === recent.length - 1;

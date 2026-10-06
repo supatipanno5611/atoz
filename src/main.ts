@@ -194,6 +194,10 @@ export default class ATOZPlugin extends Plugin {
             this.settings.readingCharactersPerMinute < 1) {
             this.settings.readingCharactersPerMinute = DEFAULT_SETTINGS.readingCharactersPerMinute;
         }
+        if (!Number.isInteger(this.settings.daynightRecentCount) ||
+            this.settings.daynightRecentCount < 1) {
+            this.settings.daynightRecentCount = DEFAULT_SETTINGS.daynightRecentCount;
+        }
         const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets
             : DEFAULT_SETTINGS.writingTargetPresets;
