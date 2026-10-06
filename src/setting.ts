@@ -422,6 +422,11 @@ export class ATOZSettingTab extends PluginSettingTab {
                         desc: t('settings.daynight.folder.desc'),
                         control: { type: 'text' as const, key: 'daynightFolder', placeholder: t('settings.daynight.folder.placeholder') },
                     },
+                    {
+                        name: t('settings.daynight.recentCount.name'),
+                        desc: t('settings.daynight.recentCount.desc'),
+                        control: { type: 'number' as const, key: 'daynightRecentCount', min: 1 },
+                    },
                 ],
             },
             {
@@ -480,7 +485,7 @@ export class ATOZSettingTab extends PluginSettingTab {
 
     async setControlValue(key: string, value: unknown): Promise<void> {
         await super.setControlValue(key, value);
-        if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
+        if (key === 'daynightFolder' || key === 'daynightRecentCount') this.plugin.daynight.settingsChanged();
     }
 
     private refreshSettings(): void {

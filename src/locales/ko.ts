@@ -287,6 +287,8 @@ export const ko: Record<TranslationKey, string> = {
     'settings.daynight.folder.name': '수면 기록 폴더',
     'settings.daynight.folder.desc': '비워두면 월별 수면 기록이 sleep 폴더에 저장됩니다.',
     'settings.daynight.folder.placeholder': '예: sleep',
+    'settings.daynight.recentCount.name': '최근 기록 표시 개수',
+    'settings.daynight.recentCount.desc': '사이드바에 보여줄 최근 기록의 개수입니다.',
     'daynight.viewName': 'Daynight',
     'daynight.previous': '이전 수면',
     'daynight.next': '다음 수면',
