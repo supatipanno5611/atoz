@@ -484,6 +484,9 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     async setControlValue(key: string, value: unknown): Promise<void> {
+        if (key === 'daynightRecentCount' && (!Number.isInteger(value) || (value as number) < 1)) {
+            value = DEFAULT_SETTINGS.daynightRecentCount;
+        }
         await super.setControlValue(key, value);
         if (key === 'daynightFolder' || key === 'daynightRecentCount') this.plugin.daynight.settingsChanged();
     }
