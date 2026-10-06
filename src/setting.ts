@@ -425,7 +425,24 @@ export class ATOZSettingTab extends PluginSettingTab {
                     {
                         name: t('settings.daynight.recentCount.name'),
                         desc: t('settings.daynight.recentCount.desc'),
-                        control: { type: 'number' as const, key: 'daynightRecentCount', min: 1 },
+                        render: (setting: Setting) => {
+                            setting.addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const value = Number(text.getValue());
+                                    if (!Number.isInteger(value) || value < 1) {
+                                        new Notice(t('settings.daynight.recentCount.invalid'));
+                                        text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                        return;
+                                    }
+                                    this.plugin.settings.daynightRecentCount = value;
+                                    void this.plugin.saveSettings();
+                                    this.plugin.daynight.settingsChanged();
+                                });
+                            });
+                        },
                     },
                 ],
             },
@@ -484,11 +501,8 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     async setControlValue(key: string, value: unknown): Promise<void> {
-        if (key === 'daynightRecentCount' && (!Number.isInteger(value) || (value as number) < 1)) {
-            value = DEFAULT_SETTINGS.daynightRecentCount;
-        }
         await super.setControlValue(key, value);
-        if (key === 'daynightFolder' || key === 'daynightRecentCount') this.plugin.daynight.settingsChanged();
+        if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
     }
 
     private refreshSettings(): void {

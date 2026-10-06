@@ -289,6 +289,7 @@ export const ko: Record<TranslationKey, string> = {
     'settings.daynight.folder.placeholder': '예: sleep',
     'settings.daynight.recentCount.name': '최근 기록 표시 개수',
     'settings.daynight.recentCount.desc': '사이드바에 보여줄 최근 기록의 개수입니다.',
+    'settings.daynight.recentCount.invalid': '최근 기록 표시 개수는 1 이상의 정수여야 합니다.',
     'daynight.viewName': 'Daynight',
     'daynight.previous': '이전 수면',
     'daynight.next': '다음 수면',

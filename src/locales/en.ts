@@ -299,6 +299,7 @@ export const en = {
     'settings.daynight.folder.placeholder': 'Example: sleep',
     'settings.daynight.recentCount.name': 'Recent record count',
     'settings.daynight.recentCount.desc': 'Number of recent records shown in the sidebar.',
+    'settings.daynight.recentCount.invalid': 'Recent record count must be an integer greater than zero.',
     'daynight.viewName': 'Daynight',
     'daynight.previous': 'Previous sleep',
     'daynight.next': 'Next sleep',
