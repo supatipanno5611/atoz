@@ -1,10 +1,11 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
+const DOCS_ROOT = fileURLToPath(new URL('../atoz-docs/', import.meta.url));
 const VERSION_FILES = ['package.json', 'package-lock.json', 'manifest.json', 'versions.json'];
 const npmCliPath = process.env.npm_execpath;
 
@@ -83,6 +84,30 @@ function verifyRemoteState(initialHead) {
 	if (behind > 0) fail(`main이 origin/main보다 ${behind}개 커밋 뒤에 있습니다. 먼저 동기화해 주세요.`);
 }
 
+function runDocs(args) {
+	return run('git', ['-C', DOCS_ROOT, ...args]);
+}
+
+function verifyDocsLocalState(currentTag) {
+	if (!existsSync(DOCS_ROOT)) fail(`문서 리포가 없습니다: ${DOCS_ROOT}`);
+	const branch = runDocs(['branch', '--show-current']);
+	if (branch !== 'main') fail(`문서 리포가 main 브랜치가 아닙니다. 현재 브랜치: ${branch || '(없음)'}`);
+	if (runDocs(['status', '--porcelain'])) fail('문서 리포에 커밋되지 않은 변경이 있습니다. 먼저 변경 사항을 정리해 주세요.');
+
+	const range = tagExists(currentTag, DOCS_ROOT) ? `${currentTag}..HEAD` : 'HEAD';
+	const commits = runDocs(['log', '--format=%h%x09%s', range]);
+	return { commits: commits ? commits.split(/\r?\n/) : [], head: runDocs(['rev-parse', 'HEAD']) };
+}
+
+function verifyDocsRemoteState(initialHead) {
+	runLive('git', ['-C', DOCS_ROOT, 'fetch', '--prune', '--tags', 'origin']);
+	if (runDocs(['rev-parse', 'HEAD']) !== initialHead) fail('확인 중 문서 리포의 현재 커밋이 변경되었습니다. 다시 실행해 주세요.');
+	if (runDocs(['status', '--porcelain'])) fail('확인 중 문서 리포의 작업 트리가 변경되었습니다. 다시 실행해 주세요.');
+
+	const behind = Number(runDocs(['rev-list', '--count', 'HEAD..origin/main']));
+	if (behind > 0) fail(`문서 리포의 main이 origin/main보다 ${behind}개 커밋 뒤에 있거나 갈라졌습니다. 먼저 동기화해 주세요.`);
+}
+
 function nextVersions(version) {
 	const [major, minor, patch] = version.split('.').map(Number);
 	return {
@@ -92,8 +117,8 @@ function nextVersions(version) {
 	};
 }
 
-function tagExists(tag) {
-	return spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`], { cwd: ROOT }).status === 0;
+function tagExists(tag, cwd = ROOT) {
+	return spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`], { cwd }).status === 0;
 }
 
 function repositoryUrl(path) {
@@ -125,7 +150,22 @@ async function main() {
 	console.log(`아직 릴리스되지 않은 커밋: ${state.commits.length}개\n`);
 	for (const commit of state.commits) console.log(`  ${commit}`);
 
+	const docs = verifyDocsLocalState(state.currentTag);
+	console.log(`\n문서 리포 커밋: ${docs.commits.length}개\n`);
+	for (const commit of docs.commits) console.log(`  ${commit}`);
+
 	const rl = createInterface({ input, output });
+	if (docs.commits.length === 0) {
+		const proceed = (await rl.question('이번 릴리스에 문서 변경이 없습니다. 계속할까요? (y/N) '))
+			.trim()
+			.toLowerCase();
+		if (proceed !== 'y' && proceed !== 'yes') {
+			rl.close();
+			console.log('\n릴리스를 취소했습니다.');
+			return;
+		}
+	}
+
 	const targetVersion = await chooseVersion(state.currentTag, rl);
 	if (!targetVersion) {
 		rl.close();
@@ -147,6 +187,8 @@ async function main() {
 	if (getCurrentTag() !== state.currentTag) fail('원격 확인 후 현재 릴리스 태그가 변경되었습니다. 다시 실행해 주세요.');
 	verifyMetadata(state.currentTag);
 	if (tagExists(targetVersion)) fail(`${targetVersion} 태그가 이미 존재합니다.`);
+	verifyDocsRemoteState(docs.head);
+	if (tagExists(targetVersion, DOCS_ROOT)) fail(`문서 리포에 ${targetVersion} 태그가 이미 존재합니다.`);
 
 	let versionPrepared = false;
 	let releaseCommitted = false;
@@ -174,6 +216,15 @@ async function main() {
 			runLive('git', ['restore', '--staged', '--worktree', '--', ...VERSION_FILES]);
 		}
 		throw error;
+	}
+
+	try {
+		runLive('git', ['-C', DOCS_ROOT, 'tag', targetVersion]);
+		runLive('git', ['-C', DOCS_ROOT, 'push', '--atomic', 'origin', 'main', targetVersion]);
+	} catch {
+		console.warn(`\n문서 리포에 태그를 푸시하지 못했습니다. 플러그인 릴리스는 그대로 진행됩니다. 문서 리포에서 직접 실행해 주세요.`);
+		console.warn(`  git -C "${DOCS_ROOT}" tag ${targetVersion}`);
+		console.warn(`  git -C "${DOCS_ROOT}" push --atomic origin main ${targetVersion}`);
 	}
 
 	console.log(`\n${targetVersion} 태그를 푸시했습니다. GitHub Actions가 릴리스를 생성합니다.`);

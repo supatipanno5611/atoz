@@ -187,29 +187,29 @@ notelist:
 
 ## 기능 문서
 
-더 자세한 설명은 기능별 문서를 참고하세요.
+더 자세한 설명은 [atoz-docs](https://atoz-docs.vercel.app)의 기능별 문서를 참고하세요. 문서 원본은 [atoz-docs 리포](https://github.com/supatipanno5611/atoz-docs)에 있습니다.
 
 | 문서 | 내용 |
 | --- | --- |
-| [cursor-center.md](docs/cursor-center.md) | 커서 중앙 유지 |
-| [cut-copy.md](docs/cut-copy.md) | 복사와 잘라내기 |
-| [delete-paragraph.md](docs/delete-paragraph.md) | 현재 행 삭제 |
-| [focus-root-leaf.md](docs/focus-root-leaf.md) | 메인 에디터에 포커스 |
-| [move-current-file.md](docs/move-current-file.md) | 현재 파일 이동 |
-| [work.md](docs/work.md) | 작업 노트와 탭 정리 |
-| [later-sidebar.md](docs/later-sidebar.md) | 원본별 Later 노트와 사이드바 |
-| [edit-topics.md](docs/edit-topics.md) | 주제어 편집 |
-| [date-property.md](docs/date-property.md) | 날짜 속성 |
-| [lint-properties.md](docs/lint-properties.md) | 속성 정리 |
-| [document-info.md](docs/document-info.md) | 글자 수, 읽는 시간과 목표 글자 수 |
-| [mobile-toolbar.md](docs/mobile-toolbar.md) | 모바일 툴바 숨기기/보이기 |
-| [snippets.md](docs/snippets.md) | 조각글 제안 |
-| [symbols.md](docs/symbols.md) | 기호 제안과 스마트 삭제 |
-| [daynight.md](docs/daynight.md) | Daynight 수면 기록 사이드바 |
-| [versions.md](docs/versions.md) | 버전 저장, 되돌리기, 비교 |
-| [note-list.md](docs/note-list.md) | 노트 목록 자동 생성 |
-| [slots.md](docs/slots.md) | 퀵 슬롯과 명령어 슬롯 |
-| [others.md](docs/others.md) | 사이드바 탭 순환, 독립 리본, 파일 메뉴 항목, 북마크, 한글 입력 버그 픽스 |
+| [cursor-center](https://atoz-docs.vercel.app/feature-1-cursor-center) | 커서 중앙 유지 |
+| [cut-copy](https://atoz-docs.vercel.app/feature-2-cut-copy) | 복사와 잘라내기 |
+| [delete-paragraph](https://atoz-docs.vercel.app/feature-3-delete-paragraph) | 현재 행 삭제 |
+| [focus-root-leaf](https://atoz-docs.vercel.app/feature-4-focus-root-leaf) | 메인 에디터에 포커스 |
+| [move-current-file](https://atoz-docs.vercel.app/feature-5-move-current-file) | 현재 파일 이동 |
+| [work](https://atoz-docs.vercel.app/feature-6-work) | 작업 노트와 탭 정리 |
+| [later-sidebar](https://atoz-docs.vercel.app/feature-7-later-sidebar) | 원본별 Later 노트와 사이드바 |
+| [edit-topics](https://atoz-docs.vercel.app/feature-8-edit-topics) | 주제어 편집 |
+| [date-property](https://atoz-docs.vercel.app/feature-9-date-property) | 날짜 속성 |
+| [lint-properties](https://atoz-docs.vercel.app/feature-10-lint-properties) | 속성 정리 |
+| [document-info](https://atoz-docs.vercel.app/feature-11-document-info) | 글자 수, 읽는 시간과 목표 글자 수 |
+| [mobile-toolbar](https://atoz-docs.vercel.app/feature-12-mobile-toolbar) | 모바일 툴바 숨기기/보이기 |
+| [snippets](https://atoz-docs.vercel.app/feature-13-snippets) | 조각글 제안 |
+| [symbols](https://atoz-docs.vercel.app/feature-14-symbols) | 기호 제안과 스마트 삭제 |
+| [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight 수면 기록 사이드바 |
+| [versions](https://atoz-docs.vercel.app/feature-16-versions) | 버전 저장, 되돌리기, 비교 |
+| [note-list](https://atoz-docs.vercel.app/feature-17-note-list) | 노트 목록 자동 생성 |
+| [slots](https://atoz-docs.vercel.app/feature-18-slots) | 퀵 슬롯과 명령어 슬롯 |
+| [others](https://atoz-docs.vercel.app/feature-19-others) | 사이드바 탭 순환, 독립 리본, 파일 메뉴 항목, 북마크, 한글 입력 버그 픽스 |
 
 ## 사용한 오픈소스
 
@@ -253,6 +253,8 @@ npm run release
 
 가장 최근 릴리스 태그와 그 이후 커밋을 보여주고 major(첫째 자리), minor(둘째 자리), patch(셋째 자리) 중 다음 버전을 선택합니다. 확인 후 깨끗한 `main` 브랜치와 원격 상태를 검사하고, 모든 버전 메타데이터 갱신, lint와 build 검사, 릴리스 커밋과 태그 생성을 거쳐 `main`과 태그를 원자적으로 함께 푸시합니다. 이후 기존 GitHub Actions가 빌드, attestation, GitHub Release 생성을 담당합니다. 처음 사용할 때는 릴리스 스크립트 자체를 먼저 커밋해야 합니다.
 
+릴리스 스크립트는 `../atoz-docs`의 문서 리포도 검사합니다. 문서 리포는 커밋하지 않은 변경이 없는 `main` 브랜치여야 하고 `origin/main`보다 뒤처져 있으면 안 됩니다. 지난 릴리스 이후의 문서 커밋을 함께 보여 주고, 문서 커밋이 없으면 계속할지 한 번 더 묻습니다. 플러그인을 푸시한 뒤에는 문서 리포에도 같은 버전 태그를 붙여 `main`과 함께 푸시합니다.
+
 ## 프로젝트 구조
 
 ```text
@@ -260,12 +262,11 @@ npm run release
 ├── manifest.json        # Obsidian 플러그인 메타데이터
 ├── main.js              # esbuild가 만든 번들 파일
 ├── styles.css           # 플러그인 스타일
-├── src/
-│   ├── locales/         # 영어와 한국어 UI 문구
-│   ├── main.ts          # 플러그인 로딩, 명령어 등록, 이벤트 등록
-│   ├── setting.ts       # 설정 탭
-│   ├── types.ts         # 설정 타입과 기본값
-│   ├── utils.ts         # 공통 유틸리티
-│   └── features/        # 기능별 구현
-└── docs/                # 기능별 사용자 문서
+└── src/
+    ├── locales/         # 영어와 한국어 UI 문구
+    ├── main.ts          # 플러그인 로딩, 명령어 등록, 이벤트 등록
+    ├── setting.ts       # 설정 탭
+    ├── types.ts         # 설정 타입과 기본값
+    ├── utils.ts         # 공통 유틸리티
+    └── features/        # 기능별 구현
 ```
