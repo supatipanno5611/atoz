@@ -2,6 +2,8 @@
 
 English | [한국어](README.ko.md)
 
+**한국어 사용 설명서: [atoz-docs.vercel.app](https://atoz-docs.vercel.app)**
+
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/supatipanno5611)
 
 `a to z` is an Obsidian plugin designed to streamline writing workflows, with particular support for Korean users.
