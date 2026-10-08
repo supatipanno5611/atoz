@@ -54,32 +54,32 @@ function formatRow(date: Date, type: DaynightType): string {
     return `| ${day} | ${pad(date.getHours())}:${pad(date.getMinutes())} | ${type} |`;
 }
 
-// sleep 다음의 wake를 짝지어 구간으로 만든다. 마지막 sleep은 지금까지 진행 중인 구간이다.
-function toSegments(records: DaynightRecord[], now: number): [number, number][] {
-    const segments: [number, number][] = [];
-    let sleepStart: number | null = null;
-    for (const record of records) {
-        if (record.type === 'sleep') {
-            sleepStart = record.time;
-        } else if (sleepStart !== null) {
-            segments.push([sleepStart, record.time]);
-            sleepStart = null;
-        }
-    }
-    if (sleepStart !== null) segments.push([sleepStart, now]);
-    return segments;
+interface DaynightSegment {
+    from: number;
+    to: number;
+    type: DaynightType;
 }
 
-function sleptBetween(segments: [number, number][], start: number, end: number): number {
+// 각 기록에서 다음 기록까지를 그 기록 종류의 구간으로 만든다. 마지막 구간은 지금까지 진행 중이다.
+function toSegments(records: DaynightRecord[], now: number): DaynightSegment[] {
+    return records.map((record, index) => ({
+        from: record.time,
+        to: records[index + 1]?.time ?? now,
+        type: record.type,
+    }));
+}
+
+function sleptBetween(segments: DaynightSegment[], start: number, end: number): number {
     let total = 0;
-    for (const [from, to] of segments) {
+    for (const { from, to, type } of segments) {
+        if (type !== 'sleep') continue;
         total += Math.max(0, Math.min(to, end) - Math.max(from, start));
     }
     return total;
 }
 
 export class DaynightView extends ItemView {
-    // 선택한 수면 구간의 시작 시각. null이면 현재 시각에서 끝나는 24시간을 보여 준다.
+    // 선택한 구간의 시작 시각. null이면 현재 시각에서 끝나는 24시간을 보여 준다.
     private selectedStart: number | null = null;
     private isActionsShown = false;
     // 시각을 고치는 중인 기록의 시각과 입력 중인 값
@@ -110,13 +110,15 @@ export class DaynightView extends ItemView {
         const records = this.plugin.daynight.records;
         const now = Date.now();
         const segments = toSegments(records, now);
+        // 진행 중인 마지막 구간은 현재 화면과 같으므로 끝난 구간만 고를 수 있다.
+        const finished = segments.slice(0, -1);
         // 기록이 지워져 선택한 구간이 없어지면 현재로 돌아간다.
-        const selectedIndex = segments.findIndex(([from]) => from === this.selectedStart);
-        const selected = segments[selectedIndex] ?? null;
+        const selectedIndex = finished.findIndex(({ from }) => from === this.selectedStart);
+        const selected = finished[selectedIndex] ?? null;
         if (!selected) this.selectedStart = null;
 
         // 선택한 구간을 가운데에 두되 현재 시각 너머로는 넘어가지 않는다.
-        const end = selected ? Math.min((selected[0] + selected[1] + DAY) / 2, now) : now;
+        const end = selected ? Math.min((selected.from + selected.to + DAY) / 2, now) : now;
         const start = end - DAY;
 
         const last = records[records.length - 1];
@@ -142,35 +144,35 @@ export class DaynightView extends ItemView {
             hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${lastText} · ${totalText}` });
         } else {
             // 이동해도 레이아웃이 흔들리지 않도록 현재 상태와 같은 세 줄 구조로 보여 준다.
-            const [from, to] = selected;
-            const isOngoing = selectedIndex === segments.length - 1 && last.type === 'sleep';
+            const { from, to, type } = selected;
+            const isSleep = type === 'sleep';
             const status = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
             status.createSpan({ cls: 'atoz-daynight-dot is-past' });
-            status.createSpan({ text: t('daynight.sleepOn', { date: formatShortDate(from) }) });
+            status.createSpan({ text: t(isSleep ? 'daynight.sleepOn' : 'daynight.awakeOn', { date: formatShortDate(from) }) });
             hero.createDiv({ cls: 'atoz-daynight-hero-value', text: formatDuration(to - from) });
             const sameDay = formatShortDate(from) === formatShortDate(to);
-            const sleptText = t('daynight.sleptAt', { time: sameDay ? formatTime(from) : formatShortDateTime(from) });
-            const wokeText = isOngoing
-                ? t('daynight.stillAsleep')
-                : t('daynight.wokeAt', { time: sameDay ? formatTime(to) : formatShortDateTime(to) });
-            hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${sleptText} · ${wokeText}` });
+            const fromTime = sameDay ? formatTime(from) : formatShortDateTime(from);
+            const toTime = sameDay ? formatTime(to) : formatShortDateTime(to);
+            const fromText = t(isSleep ? 'daynight.sleptAt' : 'daynight.wokeAt', { time: fromTime });
+            const toText = t(isSleep ? 'daynight.wokeAt' : 'daynight.sleptAt', { time: toTime });
+            hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: `${fromText} · ${toText}` });
         }
 
         if (last) {
             const nav = body.createDiv({ cls: 'atoz-daynight-nav' });
             nav.createSpan({ cls: 'atoz-daynight-range', text: `${formatShortDateTime(start)} – ${formatShortDateTime(end)}` });
             const controls = nav.createDiv({ cls: 'atoz-daynight-controls' });
-            // 현재에서 ‹는 가장 최근 수면을, 마지막 수면에서 ›는 현재를 연다.
+            // 현재에서 ‹는 가장 최근에 끝난 구간을, 그 구간에서 ›는 현재를 연다.
             const addNavButton = (icon: string, label: string, disabled: boolean, targetIndex: number): void => {
                 const button = controls.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
                 setIcon(button, icon);
                 button.disabled = disabled;
                 button.addEventListener('click', () => {
-                    this.selectedStart = segments[targetIndex]?.[0] ?? null;
+                    this.selectedStart = finished[targetIndex]?.from ?? null;
                     this.render();
                 });
             };
-            const currentIndex = selected ? selectedIndex : segments.length;
+            const currentIndex = selected ? selectedIndex : finished.length;
             addNavButton('chevron-left', t('daynight.previous'), currentIndex === 0, currentIndex - 1);
             addNavButton('rotate-ccw', t('daynight.now'), !selected, -1);
             addNavButton('chevron-right', t('daynight.next'), !selected, currentIndex + 1);
@@ -190,11 +192,11 @@ export class DaynightView extends ItemView {
 
     private renderChart(
         container: HTMLElement,
-        segments: [number, number][],
+        segments: DaynightSegment[],
         start: number,
         end: number,
         now: number | null,
-        selected: [number, number] | null,
+        selected: DaynightSegment | null,
     ): void {
         const x = (time: number): number => (time - start) / (end - start) * CHART_WIDTH;
         const svg = container.createSvg('svg', {
@@ -253,15 +255,18 @@ export class DaynightView extends ItemView {
             }
         }
 
-        for (const [from, to] of segments) {
-            const clippedFrom = Math.max(from, start);
-            const clippedTo = Math.min(to, end);
+        // 막대는 수면 구간만 그린다. 깨어 있는 구간을 고르면 그 구간에 테두리를 두른다.
+        for (const segment of segments) {
+            const isSelected = segment.from === selected?.from;
+            if (segment.type !== 'sleep' && !isSelected) continue;
+            const clippedFrom = Math.max(segment.from, start);
+            const clippedTo = Math.min(segment.to, end);
             if (clippedTo <= clippedFrom) continue;
             const bar = svg.createSvg('rect', {
-                cls: 'atoz-daynight-sleep',
+                cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-wake',
                 attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
-            if (selected && from !== selected[0]) bar.addClass('atoz-daynight-dim');
+            if (selected && !isSelected) bar.addClass('atoz-daynight-dim');
         }
 
         if (now !== null) {

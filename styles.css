@@ -467,7 +467,14 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     fill: var(--interactive-accent);
 }
 
-/* 수면 구간을 선택하면 나머지 막대를 흐리게 한다. */
+/* 깨어 있는 구간은 선택했을 때만 테두리로 표시한다. */
+.atoz-daynight-wake {
+    fill: none;
+    stroke: var(--interactive-accent);
+    stroke-width: 1.5;
+}
+
+/* 구간을 선택하면 나머지 막대를 흐리게 한다. */
 .atoz-daynight-dim {
     opacity: 0.35;
 }
