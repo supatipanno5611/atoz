@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, ExtraButtonComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type ATOZPlugin from './main';
 import {
     DEFAULT_SETTINGS,
@@ -22,7 +22,36 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     getSettingDefinitions() {
+        const isSupportCollapsed = this.plugin.settings.isSupportCollapsed;
         return [
+            {
+                type: 'group' as const,
+                heading: t('settings.support.heading'),
+                // 그룹 접기 기능이 따로 없어서 머리 버튼으로 항목을 숨긴다.
+                extraButtons: [
+                    (button: ExtraButtonComponent) => button
+                        .setIcon(isSupportCollapsed ? 'chevron-right' : 'chevron-down')
+                        .setTooltip(t(isSupportCollapsed ? 'settings.support.expand' : 'settings.support.collapse'))
+                        .onClick(async () => {
+                            this.plugin.settings.isSupportCollapsed = !isSupportCollapsed;
+                            await this.plugin.saveSettings();
+                            this.refreshSettings();
+                        }),
+                ],
+                items: [
+                    {
+                        name: t('settings.support.name'),
+                        desc: t('settings.support.desc'),
+                        visible: !isSupportCollapsed,
+                        render: (setting: Setting) => {
+                            setting.addButton((btn) => btn
+                                .setButtonText(t('settings.support.button'))
+                                .onClick(() => window.open(FUNDING_URL))
+                            );
+                        },
+                    },
+                ],
+            },
             {
                 type: 'group' as const,
                 heading: t('settings.cursorCenter.heading'),
@@ -476,22 +505,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
-                            );
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'group' as const,
-                heading: t('settings.support.heading'),
-                items: [
-                    {
-                        name: t('settings.support.name'),
-                        desc: t('settings.support.desc'),
-                        render: (setting: Setting) => {
-                            setting.addButton((btn) => btn
-                                .setButtonText(t('settings.support.button'))
-                                .onClick(() => window.open(FUNDING_URL))
                             );
                         },
                     },

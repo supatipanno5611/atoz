@@ -17,6 +17,7 @@ export interface ATOZSettings {
     versionFolder: string;
     daynightFolder: string;
     daynightRecentCount: number;
+    isSupportCollapsed: boolean;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
     writingTargetPresets: WritingTargetPreset[];
@@ -143,6 +144,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     versionFolder: '',
     daynightFolder: '',
     daynightRecentCount: 4,
+    isSupportCollapsed: false,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
     writingTargetPresets: [

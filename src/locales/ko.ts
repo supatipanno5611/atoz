@@ -130,6 +130,8 @@ export const ko: Record<TranslationKey, string> = {
     'settings.support.name': '개발 후원',
     'settings.support.desc': '플러그인이 도움이 되었다면 커피 한 잔으로 개발을 후원할 수 있습니다.',
     'settings.support.button': '후원하기',
+    'settings.support.expand': '펼치기',
+    'settings.support.collapse': '접기',
     'info.viewName': '노트 정보',
     'info.setTarget': '목표 글자 수 지정',
     'info.withSpaces.label': '공백 포함',
