@@ -255,10 +255,8 @@ export class DaynightView extends ItemView {
             }
         }
 
-        // 막대는 수면 구간만 그린다. 깨어 있는 구간을 고르면 그 구간에 테두리를 두른다.
+        // 수면 구간과 깨어 있는 구간을 번갈아 칠한다.
         for (const segment of segments) {
-            const isSelected = segment.from === selected?.from;
-            if (segment.type !== 'sleep' && !isSelected) continue;
             const clippedFrom = Math.max(segment.from, start);
             const clippedTo = Math.min(segment.to, end);
             if (clippedTo <= clippedFrom) continue;
@@ -266,7 +264,7 @@ export class DaynightView extends ItemView {
                 cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-wake',
                 attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
-            if (selected && !isSelected) bar.addClass('atoz-daynight-dim');
+            if (selected && segment.from !== selected.from) bar.addClass('atoz-daynight-dim');
         }
 
         if (now !== null) {
