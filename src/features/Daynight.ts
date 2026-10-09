@@ -177,7 +177,9 @@ export class DaynightView extends ItemView {
             addNavButton('rotate-ccw', t('daynight.now'), !selected, -1);
             addNavButton('chevron-right', t('daynight.next'), !selected, currentIndex + 1);
 
-            this.renderChart(body, segments, start, end, end === now ? now : null, selected);
+            // 고른 구간이 없으면 진행 중인 마지막 구간을 진하게 둔다.
+            const focused = selected ?? segments[segments.length - 1]!;
+            this.renderChart(body, segments, start, end, end === now ? now : null, focused);
             this.renderRecent(body, records);
         }
 
@@ -196,7 +198,7 @@ export class DaynightView extends ItemView {
         start: number,
         end: number,
         now: number | null,
-        selected: DaynightSegment | null,
+        focused: DaynightSegment,
     ): void {
         const x = (time: number): number => (time - start) / (end - start) * CHART_WIDTH;
         const svg = container.createSvg('svg', {
@@ -264,7 +266,7 @@ export class DaynightView extends ItemView {
                 cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-wake',
                 attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
-            if (selected && segment.from !== selected.from) bar.addClass('atoz-daynight-dim');
+            if (segment.from !== focused.from) bar.addClass('atoz-daynight-dim');
         }
 
         if (now !== null) {

@@ -472,7 +472,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     fill: var(--atoz-daynight-morning);
 }
 
-/* 구간을 선택하면 나머지 막대를 흐리게 한다. */
+/* 선택한 구간이나 진행 중인 구간이 아닌 막대는 흐리게 한다. */
 .atoz-daynight-dim {
     opacity: 0.35;
 }
