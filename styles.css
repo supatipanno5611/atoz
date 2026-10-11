@@ -633,6 +633,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     font-size: var(--font-ui-medium);
     font-weight: 600;
     background: transparent;
+    border: none;
     box-shadow: none;
     padding: 4px 8px;
     cursor: pointer;

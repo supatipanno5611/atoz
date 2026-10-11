@@ -487,6 +487,16 @@ export class ATOZSettingTab extends PluginSettingTab {
                         control: { type: 'text' as const, key: 'budgetFolder', placeholder: t('settings.budget.folder.placeholder') },
                     },
                     {
+                        name: t('settings.budget.currencyPrefix.name'),
+                        desc: t('settings.budget.currencyPrefix.desc'),
+                        control: { type: 'text' as const, key: 'budgetCurrencyPrefix' },
+                    },
+                    {
+                        name: t('settings.budget.currencySuffix.name'),
+                        desc: t('settings.budget.currencySuffix.desc'),
+                        control: { type: 'text' as const, key: 'budgetCurrencySuffix' },
+                    },
+                    {
                         name: t('settings.budget.carryOver.name'),
                         desc: t('settings.budget.carryOver.desc'),
                         render: (setting: Setting) => {
@@ -629,7 +639,7 @@ export class ATOZSettingTab extends PluginSettingTab {
     async setControlValue(key: string, value: unknown): Promise<void> {
         await super.setControlValue(key, value);
         if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
-        if (key === 'budgetFolder') this.plugin.budget.settingsChanged();
+        if (key.startsWith('budget')) this.plugin.budget.settingsChanged();
     }
 
     private refreshSettings(): void {

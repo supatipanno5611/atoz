@@ -20,6 +20,8 @@ export interface ATOZSettings {
     daynightFolder: string;
     daynightRecentCount: number;
     budgetFolder: string;
+    budgetCurrencyPrefix: string;
+    budgetCurrencySuffix: string;
     budgetExpenseCategories: string[];
     budgetIncomeCategories: string[];
     budgetFixedExpenses: BudgetFixedExpense[];
@@ -163,6 +165,8 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     daynightFolder: '',
     daynightRecentCount: 4,
     budgetFolder: '',
+    budgetCurrencyPrefix: '',
+    budgetCurrencySuffix: isKorean ? '원' : '',
     budgetExpenseCategories: isKorean
         ? ['식비', '카페·간식', '교통', '주거·공과금', '통신', '생필품', '의료', '문화·여가', '의류·미용', '경조사', '교육', '기타']
         : ['Food', 'Cafe & snacks', 'Transport', 'Housing & utilities', 'Phone & internet', 'Household', 'Medical', 'Leisure', 'Clothing & beauty', 'Gifts & events', 'Education', 'Other'],

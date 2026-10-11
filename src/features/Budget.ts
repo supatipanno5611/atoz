@@ -2,12 +2,14 @@ import {
     AbstractInputSuggest,
     App,
     ItemView,
+    Menu,
     Modal,
     Notice,
     Setting,
     TAbstractFile,
     TFile,
     TFolder,
+    ViewStateResult,
     WorkspaceLeaf,
     normalizePath,
     setIcon,
@@ -15,6 +17,7 @@ import {
 import type ATOZPlugin from '../main';
 import type { BudgetFixedExpense } from '../types';
 import { t } from '../locales';
+import { isRecord } from '../utils';
 
 const VIEW_TYPE_BUDGET = 'atoz-budget-view';
 const DEFAULT_FOLDER = 'budget';
@@ -78,8 +81,12 @@ export function formatAmount(value: number): string {
     return (negative ? '-' : '') + out;
 }
 
+// 설정의 통화 표기. 설정이 바뀔 때마다 BudgetFeature가 다시 채운다.
+let currencyPrefix = '';
+let currencySuffix = '';
+
 function formatWon(value: number): string {
-    return t('budget.won', { amount: formatAmount(value) });
+    return currencyPrefix + formatAmount(value) + currencySuffix;
 }
 
 function pad2(value: number): string {
@@ -873,6 +880,44 @@ class LedgerStore {
         return true;
     }
 
+    /**
+     * 해당 종류의 모든 파일에서 카테고리 이름을 바꾼다. 이미 있는 이름으로 바꾸면
+     * 두 카테고리가 합쳐지고 예산도 더해진다. 바꾼 내역 수를 돌려준다.
+     */
+    async renameCategory(kind: LedgerKind, from: string, to: string): Promise<number> {
+        let count = 0;
+        for (const ref of this.scan()) {
+            if (ref.kind !== kind) continue;
+            const ledger = parseLedger(ref.file.path, await this.app.vault.cachedRead(ref.file));
+            if (!ledger) continue;
+
+            // 바꿀 것이 없는 파일은 다시 쓰지 않는다.
+            if (ledger.entries.some((entry) => entry.category.trim() === from)) {
+                await this.mutate(ref.file, (current, rows) => {
+                    for (let i = 0; i < rows.length; i++) {
+                        const entry = rows[i]?.entry;
+                        if (!entry || entry.category.trim() !== from) continue;
+                        rows[i] = this.draftToRow({ ...entry, category: to }, entry.extra);
+                        count++;
+                    }
+                    return null;
+                });
+            }
+
+            if (typeof ledger.budgets[from] === 'number') {
+                await this.app.fileManager.processFrontMatter(ref.file, (raw) => {
+                    const budgets = (raw as Record<string, unknown>)[FM_BUDGET];
+                    if (!isRecord(budgets)) return;
+                    const moved = Number(budgets[from]) || 0;
+                    const existing = Number(budgets[to]) || 0;
+                    delete budgets[from];
+                    budgets[to] = moved + existing;
+                });
+            }
+        }
+        return count;
+    }
+
     /** 예산은 해당 월 지출부의 프론트매터에 산다. */
     async setBudgets(month: string, budgets: Record<string, number>): Promise<boolean> {
         // 곧바로 새 예산을 쓰므로 직전 달 예산을 이월할지 묻지 않는다.
@@ -1163,19 +1208,17 @@ class EntryModal extends Modal {
         const entry = this.options.entry;
         this.contentEl.addClass('atoz-budget-entry-modal');
 
-        if (!this.editing) {
-            const toggle = this.contentEl.createDiv({ cls: 'atoz-budget-kind-toggle' });
-            for (const kind of [KIND_EXPENSE, KIND_INCOME]) {
-                const button = toggle.createEl('button', { text: kindLabel(kind), cls: 'atoz-budget-kind-button' });
-                button.addEventListener('click', () => {
-                    this.kind = kind;
-                    this.setTitle(recordTitle(kind));
-                    this.syncKindButtons();
-                });
-                this.kindButtons.set(kind, button);
-            }
-            this.syncKindButtons();
+        const toggle = this.contentEl.createDiv({ cls: 'atoz-budget-kind-toggle' });
+        for (const kind of [KIND_EXPENSE, KIND_INCOME]) {
+            const button = toggle.createEl('button', { text: kindLabel(kind), cls: 'atoz-budget-kind-button' });
+            button.addEventListener('click', () => {
+                this.kind = kind;
+                if (!this.editing) this.setTitle(recordTitle(kind));
+                this.syncKindButtons();
+            });
+            this.kindButtons.set(kind, button);
         }
+        this.syncKindButtons();
 
         this.amountEl = amountInput(
             fieldRow(this.contentEl, t('budget.amount')),
@@ -1282,12 +1325,13 @@ class EntryModal extends Modal {
             ok = await store.addEntry(this.kind, targetMonth, draft);
         } else {
             const sourceMonth = this.options.sourceMonth ?? monthOfDate(entry.date);
-            if (sourceMonth === targetMonth) {
+            const sourceKind = this.options.kind;
+            if (sourceKind === this.kind && sourceMonth === targetMonth) {
                 ok = await store.updateEntry(this.kind, sourceMonth, entry, draft);
             } else {
-                // 달을 넘겼으면 원본 파일에서 빼고 새 달 파일에 넣는다.
+                // 달이나 종류를 바꿨으면 원본 파일에서 빼고 새 파일에 넣는다.
                 ok = await store.addEntry(this.kind, targetMonth, draft);
-                if (ok) ok = await store.deleteEntry(this.kind, sourceMonth, entry);
+                if (ok) ok = await store.deleteEntry(sourceKind, sourceMonth, entry);
             }
         }
 
@@ -1317,7 +1361,7 @@ class EntryModal extends Modal {
             t('budget.deleteEntry.message', { title: entry.title, amount: formatWon(entry.amount) }),
         );
         if (!confirmed) return;
-        const ok = await this.plugin.budget.store.deleteEntry(this.kind, sourceMonth, entry);
+        const ok = await this.plugin.budget.store.deleteEntry(this.options.kind, sourceMonth, entry);
         if (!ok) return;
         this.options.onDone?.();
         this.close();
@@ -1401,6 +1445,75 @@ class BudgetEditModal extends Modal {
 
         await this.plugin.budget.store.setBudgets(this.month, next);
         new Notice(t('budget.limits.saved', { month: this.month }));
+        this.onDone();
+        this.close();
+    }
+
+    onClose(): void {
+        this.contentEl.empty();
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * UI — 카테고리 이름 바꾸기 모달
+ * ------------------------------------------------------------------ */
+
+class RenameCategoryModal extends Modal {
+    private inputEl: HTMLInputElement | null = null;
+    private isSaving = false;
+
+    constructor(
+        private plugin: ATOZPlugin,
+        private kind: LedgerKind,
+        private from: string,
+        private onDone: () => void,
+    ) {
+        super(plugin.app);
+        this.setTitle(t('budget.renameCategory.title', { category: from }));
+    }
+
+    onOpen(): void {
+        this.contentEl.createEl('p', { cls: 'atoz-budget-hint', text: t('budget.renameCategory.hint') });
+
+        const input = textInput(fieldRow(this.contentEl, t('budget.category')), this.from, '');
+        new CategorySuggest(this.app, input, () => this.plugin.budget.categoriesFor(this.kind));
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            void this.submit();
+        });
+        this.inputEl = input;
+
+        new Setting(this.contentEl)
+            .setClass('atoz-budget-modal-footer')
+            .addButton((button) => button.setButtonText(t('budget.cancel')).onClick(() => this.close()))
+            .addButton((button) => button
+                .setButtonText(t('budget.save'))
+                .setCta()
+                .onClick(() => void this.submit()));
+
+        window.setTimeout(() => input.select(), 0);
+    }
+
+    private async submit(): Promise<void> {
+        if (this.isSaving) return;
+        const to = (this.inputEl?.value ?? '').trim();
+        if (to.length === 0) {
+            new Notice(t('budget.renameCategory.empty'));
+            return;
+        }
+        if (to === this.from) {
+            this.close();
+            return;
+        }
+
+        this.isSaving = true;
+        try {
+            const count = await this.plugin.budget.renameCategory(this.kind, this.from, to);
+            new Notice(t('budget.renameCategory.done', { count }));
+        } finally {
+            this.isSaving = false;
+        }
         this.onDone();
         this.close();
     }
@@ -1590,6 +1703,30 @@ class BudgetView extends ItemView {
         return 'wallet';
     }
 
+    /** 보던 달과 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
+    getState(): Record<string, unknown> {
+        return {
+            month: this.month,
+            kindFilter: this.kindFilter,
+            dailyMode: this.dailyMode,
+            sortKey: this.sortKey,
+            sortAsc: this.sortAsc,
+        };
+    }
+
+    async setState(state: unknown, result: ViewStateResult): Promise<void> {
+        if (isRecord(state)) {
+            if (typeof state.month === 'string' && isValidMonth(state.month)) this.month = state.month;
+            const kind = state.kindFilter;
+            if (kind === 'all' || kind === 'income' || kind === 'expense') this.kindFilter = kind;
+            if (state.dailyMode === 'bar' || state.dailyMode === 'cumulative') this.dailyMode = state.dailyMode;
+            if (state.sortKey === 'date' || state.sortKey === 'amount') this.sortKey = state.sortKey;
+            if (typeof state.sortAsc === 'boolean') this.sortAsc = state.sortAsc;
+        }
+        await super.setState(state, result);
+        await this.refresh();
+    }
+
     async onOpen(): Promise<void> {
         this.contentEl.addClass('atoz-budget-view');
         await this.refresh();
@@ -1601,6 +1738,7 @@ class BudgetView extends ItemView {
 
     setMonth(month: string): void {
         this.month = month;
+        this.app.workspace.requestSaveLayout();
         void this.refresh();
     }
 
@@ -1644,9 +1782,11 @@ class BudgetView extends ItemView {
         this.iconButton(nav, 'chevron-left', t('budget.previousMonth'), () => {
             this.setMonth(shiftMonth(this.month, -1));
         });
-        const label = nav.createEl('button', { cls: 'atoz-budget-month-label', text: this.month });
-        label.addEventListener('click', () => this.setMonth(currentMonth()));
-        label.title = t('budget.thisMonth');
+        const picker = nav.createEl('input', { cls: 'atoz-budget-month-label', type: 'month' });
+        picker.value = this.month;
+        picker.addEventListener('change', () => {
+            if (isValidMonth(picker.value)) this.setMonth(picker.value);
+        });
         this.iconButton(nav, 'chevron-right', t('budget.nextMonth'), () => {
             this.setMonth(shiftMonth(this.month, 1));
         });
@@ -1820,14 +1960,15 @@ class BudgetView extends ItemView {
     /* -------------------------------------------------- 카테고리 */
 
     private renderCategories(root: HTMLElement, stats: MonthStats, previous: MonthStats): void {
-        this.categoryBlock(root, t('budget.expenseByCategory'), stats.expenseByCategory, stats.expense, previous.expenseByCategory);
+        this.categoryBlock(root, KIND_EXPENSE, t('budget.expenseByCategory'), stats.expenseByCategory, stats.expense, previous.expenseByCategory);
         if (stats.incomeByCategory.length > 0) {
-            this.categoryBlock(root, t('budget.incomeByCategory'), stats.incomeByCategory, stats.income, previous.incomeByCategory);
+            this.categoryBlock(root, KIND_INCOME, t('budget.incomeByCategory'), stats.incomeByCategory, stats.income, previous.incomeByCategory);
         }
     }
 
     private categoryBlock(
         root: HTMLElement,
+        kind: LedgerKind,
         title: string,
         stats: CategoryStat[],
         total: number,
@@ -1848,6 +1989,23 @@ class BudgetView extends ItemView {
                 this.categoryFilter = this.categoryFilter === stat.category ? null : stat.category;
                 this.render();
             });
+            // 미분류는 실제 카테고리 이름이 아니라서 바꿀 수 없다.
+            if (stat.category !== t('budget.uncategorized')) {
+                row.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                    const menu = new Menu();
+                    menu.addItem((item) => item
+                        .setTitle(t('budget.renameCategory'))
+                        .setIcon('pencil')
+                        .onClick(() => {
+                            new RenameCategoryModal(this.plugin, kind, stat.category, () => {
+                                if (this.categoryFilter === stat.category) this.categoryFilter = null;
+                                void this.refresh();
+                            }).open();
+                        }));
+                    menu.showAtMouseEvent(event);
+                });
+            }
 
             const head = row.createDiv({ cls: 'atoz-budget-category-head' });
             head.createSpan({ cls: 'atoz-budget-category-name', text: stat.category });
@@ -1919,6 +2077,7 @@ class BudgetView extends ItemView {
             button.toggleClass('is-active', this.dailyMode === mode.key);
             button.addEventListener('click', () => {
                 this.dailyMode = mode.key;
+                this.app.workspace.requestSaveLayout();
                 this.render();
             });
         }
@@ -2187,6 +2346,7 @@ class BudgetView extends ItemView {
             button.toggleClass('is-active', this.kindFilter === kind);
             button.addEventListener('click', () => {
                 this.kindFilter = kind;
+                this.app.workspace.requestSaveLayout();
                 this.render();
             });
         }
@@ -2286,6 +2446,7 @@ class BudgetView extends ItemView {
             this.sortKey = key;
             this.sortAsc = key === 'date';
         }
+        this.app.workspace.requestSaveLayout();
         this.renderEntriesOnly();
     }
 }
@@ -2303,6 +2464,12 @@ export class BudgetFeature {
 
     constructor(private plugin: ATOZPlugin) {
         this.store = new LedgerStore(plugin);
+        this.applyCurrency();
+    }
+
+    private applyCurrency(): void {
+        currencyPrefix = this.plugin.settings.budgetCurrencyPrefix;
+        currencySuffix = this.plugin.settings.budgetCurrencySuffix;
     }
 
     install(): void {
@@ -2365,7 +2532,27 @@ export class BudgetFeature {
     }
 
     settingsChanged(): void {
+        this.applyCurrency();
         this.scheduleRefresh();
+    }
+
+    /** 모든 달의 파일과 설정에서 카테고리 이름을 바꾼다. 바꾼 내역 수를 돌려준다. */
+    async renameCategory(kind: LedgerKind, from: string, to: string): Promise<number> {
+        const count = await this.store.renameCategory(kind, from, to);
+
+        const settings = this.plugin.settings;
+        const rename = (category: string): string => category.trim() === from ? to : category;
+        if (kind === KIND_INCOME) {
+            settings.budgetIncomeCategories = uniqueStrings(settings.budgetIncomeCategories.map(rename));
+        } else {
+            settings.budgetExpenseCategories = uniqueStrings(settings.budgetExpenseCategories.map(rename));
+            for (const fixed of settings.budgetFixedExpenses) fixed.category = rename(fixed.category);
+        }
+        await this.plugin.saveSettings();
+
+        // 옛 이름이 자동완성 후보에 남지 않도록 다시 모은다.
+        this.observed[kind] = [];
+        return count;
     }
 
     categoriesFor(kind: LedgerKind): string[] {
