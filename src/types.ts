@@ -1,3 +1,5 @@
+import { isKorean } from './locales';
+
 export interface ATOZSettings {
 	quickSlots: (string | string[] | null)[];
 	commandSlots: (string | null)[];
@@ -17,6 +19,11 @@ export interface ATOZSettings {
     versionFolder: string;
     daynightFolder: string;
     daynightRecentCount: number;
+    budgetFolder: string;
+    budgetExpenseCategories: string[];
+    budgetIncomeCategories: string[];
+    budgetFixedExpenses: BudgetFixedExpense[];
+    budgetCarryOver: BudgetCarryOverMode;
     isSupportCollapsed: boolean;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
@@ -31,6 +38,17 @@ export interface SymbolItem {
     id: string;
     symbol: string;
     closing?: string;
+}
+
+export type BudgetCarryOverMode = 'ask' | 'always' | 'never';
+
+export interface BudgetFixedExpense {
+    title: string;
+    category: string;
+    // 금액이 매달 다른 항목(전기·가스 등)은 null로 두고 입력할 때 받는다.
+    amount: number | null;
+    // 예정일. 1~31.
+    day: number;
 }
 
 export type WritingTargetPreset =
@@ -144,6 +162,15 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     versionFolder: '',
     daynightFolder: '',
     daynightRecentCount: 4,
+    budgetFolder: '',
+    budgetExpenseCategories: isKorean
+        ? ['식비', '카페·간식', '교통', '주거·공과금', '통신', '생필품', '의료', '문화·여가', '의류·미용', '경조사', '교육', '기타']
+        : ['Food', 'Cafe & snacks', 'Transport', 'Housing & utilities', 'Phone & internet', 'Household', 'Medical', 'Leisure', 'Clothing & beauty', 'Gifts & events', 'Education', 'Other'],
+    budgetIncomeCategories: isKorean
+        ? ['급여', '부수입', '용돈', '이자·배당', '환급', '기타']
+        : ['Salary', 'Side income', 'Allowance', 'Interest & dividends', 'Refunds', 'Other'],
+    budgetFixedExpenses: [],
+    budgetCarryOver: 'ask',
     isSupportCollapsed: false,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,

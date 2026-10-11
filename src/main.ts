@@ -21,6 +21,7 @@ import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
 import { DaynightFeature } from './features/Daynight';
+import { BudgetFeature } from './features/Budget';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -53,6 +54,7 @@ export default class ATOZPlugin extends Plugin {
     noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
     daynight!: DaynightFeature;
+    budget!: BudgetFeature;
 
     activeSidebarMode: 'later' | null = null;
 
@@ -81,6 +83,7 @@ export default class ATOZPlugin extends Plugin {
         this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
         this.daynight = new DaynightFeature(this);
+        this.budget = new BudgetFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -96,6 +99,7 @@ export default class ATOZPlugin extends Plugin {
         this.noteList.install();
         this.versionManager.install();
         this.daynight.install();
+        this.budget.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
@@ -167,6 +171,7 @@ export default class ATOZPlugin extends Plugin {
         this.info.uninstall();
         this.versionManager.uninstall();
         this.daynight.uninstall();
+        this.budget.uninstall();
     }
 
     async loadSettings() {

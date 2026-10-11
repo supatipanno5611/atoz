@@ -6,9 +6,11 @@ import {
     isSameWritingTargetKey,
     isValidWritingTarget,
     SymbolItem,
+    type BudgetCarryOverMode,
     type WritingTargetPreset,
 } from './types';
 import { t } from './locales';
+import { CategorySuggest, formatAmount, parseAmount } from './features/Budget';
 
 // manifest.json의 fundingUrl과 같은 주소다. PluginManifest 타입에는 fundingUrl이 없다.
 const FUNDING_URL = 'https://buymeacoffee.com/supatipanno5611';
@@ -476,6 +478,116 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
+                type: 'group' as const,
+                heading: 'Budget',
+                items: [
+                    {
+                        name: t('settings.budget.folder.name'),
+                        desc: t('settings.budget.folder.desc'),
+                        control: { type: 'text' as const, key: 'budgetFolder', placeholder: t('settings.budget.folder.placeholder') },
+                    },
+                    {
+                        name: t('settings.budget.carryOver.name'),
+                        desc: t('settings.budget.carryOver.desc'),
+                        render: (setting: Setting) => {
+                            setting.addDropdown((dropdown) => dropdown
+                                .addOption('ask', t('settings.budget.carryOver.ask'))
+                                .addOption('always', t('settings.budget.carryOver.always'))
+                                .addOption('never', t('settings.budget.carryOver.never'))
+                                .setValue(this.plugin.settings.budgetCarryOver)
+                                .onChange(async (value) => {
+                                    this.plugin.settings.budgetCarryOver = value as BudgetCarryOverMode;
+                                    await this.plugin.saveSettings();
+                                })
+                            );
+                        },
+                    },
+                    ...(['budgetExpenseCategories', 'budgetIncomeCategories'] as const).map((key) => ({
+                        name: t(key === 'budgetExpenseCategories'
+                            ? 'settings.budget.expenseCategories.name'
+                            : 'settings.budget.incomeCategories.name'),
+                        desc: t('settings.budget.categories.desc'),
+                        render: (setting: Setting) => {
+                            setting.settingEl.addClass('atoz-setting-vertical');
+                            setting.addTextArea((ta) => {
+                                ta.inputEl.addClass('atoz-setting-textarea');
+                                ta.setValue(this.plugin.settings[key].join('\n'));
+                                ta.inputEl.addEventListener('blur', () => {
+                                    this.plugin.settings[key] = ta.getValue()
+                                        .split('\n')
+                                        .map((line) => line.trim())
+                                        .filter((line) => line.length > 0);
+                                    void this.plugin.saveSettings();
+                                });
+                            });
+                        },
+                    })),
+                    ...this.plugin.settings.budgetFixedExpenses.map((fixed, i) => ({
+                        name: t('settings.budget.fixed.item', { index: i + 1 }),
+                        render: (setting: Setting) => {
+                            const save = (): void => {
+                                this.plugin.debouncedSave();
+                                this.plugin.budget.settingsChanged();
+                            };
+                            setting.addText((text) => text
+                                .setPlaceholder(t('settings.budget.fixed.title'))
+                                .setValue(fixed.title)
+                                .onChange((value) => {
+                                    fixed.title = value;
+                                    save();
+                                })
+                            ).addText((text) => {
+                                text.setPlaceholder(t('settings.budget.fixed.category')).setValue(fixed.category);
+                                new CategorySuggest(this.app, text.inputEl, () => this.plugin.budget.categoriesFor('expense'));
+                                text.onChange((value) => {
+                                    fixed.category = value;
+                                    save();
+                                });
+                            }).addText((text) => text
+                                .setPlaceholder(t('settings.budget.fixed.amount'))
+                                .setValue(fixed.amount === null ? '' : formatAmount(fixed.amount))
+                                .onChange((value) => {
+                                    fixed.amount = parseAmount(value);
+                                    save();
+                                })
+                            ).addText((text) => {
+                                text.inputEl.addClass('atoz-budget-day-input');
+                                text.setPlaceholder(t('settings.budget.fixed.day')).setValue(String(fixed.day));
+                                text.onChange((value) => {
+                                    const day = Number(value);
+                                    fixed.day = isFinite(day) && day >= 1 && day <= 31 ? Math.floor(day) : 1;
+                                    save();
+                                });
+                            }).addExtraButton((button) => button
+                                .setIcon('lucide-trash-2')
+                                .setTooltip(t('settings.symbols.delete'))
+                                .onClick(async () => {
+                                    this.plugin.settings.budgetFixedExpenses.splice(i, 1);
+                                    await this.plugin.saveSettings();
+                                    this.plugin.budget.settingsChanged();
+                                    this.refreshSettings();
+                                })
+                            );
+                        },
+                    })),
+                    {
+                        name: t('settings.budget.fixed.name'),
+                        desc: t('settings.budget.fixed.desc'),
+                        render: (setting: Setting) => {
+                            setting.addButton((button) => button
+                                .setButtonText(t('settings.budget.fixed.add'))
+                                .onClick(async () => {
+                                    this.plugin.settings.budgetFixedExpenses.push({ title: '', category: '', amount: null, day: 1 });
+                                    await this.plugin.saveSettings();
+                                    this.plugin.budget.settingsChanged();
+                                    this.refreshSettings();
+                                })
+                            );
+                        },
+                    },
+                ],
+            },
+            {
             	type: 'group' as const,
                 heading: t('settings.commandSlots.heading'),
             	items: [
@@ -502,6 +614,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     await this.plugin.saveSettings();
                                     this.plugin.info.settingsChanged();
                                     this.plugin.daynight.settingsChanged();
+                                    this.plugin.budget.settingsChanged();
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
@@ -516,6 +629,7 @@ export class ATOZSettingTab extends PluginSettingTab {
     async setControlValue(key: string, value: unknown): Promise<void> {
         await super.setControlValue(key, value);
         if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
+        if (key === 'budgetFolder') this.plugin.budget.settingsChanged();
     }
 
     private refreshSettings(): void {

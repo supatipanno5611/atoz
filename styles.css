@@ -596,3 +596,640 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-daynight .atoz-daynight-toggle.is-asleep:hover {
     background-color: var(--atoz-daynight-morning-hover);
 }
+
+/* ------------------------------------------------------------------ *
+ * 가계부 — 대시보드 뷰
+ * ------------------------------------------------------------------ */
+
+/* 메인 탭에서 열리므로 폭이 넓어질 수 있다. 읽기 좋은 폭에서 멈추고 가운데 정렬한다. */
+.atoz-budget-view {
+    padding: 12px 14px 32px;
+    overflow-y: auto;
+}
+
+.atoz-budget-view > * {
+    max-width: 780px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.atoz-budget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.atoz-budget-month-nav,
+.atoz-budget-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.atoz-budget-month-label {
+    font-size: var(--font-ui-medium);
+    font-weight: 600;
+    background: transparent;
+    box-shadow: none;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.atoz-budget-month-label:hover {
+    background: var(--background-modifier-hover);
+}
+
+.atoz-budget-icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.atoz-budget-icon-button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+/* ---------------------------------------------------------- 경고 */
+
+.atoz-budget-warnings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.atoz-budget-warning {
+    border: 1px solid var(--background-modifier-border);
+    border-left: 3px solid var(--text-warning);
+    border-radius: var(--radius-s);
+    padding: 8px 10px;
+    background: var(--background-secondary);
+}
+
+.atoz-budget-warning-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.atoz-budget-warning-icon {
+    display: flex;
+    color: var(--text-warning);
+}
+
+.atoz-budget-warning-list {
+    margin-top: 6px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-budget-warning-item {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+    cursor: pointer;
+}
+
+.atoz-budget-warning-item:hover .atoz-budget-warning-raw {
+    color: var(--text-normal);
+}
+
+.atoz-budget-warning-reason {
+    flex: 0 0 auto;
+    color: var(--text-warning);
+}
+
+.atoz-budget-warning-raw {
+    flex: 1 1 auto;
+    font-family: var(--font-monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-budget-inline-button {
+    margin-top: 6px;
+    font-size: var(--font-ui-smaller);
+    padding: 3px 10px;
+    cursor: pointer;
+}
+
+/* ---------------------------------------------------------- 요약 */
+
+.atoz-budget-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+.atoz-budget-stat {
+    background: var(--background-secondary);
+    border-radius: var(--radius-m);
+    padding: 10px 12px;
+}
+
+.atoz-budget-stat-label {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-budget-stat-value {
+    font-size: var(--font-ui-medium);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.atoz-budget-tone-income .atoz-budget-stat-value {
+    color: var(--color-blue);
+}
+
+.atoz-budget-tone-expense .atoz-budget-stat-value {
+    color: var(--color-red);
+}
+
+.atoz-budget-stat-delta {
+    margin-top: 2px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-ratio {
+    margin-top: 12px;
+}
+
+.atoz-budget-ratio-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.atoz-budget-ratio-value {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.atoz-budget-bar-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--background-modifier-border);
+    overflow: hidden;
+}
+
+.atoz-budget-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--interactive-accent);
+    transition: width 120ms ease-out;
+}
+
+.atoz-budget-bar-fill.is-over {
+    background: var(--color-red);
+}
+
+/* ---------------------------------------------------------- 섹션 */
+
+.atoz-budget-section {
+    margin-top: 20px;
+}
+
+.atoz-budget-section-title {
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.atoz-budget-section-title.has-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* ------------------------------------------------------ 카테고리 */
+
+.atoz-budget-category {
+    padding: 7px 8px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+}
+
+.atoz-budget-category:hover {
+    background: var(--background-modifier-hover);
+}
+
+.atoz-budget-category.is-selected {
+    background: var(--background-modifier-active-hover);
+}
+
+.atoz-budget-category-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.atoz-budget-category-name {
+    font-size: var(--font-ui-small);
+}
+
+.atoz-budget-category-count {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-category-amounts {
+    margin-left: auto;
+    font-size: var(--font-ui-small);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-budget-category-foot {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-category-delta {
+    margin-left: auto;
+}
+
+/* ---------------------------------------------------------- 차트 */
+
+/* 종횡비 고정(4:1). 폭에 맞춰 높이가 따라오므로 선 기울기가 왜곡되지 않는다. */
+.atoz-budget-chart {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.atoz-budget-chart-bar {
+    fill: var(--interactive-accent);
+}
+
+/* 환불 등으로 그날 순액이 음수인 경우. */
+.atoz-budget-chart-bar.is-negative {
+    fill: var(--color-blue);
+}
+
+.atoz-budget-chart-axis {
+    stroke: var(--background-modifier-border);
+    stroke-width: 1;
+}
+
+/* 날짜 축. SVG 밖이라 차트 폭과 무관하게 글자 크기가 유지된다. */
+.atoz-budget-chart-days {
+    position: relative;
+    height: 15px;
+    margin-top: 2px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-chart-days span {
+    position: absolute;
+    top: 0;
+}
+
+.atoz-budget-chart-days span.is-first {
+    left: 0;
+}
+
+.atoz-budget-chart-days span.is-last {
+    right: 0;
+}
+
+.atoz-budget-chart-days span.is-centered {
+    transform: translateX(-50%);
+}
+
+.atoz-budget-chart-line {
+    fill: none;
+    stroke: var(--interactive-accent);
+    stroke-width: 2px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.atoz-budget-chart-line.is-over {
+    stroke: var(--color-red);
+}
+
+.atoz-budget-chart-pace {
+    fill: none;
+    stroke: var(--text-faint);
+    stroke-width: 2px;
+    stroke-dasharray: 5 5;
+    vector-effect: non-scaling-stroke;
+}
+
+.atoz-budget-chart-point {
+    fill: var(--interactive-accent);
+}
+
+.atoz-budget-chart-point.is-over {
+    fill: var(--color-red);
+}
+
+.atoz-budget-chart-value {
+    fill: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.atoz-budget-chart-hit {
+    fill: transparent;
+}
+
+.atoz-budget-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-budget-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.atoz-budget-legend-mark {
+    width: 14px;
+    height: 0;
+    border-top-width: 2px;
+    border-top-style: solid;
+}
+
+.atoz-budget-legend-mark.is-line {
+    border-top-color: var(--interactive-accent);
+}
+
+.atoz-budget-legend-mark.is-line.is-over {
+    border-top-color: var(--color-red);
+}
+
+.atoz-budget-legend-mark.is-pace {
+    border-top-style: dashed;
+    border-top-color: var(--text-faint);
+}
+
+.atoz-budget-chart-caption {
+    margin-top: 4px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+/* ---------------------------------------------------------- 내역 */
+
+.atoz-budget-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.atoz-budget-segment {
+    display: flex;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    overflow: hidden;
+}
+
+.atoz-budget-segment-button {
+    padding: 3px 10px;
+    font-size: var(--font-ui-smaller);
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    cursor: pointer;
+}
+
+.atoz-budget-segment-button.is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.atoz-budget-search {
+    flex: 1 1 120px;
+    min-width: 100px;
+}
+
+.atoz-budget-chip {
+    font-size: var(--font-ui-smaller);
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.atoz-budget-table-holder {
+    overflow-x: auto;
+}
+
+.atoz-budget-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-budget-table th,
+.atoz-budget-table td {
+    padding: 5px 6px;
+    text-align: left;
+    border-bottom: 1px solid var(--background-modifier-border);
+    white-space: nowrap;
+}
+
+.atoz-budget-table th {
+    font-size: var(--font-ui-smaller);
+    font-weight: 500;
+    color: var(--text-faint);
+}
+
+.atoz-budget-table th.is-sortable {
+    cursor: pointer;
+}
+
+.atoz-budget-table th.is-sortable:hover {
+    color: var(--text-normal);
+}
+
+.atoz-budget-table .is-numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-budget-row {
+    cursor: pointer;
+}
+
+.atoz-budget-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.atoz-budget-row-income .is-numeric {
+    color: var(--color-blue);
+}
+
+.atoz-budget-row-expense .is-numeric {
+    color: var(--color-red);
+}
+
+.atoz-budget-row-memo {
+    margin-left: 6px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-empty {
+    padding: 16px 0;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: var(--font-ui-small);
+}
+
+/* ------------------------------------------------------------------ *
+ * 가계부 — 모달
+ * ------------------------------------------------------------------ */
+
+.atoz-budget-hint {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    margin: 0 0 10px;
+}
+
+.atoz-budget-kind-toggle {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.atoz-budget-kind-button {
+    flex: 1 1 0;
+    padding: 6px 0;
+    cursor: pointer;
+}
+
+.atoz-budget-kind-button.is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.atoz-budget-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.atoz-budget-field-label {
+    flex: 0 0 72px;
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}
+
+.atoz-budget-field-control {
+    flex: 1 1 auto;
+    display: flex;
+}
+
+.atoz-budget-field-control input {
+    width: 100%;
+}
+
+.atoz-budget-amount-input {
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-budget-modal-footer {
+    border-top: none;
+    padding-bottom: 0;
+}
+
+.atoz-budget-edit-list {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.atoz-budget-fixed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.atoz-budget-fixed-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.atoz-budget-fixed-title {
+    font-size: var(--font-ui-small);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-budget-fixed-category {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+}
+
+.atoz-budget-fixed-row input[type='date'] {
+    flex: 0 0 130px;
+}
+
+.atoz-budget-fixed-row .atoz-budget-amount-input {
+    flex: 0 0 110px;
+}
+
+.atoz-budget-day-input {
+    max-width: 60px;
+}
+
+/* ---------------------------------------------------- 좁은 화면 */
+
+@media (max-width: 400px) {
+    /* 끝점 값은 SVG 안이라 차트와 같이 줄어든다. 좁을 땐 캡션이 같은 값을 말한다. */
+    .atoz-budget-chart-value {
+        display: none;
+    }
+
+    .atoz-budget-field {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .atoz-budget-field-label {
+        flex: 0 0 auto;
+    }
+
+    .atoz-budget-fixed-row {
+        flex-wrap: wrap;
+    }
+
+    .atoz-budget-fixed-info {
+        flex: 1 1 100%;
+    }
+}
