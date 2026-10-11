@@ -38,8 +38,11 @@ const DEFAULT_HEADERS = [COL_DATE, COL_TITLE, COL_CATEGORY, COL_AMOUNT, COL_MEMO
 
 const FM_KIND = 'type';
 const FM_MONTH = 'month';
+// 예산은 카테고리마다 'budget-이름' 속성 하나로 쓴다. 속성 화면은 중첩된 값을
+// 다루지 못해서, 예전의 'budget:' 맵은 읽기만 하고 다시 쓸 때 새 형식으로 바꾼다.
 const FM_BUDGET = 'budget';
-// 예산 맵에서 카테고리가 아니라 한 달 전체 예산을 뜻하는 키.
+const BUDGET_PREFIX = 'budget-';
+// 카테고리가 아니라 한 달 전체 예산을 뜻하는 이름.
 const BUDGET_TOTAL = 'total';
 
 function kindLabel(kind: LedgerKind): string {
@@ -285,10 +288,20 @@ function parseFrontMatter(lines: string[]): LedgerFrontMatter {
         }
         inBudget = false;
 
-        const match = /^([^:]+):\s*(.*)$/.exec(line);
+        // 콜론이 든 속성 이름은 따옴표로 감싸여 있으므로 따옴표 안은 통째로 이름으로 본다.
+        const match = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^:]+)\s*:\s*(.*)$/.exec(line);
         if (!match) continue;
         const key = stripQuotes(match[1] ?? '');
         const value = stripQuotes(match[2] ?? '');
+
+        if (key.startsWith(BUDGET_PREFIX)) {
+            const name = key.slice(BUDGET_PREFIX.length);
+            const amount = parseAmount(value);
+            if (amount === null) continue;
+            if (name === BUDGET_TOTAL) result.totalBudget = amount;
+            else if (name.length > 0) result.budgets[name] = amount;
+            continue;
+        }
 
         if (key === FM_KIND) {
             if (value === KIND_INCOME || value === KIND_EXPENSE) result.kind = value;
@@ -903,21 +916,18 @@ class LedgerStore {
                 });
             }
 
-            if (typeof ledger.budgets[from] === 'number') {
-                await this.app.fileManager.processFrontMatter(ref.file, (raw) => {
-                    const budgets = (raw as Record<string, unknown>)[FM_BUDGET];
-                    if (!isRecord(budgets)) return;
-                    const moved = Number(budgets[from]) || 0;
-                    const existing = Number(budgets[to]) || 0;
-                    delete budgets[from];
-                    budgets[to] = moved + existing;
-                });
+            const moved = ledger.budgets[from];
+            if (typeof moved === 'number') {
+                const budgets = { ...ledger.budgets };
+                delete budgets[from];
+                budgets[to] = (budgets[to] ?? 0) + moved;
+                await this.writeBudgets(ref.file, budgets, ledger.totalBudget);
             }
         }
         return count;
     }
 
-    /** 예산은 해당 월 지출부의 프론트매터에 산다. */
+    /** 예산은 해당 월 지출부의 프론트매터에 'budget-이름' 속성으로 산다. */
     async setBudgets(month: string, budgets: Record<string, number>, total: number | null): Promise<void> {
         // 곧바로 새 예산을 쓰므로 직전 달 예산을 이월할지 묻지 않는다.
         const file = await this.ensureFile(KIND_EXPENSE, month, false);
@@ -927,11 +937,13 @@ class LedgerStore {
     private async writeBudgets(file: TFile, budgets: Record<string, number>, total: number | null): Promise<void> {
         await this.app.fileManager.processFrontMatter(file, (raw) => {
             const fm = raw as Record<string, unknown>;
-            const next: Record<string, number> = {};
-            if (total !== null) next[BUDGET_TOTAL] = total;
-            for (const key of Object.keys(budgets)) next[key] = budgets[key] ?? 0;
-            if (Object.keys(next).length === 0) delete fm[FM_BUDGET];
-            else fm[FM_BUDGET] = next;
+            // 예전 맵과 지난 예산 속성을 모두 지우고 새로 쓴다.
+            delete fm[FM_BUDGET];
+            for (const key of Object.keys(fm)) {
+                if (key.startsWith(BUDGET_PREFIX)) delete fm[key];
+            }
+            if (total !== null) fm[BUDGET_PREFIX + BUDGET_TOTAL] = total;
+            for (const key of Object.keys(budgets)) fm[BUDGET_PREFIX + key] = budgets[key] ?? 0;
         });
     }
 }
