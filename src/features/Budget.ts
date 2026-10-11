@@ -5,6 +5,7 @@ import {
     Modal,
     Notice,
     Setting,
+    TAbstractFile,
     TFile,
     TFolder,
     WorkspaceLeaf,
@@ -61,10 +62,11 @@ export function parseAmount(raw: string): number | null {
     return value;
 }
 
+/** 소수 금액은 둘째 자리까지 보존한다. 정수면 소수부를 붙이지 않는다. */
 export function formatAmount(value: number): string {
-    const negative = value < 0;
-    const abs = Math.abs(Math.round(value));
-    const digits = String(abs);
+    const rounded = Math.round(value * 100) / 100;
+    const negative = rounded < 0;
+    const [digits = '0', fraction = '00'] = Math.abs(rounded).toFixed(2).split('.');
     let out = '';
     let count = 0;
     for (let i = digits.length - 1; i >= 0; i--) {
@@ -72,6 +74,7 @@ export function formatAmount(value: number): string {
         count++;
         if (count % 3 === 0 && i > 0) out = ',' + out;
     }
+    if (fraction !== '00') out += '.' + fraction;
     return (negative ? '-' : '') + out;
 }
 
@@ -703,7 +706,7 @@ class LedgerStore {
     }
 
     /** 없으면 만든다. 지출부는 설정에 따라 직전 달 예산을 물어보고 이월한다. */
-    async ensureFile(kind: LedgerKind, month: string): Promise<TFile> {
+    async ensureFile(kind: LedgerKind, month: string, carryOver = true): Promise<TFile> {
         const existing = this.findFile(kind, month);
         if (existing) return existing;
 
@@ -713,7 +716,7 @@ class LedgerStore {
         }
 
         let budgets: Record<string, number> = {};
-        if (kind === KIND_EXPENSE && this.plugin.settings.budgetCarryOver !== 'never') {
+        if (carryOver && kind === KIND_EXPENSE && this.plugin.settings.budgetCarryOver !== 'never') {
             const previous = await this.load(KIND_EXPENSE, shiftMonth(month, -1));
             const previousBudgets = previous?.budgets ?? {};
             if (Object.keys(previousBudgets).length > 0) {
@@ -872,7 +875,8 @@ class LedgerStore {
 
     /** 예산은 해당 월 지출부의 프론트매터에 산다. */
     async setBudgets(month: string, budgets: Record<string, number>): Promise<boolean> {
-        const file = await this.ensureFile(KIND_EXPENSE, month);
+        // 곧바로 새 예산을 쓰므로 직전 달 예산을 이월할지 묻지 않는다.
+        const file = await this.ensureFile(KIND_EXPENSE, month, false);
         const keys = Object.keys(budgets);
 
         await this.app.fileManager.processFrontMatter(file, (raw) => {
@@ -1141,6 +1145,7 @@ class EntryModal extends Modal {
     private dateEl: HTMLInputElement | null = null;
     private memoEl: HTMLInputElement | null = null;
     private kindButtons = new Map<LedgerKind, HTMLElement>();
+    private isSaving = false;
 
     constructor(plugin: ATOZPlugin, options: EntryModalOptions) {
         super(plugin.app);
@@ -1201,12 +1206,16 @@ class EntryModal extends Modal {
                 .setTooltip(t('budget.delete'))
                 .onClick(() => void this.remove()));
         }
-        footer
-            .addButton((button) => button.setButtonText(t('budget.cancel')).onClick(() => this.close()))
-            .addButton((button) => button
-                .setButtonText(t('budget.save'))
-                .setCta()
-                .onClick(() => void this.submit()));
+        footer.addButton((button) => button.setButtonText(t('budget.cancel')).onClick(() => this.close()));
+        if (!this.editing) {
+            footer.addButton((button) => button
+                .setButtonText(t('budget.saveAndContinue'))
+                .onClick(() => void this.submit(true)));
+        }
+        footer.addButton((button) => button
+            .setButtonText(t('budget.save'))
+            .setCta()
+            .onClick(() => void this.submit()));
 
         window.setTimeout(() => this.amountEl?.focus(), 0);
     }
@@ -1248,10 +1257,22 @@ class EntryModal extends Modal {
         };
     }
 
-    private async submit(): Promise<void> {
+    /** keepOpen이면 저장한 뒤 닫지 않고 날짜·종류만 남긴 채 다음 입력을 받는다. */
+    private async submit(keepOpen = false): Promise<void> {
+        // 저장이 끝나기 전에 다시 누르면 같은 내역이 두 번 들어간다.
+        if (this.isSaving) return;
         const draft = this.draft();
         if (!draft) return;
 
+        this.isSaving = true;
+        try {
+            await this.save(draft, keepOpen);
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    private async save(draft: EntryDraft, keepOpen: boolean): Promise<void> {
         const store = this.plugin.budget.store;
         const entry = this.options.entry;
         const targetMonth = monthOfDate(draft.date);
@@ -1271,9 +1292,19 @@ class EntryModal extends Modal {
         }
 
         if (!ok) return;
-        new Notice(t('budget.notice.recorded', { kind: kindLabel(this.kind), amount: formatWon(draft.amount) }));
+        new Notice(t(entry ? 'budget.notice.updated' : 'budget.notice.recorded', {
+            kind: kindLabel(this.kind),
+            amount: formatWon(draft.amount),
+        }));
         this.options.onDone?.();
-        this.close();
+        if (!keepOpen) {
+            this.close();
+            return;
+        }
+        for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.memoEl]) {
+            if (input) input.value = '';
+        }
+        this.amountEl?.focus();
     }
 
     private async remove(): Promise<void> {
@@ -1391,6 +1422,7 @@ class FixedExpenseModal extends Modal {
     private checks: HTMLInputElement[] = [];
     private amounts: HTMLInputElement[] = [];
     private dates: HTMLInputElement[] = [];
+    private isSaving = false;
 
     constructor(plugin: ATOZPlugin, month: string, missing: MissingFixed[], onDone: () => void) {
         super(plugin.app);
@@ -1480,7 +1512,14 @@ class FixedExpenseModal extends Modal {
             return;
         }
 
-        const ok = await this.plugin.budget.store.addEntries(KIND_EXPENSE, this.month, drafts);
+        if (this.isSaving) return;
+        this.isSaving = true;
+        let ok = false;
+        try {
+            ok = await this.plugin.budget.store.addEntries(KIND_EXPENSE, this.month, drafts);
+        } finally {
+            this.isSaving = false;
+        }
         if (!ok) return;
         new Notice(t('budget.fixed.recorded', { count: drafts.length }));
         this.onDone();
@@ -1984,7 +2023,7 @@ class BudgetView extends ItemView {
 
         section.createDiv({
             cls: 'atoz-budget-chart-caption',
-            text: t('budget.barsCaption', { max: formatWon(top), average: formatWon(stats.expense / values.length) }),
+            text: t('budget.barsCaption', { max: formatWon(top), average: formatWon(Math.round(stats.expense / values.length)) }),
         });
     }
 
@@ -2091,7 +2130,7 @@ class BudgetView extends ItemView {
         const parts: string[] = [t('budget.cumulativeTotal', { amount: formatWon(last) })];
         if (paced) parts.push(t('budget.limitTotal', { amount: formatWon(budgetTotal) }));
         if (elapsed < dayCount) {
-            parts.push(t('budget.projection', { amount: formatWon((last / elapsed) * dayCount) }));
+            parts.push(t('budget.projection', { amount: formatWon(Math.round((last / elapsed) * dayCount)) }));
         }
         section.createDiv({ cls: 'atoz-budget-chart-caption', text: parts.join(' · ') });
     }
@@ -2303,13 +2342,18 @@ export class BudgetFeature {
 
         this.plugin.app.workspace.onLayoutReady(() => {
             const vault = this.plugin.app.vault;
-            const onChange = (file: unknown): void => {
-                if (file instanceof TFile && file.extension === 'md') this.scheduleRefresh();
+            // 가계부 폴더 밖의 노트를 고칠 때는 대시보드를 다시 그리지 않는다.
+            const isLedgerPath = (path: string): boolean =>
+                path.endsWith('.md') && path.startsWith(this.store.folderPath() + '/');
+            const onChange = (file: TAbstractFile): void => {
+                if (isLedgerPath(file.path)) this.scheduleRefresh();
             };
             this.plugin.registerEvent(vault.on('modify', onChange));
             this.plugin.registerEvent(vault.on('create', onChange));
             this.plugin.registerEvent(vault.on('delete', onChange));
-            this.plugin.registerEvent(vault.on('rename', onChange));
+            this.plugin.registerEvent(vault.on('rename', (file, oldPath) => {
+                if (isLedgerPath(file.path) || isLedgerPath(oldPath)) this.scheduleRefresh();
+            }));
         });
     }
 
