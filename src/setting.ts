@@ -553,14 +553,22 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     fixed.category = value;
                                     save();
                                 });
-                            }).addText((text) => text
-                                .setPlaceholder(t('settings.budget.fixed.amount'))
-                                .setValue(fixed.amount === null ? '' : formatAmount(fixed.amount))
-                                .onChange((value) => {
-                                    fixed.amount = parseAmount(value);
+                            }).addText((text) => {
+                                const shown = (): string => fixed.amount === null ? '' : formatAmount(fixed.amount);
+                                text.setPlaceholder(t('settings.budget.fixed.amount')).setValue(shown());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const value = text.getValue().trim();
+                                    const amount = parseAmount(value);
+                                    // 숫자가 아닌 값을 조용히 변동 금액으로 저장하지 않는다.
+                                    if (value.length > 0 && amount === null) {
+                                        new Notice(t('settings.budget.fixed.amountInvalid'));
+                                        text.setValue(shown());
+                                        return;
+                                    }
+                                    fixed.amount = amount;
                                     save();
-                                })
-                            ).addText((text) => {
+                                });
+                            }).addText((text) => {
                                 text.inputEl.addClass('atoz-budget-day-input');
                                 text.setPlaceholder(t('settings.budget.fixed.day')).setValue(String(fixed.day));
                                 text.onChange((value) => {

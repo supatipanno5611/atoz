@@ -1151,6 +1151,11 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-budget-field-control {
     flex: 1 1 auto;
     display: flex;
+    gap: 6px;
+}
+
+.atoz-budget-field-control button {
+    flex: 0 0 auto;
 }
 
 .atoz-budget-field-control input {

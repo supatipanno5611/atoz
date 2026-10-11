@@ -39,6 +39,8 @@ const DEFAULT_HEADERS = [COL_DATE, COL_TITLE, COL_CATEGORY, COL_AMOUNT, COL_MEMO
 const FM_KIND = 'type';
 const FM_MONTH = 'month';
 const FM_BUDGET = 'budget';
+// 예산 맵에서 카테고리가 아니라 한 달 전체 예산을 뜻하는 키.
+const BUDGET_TOTAL = 'total';
 
 function kindLabel(kind: LedgerKind): string {
     return t(kind === KIND_INCOME ? 'budget.income' : 'budget.expense');
@@ -228,6 +230,7 @@ interface LedgerFrontMatter {
     kind: LedgerKind | null;
     month: string | null;
     budgets: Record<string, number>;
+    totalBudget: number | null;
     /** 프론트매터 블록이 차지하는 줄 수 (없으면 0). */
     lineCount: number;
 }
@@ -249,7 +252,7 @@ function stripQuotes(value: string): string {
  * (평평한 key: value + 한 단계 중첩된 예산 맵)만 직접 읽는다.
  */
 function parseFrontMatter(lines: string[]): LedgerFrontMatter {
-    const result: LedgerFrontMatter = { kind: null, month: null, budgets: {}, lineCount: 0 };
+    const result: LedgerFrontMatter = { kind: null, month: null, budgets: {}, totalBudget: null, lineCount: 0 };
     if (lines.length === 0 || (lines[0] ?? '').trim() !== '---') return result;
 
     let end = -1;
@@ -269,11 +272,14 @@ function parseFrontMatter(lines: string[]): LedgerFrontMatter {
 
         const indented = /^\s+\S/.test(line);
         if (inBudget && indented) {
-            const match = /^\s+(?:-\s*)?(.+?)\s*:\s*(.*)$/.exec(line);
+            // 따옴표로 감싼 카테고리 이름에 콜론이 있을 수 있어 마지막 콜론에서 나눈다.
+            const match = /^\s+(?:-\s*)?(.+)\s*:\s*(.*)$/.exec(line);
             if (match) {
                 const key = stripQuotes(match[1] ?? '');
                 const amount = parseAmount(stripQuotes(match[2] ?? ''));
-                if (key.length > 0 && amount !== null) result.budgets[key] = amount;
+                if (amount === null) continue;
+                if (key === BUDGET_TOTAL) result.totalBudget = amount;
+                else if (key.length > 0) result.budgets[key] = amount;
             }
             continue;
         }
@@ -329,6 +335,8 @@ interface Ledger {
     kind: LedgerKind;
     month: string;
     budgets: Record<string, number>;
+    /** 카테고리와 별개로 잡은 한 달 전체 예산. 없으면 null. */
+    totalBudget: number | null;
     headers: string[];
     /** 헤더 줄의 파일 내 위치. 표가 없으면 -1. */
     tableStart: number;
@@ -494,6 +502,7 @@ function parseLedger(path: string, content: string): Ledger | null {
         kind: fm.kind,
         month,
         budgets: fm.budgets,
+        totalBudget: fm.totalBudget,
         headers,
         tableStart: headerIndex,
         tableEnd,
@@ -686,20 +695,11 @@ class LedgerStore {
         return ledger;
     }
 
-    private template(kind: LedgerKind, month: string, budgets: Record<string, number>): string {
+    private template(kind: LedgerKind, month: string): string {
         const lines: string[] = [];
         lines.push('---');
         lines.push(FM_KIND + ': ' + kind);
         lines.push(FM_MONTH + ': ' + month);
-
-        const keys = Object.keys(budgets);
-        if (kind === KIND_EXPENSE && keys.length > 0) {
-            lines.push(FM_BUDGET + ':');
-            for (const key of keys) {
-                lines.push('  ' + key + ': ' + String(budgets[key] ?? 0));
-            }
-        }
-
         lines.push('---');
         lines.push('');
         lines.push('# ' + month + ' ' + kind);
@@ -722,11 +722,10 @@ class LedgerStore {
             await this.app.vault.createFolder(folderPath);
         }
 
-        let budgets: Record<string, number> = {};
+        let carried: Ledger | null = null;
         if (carryOver && kind === KIND_EXPENSE && this.plugin.settings.budgetCarryOver !== 'never') {
             const previous = await this.load(KIND_EXPENSE, shiftMonth(month, -1));
-            const previousBudgets = previous?.budgets ?? {};
-            if (Object.keys(previousBudgets).length > 0) {
+            if (previous && (previous.totalBudget !== null || Object.keys(previous.budgets).length > 0)) {
                 const carry = this.plugin.settings.budgetCarryOver === 'always'
                     ? true
                     : await confirmModal(
@@ -734,14 +733,14 @@ class LedgerStore {
                         t('budget.carryOver.title'),
                         t('budget.carryOver.message', { from: shiftMonth(month, -1), to: month }),
                     );
-                if (carry) budgets = previousBudgets;
+                if (carry) carried = previous;
             }
         }
 
-        return await this.app.vault.create(
-            this.filePath(kind, month),
-            this.template(kind, month, budgets),
-        );
+        const file = await this.app.vault.create(this.filePath(kind, month), this.template(kind, month));
+        // 카테고리 이름에 YAML 특수문자가 있어도 깨지지 않도록 예산은 따로 쓴다.
+        if (carried) await this.writeBudgets(file, carried.budgets, carried.totalBudget);
+        return file;
     }
 
     /**
@@ -919,23 +918,21 @@ class LedgerStore {
     }
 
     /** 예산은 해당 월 지출부의 프론트매터에 산다. */
-    async setBudgets(month: string, budgets: Record<string, number>): Promise<boolean> {
+    async setBudgets(month: string, budgets: Record<string, number>, total: number | null): Promise<void> {
         // 곧바로 새 예산을 쓰므로 직전 달 예산을 이월할지 묻지 않는다.
         const file = await this.ensureFile(KIND_EXPENSE, month, false);
-        const keys = Object.keys(budgets);
+        await this.writeBudgets(file, budgets, total);
+    }
 
+    private async writeBudgets(file: TFile, budgets: Record<string, number>, total: number | null): Promise<void> {
         await this.app.fileManager.processFrontMatter(file, (raw) => {
             const fm = raw as Record<string, unknown>;
-            if (keys.length === 0) {
-                delete fm[FM_BUDGET];
-                return;
-            }
             const next: Record<string, number> = {};
-            for (const key of keys) next[key] = budgets[key] ?? 0;
-            fm[FM_BUDGET] = next;
+            if (total !== null) next[BUDGET_TOTAL] = total;
+            for (const key of Object.keys(budgets)) next[key] = budgets[key] ?? 0;
+            if (Object.keys(next).length === 0) delete fm[FM_BUDGET];
+            else fm[FM_BUDGET] = next;
         });
-
-        return true;
     }
 }
 
@@ -990,6 +987,15 @@ function groupByCategory(entries: Entry[], budgets: Record<string, number>): Cat
     }
     out.sort((a, b) => b.amount - a.amount);
     return out;
+}
+
+/** 전체 예산을 따로 잡았으면 그 값, 아니면 카테고리 예산의 합. */
+function totalBudgetOf(ledger: Ledger | null): number {
+    if (!ledger) return 0;
+    if (ledger.totalBudget !== null) return ledger.totalBudget;
+    let sum = 0;
+    for (const key of Object.keys(ledger.budgets)) sum += ledger.budgets[key] ?? 0;
+    return sum;
 }
 
 function sumAmounts(entries: Entry[]): number {
@@ -1329,9 +1335,14 @@ class EntryModal extends Modal {
             if (sourceKind === this.kind && sourceMonth === targetMonth) {
                 ok = await store.updateEntry(this.kind, sourceMonth, entry, draft);
             } else {
-                // 달이나 종류를 바꿨으면 원본 파일에서 빼고 새 파일에 넣는다.
-                ok = await store.addEntry(this.kind, targetMonth, draft);
-                if (ok) ok = await store.deleteEntry(sourceKind, sourceMonth, entry);
+                // 달이나 종류를 바꿨으면 원본 파일에서 먼저 빼고 새 파일에 넣는다.
+                // 원본이 그새 바뀌었으면 여기서 멈추므로 양쪽에 중복으로 남지 않는다.
+                ok = await store.deleteEntry(sourceKind, sourceMonth, entry);
+                if (ok) {
+                    ok = await store.addEntry(this.kind, targetMonth, draft);
+                    // 넣지 못했으면 뺀 내역을 원래 자리에 되돌린다.
+                    if (!ok) await store.addEntry(sourceKind, sourceMonth, entry);
+                }
             }
         }
 
@@ -1380,14 +1391,17 @@ class BudgetEditModal extends Modal {
     private plugin: ATOZPlugin;
     private month: string;
     private budgets: Record<string, number>;
+    private total: number | null;
     private categories: string[];
     private onDone: () => void;
     private inputs: Record<string, HTMLInputElement> = {};
+    private totalEl: HTMLInputElement | null = null;
 
     constructor(
         plugin: ATOZPlugin,
         month: string,
         budgets: Record<string, number>,
+        total: number | null,
         usedCategories: string[],
         onDone: () => void,
     ) {
@@ -1395,12 +1409,13 @@ class BudgetEditModal extends Modal {
         this.plugin = plugin;
         this.month = month;
         this.budgets = budgets;
+        this.total = total;
         this.onDone = onDone;
         this.categories = uniqueStrings(
             plugin.settings.budgetExpenseCategories
                 .concat(usedCategories)
                 .concat(Object.keys(budgets)),
-        );
+        ).filter((category) => category !== BUDGET_TOTAL);
         this.setTitle(t('budget.limits.title', { month }));
     }
 
@@ -1412,14 +1427,32 @@ class BudgetEditModal extends Modal {
         });
 
         const list = this.contentEl.createDiv({ cls: 'atoz-budget-edit-list' });
-        for (const category of this.categories) {
-            const existing = this.budgets[category];
-            const holder = fieldRow(list, category);
-            this.inputs[category] = amountInput(
-                holder,
-                typeof existing === 'number' ? formatAmount(existing) : '',
-            );
-        }
+        this.totalEl = amountInput(
+            fieldRow(list, t('budget.limits.total')),
+            this.total === null ? '' : formatAmount(this.total),
+        );
+        for (const category of this.categories) this.addRow(list, category);
+
+        // 목록에 없는 카테고리에도 예산을 잡을 수 있게 한다.
+        const adder = fieldRow(this.contentEl, t('budget.category'));
+        const nameEl = textInput(adder, '', t('budget.limits.addCategory'));
+        const add = (): void => {
+            const name = nameEl.value.trim();
+            if (name.length === 0) return;
+            if (name === BUDGET_TOTAL) {
+                new Notice(t('budget.limits.reserved'));
+                return;
+            }
+            if (!this.inputs[name]) this.addRow(list, name);
+            nameEl.value = '';
+            this.inputs[name]?.focus();
+        };
+        nameEl.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            add();
+        });
+        adder.createEl('button', { text: t('budget.limits.add') }).addEventListener('click', add);
 
         new Setting(this.contentEl)
             .setClass('atoz-budget-modal-footer')
@@ -1430,7 +1463,22 @@ class BudgetEditModal extends Modal {
                 .onClick(() => void this.submit()));
     }
 
+    private addRow(list: HTMLElement, category: string): void {
+        const existing = this.budgets[category];
+        this.inputs[category] = amountInput(
+            fieldRow(list, category),
+            typeof existing === 'number' ? formatAmount(existing) : '',
+        );
+    }
+
     private async submit(): Promise<void> {
+        const totalRaw = (this.totalEl?.value ?? '').trim();
+        const total = totalRaw.length === 0 ? null : parseAmount(totalRaw);
+        if (totalRaw.length > 0 && total === null) {
+            new Notice(t('budget.limits.invalid', { category: t('budget.limits.total') }));
+            return;
+        }
+
         const next: Record<string, number> = {};
         for (const category of Object.keys(this.inputs)) {
             const raw = this.inputs[category]?.value ?? '';
@@ -1443,7 +1491,7 @@ class BudgetEditModal extends Modal {
             next[category] = amount;
         }
 
-        await this.plugin.budget.store.setBudgets(this.month, next);
+        await this.plugin.budget.store.setBudgets(this.month, next, total);
         new Notice(t('budget.limits.saved', { month: this.month }));
         this.onDone();
         this.close();
@@ -1738,6 +1786,8 @@ class BudgetView extends ItemView {
 
     setMonth(month: string): void {
         this.month = month;
+        // 다른 달에는 그 카테고리 내역이 없을 수 있어 필터를 풀어 둔다.
+        this.categoryFilter = null;
         this.app.workspace.requestSaveLayout();
         void this.refresh();
     }
@@ -1806,6 +1856,7 @@ class BudgetView extends ItemView {
                 this.plugin,
                 this.month,
                 this.expense?.budgets ?? {},
+                this.expense?.totalBudget ?? null,
                 used,
                 () => void this.refresh(),
             ).open();
@@ -1863,10 +1914,14 @@ class BudgetView extends ItemView {
                 t('budget.warning.strays', { count: strays.length }),
             );
             const list = box.createDiv({ cls: 'atoz-budget-warning-list' });
-            for (const entry of strays) {
-                const item = list.createDiv({ cls: 'atoz-budget-warning-item' });
-                item.createSpan({ cls: 'atoz-budget-warning-reason', text: entry.date });
-                item.createSpan({ cls: 'atoz-budget-warning-raw', text: entry.title });
+            for (const source of [this.income, this.expense]) {
+                if (!source) continue;
+                for (const entry of source.strayEntries) {
+                    const item = list.createDiv({ cls: 'atoz-budget-warning-item' });
+                    item.createSpan({ cls: 'atoz-budget-warning-reason', text: entry.date });
+                    item.createSpan({ cls: 'atoz-budget-warning-raw', text: entry.title });
+                    item.addEventListener('click', () => void this.openSource(source, entry.lineIndex));
+                }
             }
         }
 
@@ -1927,15 +1982,30 @@ class BudgetView extends ItemView {
 
         if (stats.income > 0) {
             const ratio = stats.expense / stats.income;
-            const bar = root.createDiv({ cls: 'atoz-budget-ratio' });
-            const head = bar.createDiv({ cls: 'atoz-budget-ratio-head' });
-            head.createSpan({ text: t('budget.expenseRatio') });
-            head.createSpan({ cls: 'atoz-budget-ratio-value', text: (ratio * 100).toFixed(1) + '%' });
-            const track = bar.createDiv({ cls: 'atoz-budget-bar-track' });
-            const fill = track.createDiv({ cls: 'atoz-budget-bar-fill' });
-            fill.toggleClass('is-over', ratio > 1);
-            fill.style.width = Math.min(100, Math.max(0, ratio * 100)) + '%';
+            this.ratioBar(root, t('budget.expenseRatio'), ratio, (ratio * 100).toFixed(1) + '%');
         }
+
+        const budgetTotal = totalBudgetOf(this.expense);
+        if (budgetTotal > 0) {
+            const ratio = stats.expense / budgetTotal;
+            this.ratioBar(
+                root,
+                t('budget.totalRatio'),
+                ratio,
+                formatAmount(stats.expense) + ' / ' + formatWon(budgetTotal) + ' · ' + (ratio * 100).toFixed(1) + '%',
+            );
+        }
+    }
+
+    private ratioBar(root: HTMLElement, label: string, ratio: number, value: string): void {
+        const bar = root.createDiv({ cls: 'atoz-budget-ratio' });
+        const head = bar.createDiv({ cls: 'atoz-budget-ratio-head' });
+        head.createSpan({ text: label });
+        head.createSpan({ cls: 'atoz-budget-ratio-value', text: value });
+        const track = bar.createDiv({ cls: 'atoz-budget-bar-track' });
+        const fill = track.createDiv({ cls: 'atoz-budget-bar-fill' });
+        fill.toggleClass('is-over', ratio > 1);
+        fill.style.width = Math.min(100, Math.max(0, ratio * 100)) + '%';
     }
 
     private statCard(
@@ -2204,9 +2274,7 @@ class BudgetView extends ItemView {
             cumulative.push(running);
         }
 
-        const budgets = this.expense?.budgets ?? {};
-        let budgetTotal = 0;
-        for (const key of Object.keys(budgets)) budgetTotal += budgets[key] ?? 0;
+        const budgetTotal = totalBudgetOf(this.expense);
 
         let top = Math.max(0, budgetTotal);
         let bottom = 0;
@@ -2570,6 +2638,12 @@ export class BudgetFeature {
     }
 
     private openEntryModal(kind: LedgerKind): void {
+        // 대시보드를 열지 않았어도 최근 파일에서 쓰인 카테고리가 자동완성에 나오게 읽어 둔다.
+        const month = currentMonth();
+        for (const target of [month, shiftMonth(month, -1)]) {
+            void this.store.load(KIND_EXPENSE, target);
+            void this.store.load(KIND_INCOME, target);
+        }
         new EntryModal(this.plugin, {
             kind,
             defaultDate: todayISO(),
