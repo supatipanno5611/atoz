@@ -395,6 +395,7 @@ export const ko: Record<TranslationKey, string> = {
     'budget.limits.add': '추가',
     'budget.limits.reserved': 'total은 전체 예산에 쓰는 이름이라 카테고리로 쓸 수 없습니다.',
     'budget.limits.invalid': '{{category}} 예산을 숫자로 입력해 주세요.',
+    'budget.limits.negative': '{{category}} 예산은 0 이상으로 입력해 주세요.',
     'budget.limits.saved': '{{month}} 예산을 저장했습니다.',
     'budget.fixed.title': '{{month}} 고정지출',
     'budget.fixed.allRecorded': '이번 달 고정지출은 모두 입력되어 있습니다.',

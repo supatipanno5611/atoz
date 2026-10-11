@@ -5,6 +5,7 @@ import {
     Menu,
     Modal,
     Notice,
+    Platform,
     Setting,
     TAbstractFile,
     TFile,
@@ -324,6 +325,8 @@ interface Entry {
     title: string;
     category: string;
     amount: number;
+    /** 파일에 적혀 있던 금액 셀. 고치지 않은 행은 다시 쓸 때 이 글자를 그대로 둔다. */
+    amountCell?: string;
     memo: string;
     /** 우리가 모르는 열이 있어도 다시 쓸 때 잃지 않도록 보관한다. */
     extra: Record<string, string>;
@@ -361,6 +364,10 @@ interface Ledger {
     /** 파일의 월과 다른 달에 속한 항목. */
     strayEntries: Entry[];
     lines: string[];
+    /** 파일이 쓰던 줄바꿈. 다시 쓸 때 그대로 지킨다. */
+    eol: string;
+    /** 구분선 셀 원문. 다시 쓸 때 열 정렬(:---:)을 지킨다. */
+    aligns: string[];
 }
 
 function isTableRow(line: string): boolean {
@@ -453,6 +460,7 @@ function buildEntry(
         title: cellAt(headers, cells, COL_TITLE) ?? '',
         category: cellAt(headers, cells, COL_CATEGORY) ?? '',
         amount,
+        amountCell,
         memo: cellAt(headers, cells, COL_MEMO) ?? '',
         extra,
         rowIndex,
@@ -462,7 +470,8 @@ function buildEntry(
 }
 
 function parseLedger(path: string, content: string): Ledger | null {
-    const lines = content.split('\n');
+    const eol = content.indexOf('\r\n') === -1 ? '\n' : '\r\n';
+    const lines = content.split(/\r?\n/);
     const fm = parseFrontMatter(lines);
     if (fm.kind === null) return null;
     if (fm.month === null || !isValidMonth(fm.month)) return null;
@@ -482,6 +491,7 @@ function parseLedger(path: string, content: string): Ledger | null {
     const headers = headerIndex === -1
         ? DEFAULT_HEADERS.slice()
         : splitRow(lines[headerIndex] ?? '');
+    const aligns = headerIndex === -1 ? [] : splitRow(lines[headerIndex + 1] ?? '');
 
     const rows: LedgerRow[] = [];
     const entries: Entry[] = [];
@@ -524,6 +534,8 @@ function parseLedger(path: string, content: string): Ledger | null {
         issues,
         strayEntries,
         lines,
+        eol,
+        aligns,
     };
 }
 
@@ -537,7 +549,7 @@ function entryCells(headers: string[], entry: Entry): string[] {
         if (header === COL_DATE) cells.push(entry.date);
         else if (header === COL_TITLE) cells.push(escapeCell(entry.title));
         else if (header === COL_CATEGORY) cells.push(escapeCell(entry.category));
-        else if (header === COL_AMOUNT) cells.push(formatAmount(entry.amount));
+        else if (header === COL_AMOUNT) cells.push(escapeCell(entry.amountCell ?? formatAmount(entry.amount)));
         else if (header === COL_MEMO) cells.push(escapeCell(entry.memo));
         else cells.push(escapeCell(entry.extra[header] ?? ''));
     }
@@ -545,7 +557,7 @@ function entryCells(headers: string[], entry: Entry): string[] {
 }
 
 /** 열 폭을 맞춰 표 전체를 다시 그린다. 파싱 못한 행은 원문 그대로 둔다. */
-function renderTable(headers: string[], rows: LedgerRow[]): string[] {
+function renderTable(headers: string[], rows: LedgerRow[], aligns: string[] = []): string[] {
     const widths: number[] = [];
     for (const header of headers) widths.push(Math.max(3, displayWidth(header)));
 
@@ -575,7 +587,10 @@ function renderTable(headers: string[], rows: LedgerRow[]): string[] {
 
     let separator = '|';
     for (let i = 0; i < headers.length; i++) {
-        separator += ' ' + repeat('-', widths[i] ?? 3) + ' |';
+        const align = aligns[i] ?? '';
+        const left = align.startsWith(':') ? ':' : '';
+        const right = align.length > 1 && align.endsWith(':') ? ':' : '';
+        separator += ' ' + left + repeat('-', (widths[i] ?? 3) - left.length - right.length) + right + ' |';
     }
     out.push(separator);
 
@@ -591,7 +606,7 @@ function renderTable(headers: string[], rows: LedgerRow[]): string[] {
 
 /** 표 영역만 갈아끼우고 나머지 줄은 손대지 않는다. */
 function serializeLedger(ledger: Ledger, rows: LedgerRow[]): string {
-    const table = renderTable(ledger.headers, rows);
+    const table = renderTable(ledger.headers, rows, ledger.aligns);
 
     if (ledger.tableStart === -1) {
         const before = ledger.lines.slice();
@@ -599,12 +614,12 @@ function serializeLedger(ledger: Ledger, rows: LedgerRow[]): string {
             before.pop();
         }
         before.push('');
-        return before.concat(table).join('\n');
+        return before.concat(table).join(ledger.eol);
     }
 
     const before = ledger.lines.slice(0, ledger.tableStart);
     const after = ledger.lines.slice(ledger.tableEnd + 1);
-    return before.concat(table).concat(after).join('\n');
+    return before.concat(table).concat(after).join(ledger.eol);
 }
 
 /* ------------------------------------------------------------------ *
@@ -617,6 +632,8 @@ interface EntryDraft {
     category: string;
     amount: number;
     memo: string;
+    /** 다른 파일에서 옮겨 온 내역이 들고 오는 추가 열 값. */
+    extra?: Record<string, string>;
 }
 
 interface LedgerFileRef {
@@ -689,14 +706,6 @@ class LedgerStore {
             if (ref.kind === kind && ref.month === month) return ref.file;
         }
         return null;
-    }
-
-    /** 알려진 모든 달을 최신순으로. */
-    knownMonths(): string[] {
-        const months = uniqueStrings(this.scan().map((ref) => ref.month));
-        months.sort();
-        months.reverse();
-        return months;
     }
 
     async load(kind: LedgerKind, month: string): Promise<Ledger | null> {
@@ -823,7 +832,7 @@ class LedgerStore {
         const file = await this.ensureFile(kind, month);
         const failure = await this.mutate(file, (ledger, rows) => {
             for (const draft of drafts) {
-                rows.splice(this.insertionIndex(rows, draft.date), 0, this.draftToRow(draft, {}));
+                rows.splice(this.insertionIndex(rows, draft.date), 0, this.draftToRow(draft, draft.extra ?? {}));
             }
             return null;
         });
@@ -909,7 +918,7 @@ class LedgerStore {
                     for (let i = 0; i < rows.length; i++) {
                         const entry = rows[i]?.entry;
                         if (!entry || entry.category.trim() !== from) continue;
-                        rows[i] = this.draftToRow({ ...entry, category: to }, entry.extra);
+                        rows[i] = { raw: '', lineIndex: -1, entry: { ...entry, category: to }, issue: null };
                         count++;
                     }
                     return null;
@@ -1178,9 +1187,67 @@ function textInput(parent: HTMLElement, value: string, placeholder: string): HTM
 
 function amountInput(parent: HTMLElement, value: string): HTMLInputElement {
     const input = textInput(parent, value, '0');
-    input.inputMode = 'numeric';
+    // 'numeric'은 iOS 키패드에 소수점이 없다.
+    input.inputMode = 'decimal';
     input.addClass('atoz-budget-amount-input');
     return input;
+}
+
+/** 한글 조합을 끝내는 Enter와 자동완성이 이미 받아 간 Enter는 넘긴다. */
+function onEnter(input: HTMLInputElement, handler: () => void): void {
+    input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.isComposing || event.defaultPrevented) return;
+        event.preventDefault();
+        handler();
+    });
+}
+
+const LONG_PRESS_MS = 500;
+
+/** 우클릭에 더해, contextmenu가 오지 않는 iOS에서는 길게 누르기도 받는다. */
+function onContextMenu(el: HTMLElement, handler: (x: number, y: number) => void): void {
+    let lastFired = 0;
+    const fire = (x: number, y: number): void => {
+        // 길게 누르기와 contextmenu가 둘 다 오면 한 번만 처리한다.
+        if (Date.now() - lastFired < 1000) return;
+        lastFired = Date.now();
+        handler(x, y);
+    };
+
+    el.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        fire(event.clientX, event.clientY);
+    });
+    if (!Platform.isIosApp) return;
+
+    let timer: number | null = null;
+    let pressed = false;
+    const cancel = (): void => {
+        if (timer === null) return;
+        window.clearTimeout(timer);
+        timer = null;
+    };
+    el.addEventListener('touchstart', (event) => {
+        cancel();
+        pressed = false;
+        const touch = event.touches[0];
+        if (!touch || event.touches.length > 1) return;
+        const x = touch.clientX;
+        const y = touch.clientY;
+        timer = window.setTimeout(() => {
+            timer = null;
+            pressed = true;
+            fire(x, y);
+        }, LONG_PRESS_MS);
+    }, { passive: true });
+    el.addEventListener('touchmove', cancel, { passive: true });
+    el.addEventListener('touchcancel', cancel, { passive: true });
+    el.addEventListener('touchend', (event) => {
+        cancel();
+        // 손을 뗄 때 따라오는 click이 행의 기본 동작을 또 실행하지 않게 한다.
+        if (pressed) event.preventDefault();
+        pressed = false;
+    });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1253,11 +1320,7 @@ class EntryModal extends Modal {
         this.memoEl = textInput(fieldRow(this.contentEl, t('budget.memo')), entry?.memo ?? '', t('budget.optional'));
 
         for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.dateEl, this.memoEl]) {
-            input.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter') return;
-                event.preventDefault();
-                void this.submit();
-            });
+            onEnter(input, () => void this.submit());
         }
 
         const footer = new Setting(this.contentEl).setClass('atoz-budget-modal-footer');
@@ -1351,7 +1414,7 @@ class EntryModal extends Modal {
                 // 원본이 그새 바뀌었으면 여기서 멈추므로 양쪽에 중복으로 남지 않는다.
                 ok = await store.deleteEntry(sourceKind, sourceMonth, entry);
                 if (ok) {
-                    ok = await store.addEntry(this.kind, targetMonth, draft);
+                    ok = await store.addEntry(this.kind, targetMonth, { ...draft, extra: entry.extra });
                     // 넣지 못했으면 뺀 내역을 원래 자리에 되돌린다.
                     if (!ok) await store.addEntry(sourceKind, sourceMonth, entry);
                 }
@@ -1408,6 +1471,7 @@ class BudgetEditModal extends Modal {
     private onDone: () => void;
     private inputs: Record<string, HTMLInputElement> = {};
     private totalEl: HTMLInputElement | null = null;
+    private isSaving = false;
 
     constructor(
         plugin: ATOZPlugin,
@@ -1459,11 +1523,7 @@ class BudgetEditModal extends Modal {
             nameEl.value = '';
             this.inputs[name]?.focus();
         };
-        nameEl.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            add();
-        });
+        onEnter(nameEl, add);
         adder.createEl('button', { text: t('budget.limits.add') }).addEventListener('click', add);
 
         new Setting(this.contentEl)
@@ -1484,10 +1544,15 @@ class BudgetEditModal extends Modal {
     }
 
     private async submit(): Promise<void> {
+        if (this.isSaving) return;
         const totalRaw = (this.totalEl?.value ?? '').trim();
         const total = totalRaw.length === 0 ? null : parseAmount(totalRaw);
         if (totalRaw.length > 0 && total === null) {
             new Notice(t('budget.limits.invalid', { category: t('budget.limits.total') }));
+            return;
+        }
+        if (total !== null && total < 0) {
+            new Notice(t('budget.limits.negative', { category: t('budget.limits.total') }));
             return;
         }
 
@@ -1500,10 +1565,19 @@ class BudgetEditModal extends Modal {
                 new Notice(t('budget.limits.invalid', { category }));
                 return;
             }
+            if (amount < 0) {
+                new Notice(t('budget.limits.negative', { category }));
+                return;
+            }
             next[category] = amount;
         }
 
-        await this.plugin.budget.store.setBudgets(this.month, next, total);
+        this.isSaving = true;
+        try {
+            await this.plugin.budget.store.setBudgets(this.month, next, total);
+        } finally {
+            this.isSaving = false;
+        }
         new Notice(t('budget.limits.saved', { month: this.month }));
         this.onDone();
         this.close();
@@ -1537,11 +1611,7 @@ class RenameCategoryModal extends Modal {
 
         const input = textInput(fieldRow(this.contentEl, t('budget.category')), this.from, '');
         new CategorySuggest(this.app, input, () => this.plugin.budget.categoriesFor(this.kind));
-        input.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            void this.submit();
-        });
+        onEnter(input, () => void this.submit());
         this.inputEl = input;
 
         new Setting(this.contentEl)
@@ -1564,6 +1634,10 @@ class RenameCategoryModal extends Modal {
         }
         if (to === this.from) {
             this.close();
+            return;
+        }
+        if (this.kind === KIND_EXPENSE && to === BUDGET_TOTAL) {
+            new Notice(t('budget.limits.reserved'));
             return;
         }
 
@@ -1739,7 +1813,7 @@ class BudgetView extends ItemView {
     private previousIncome: Ledger | null = null;
     private previousExpense: Ledger | null = null;
 
-    private categoryFilter: string | null = null;
+    private categoryFilter: { kind: LedgerKind; category: string } | null = null;
     private kindFilter: LedgerKind | 'all' = 'all';
     private search = '';
     private sortKey: SortKey = 'date';
@@ -1806,12 +1880,20 @@ class BudgetView extends ItemView {
 
     async refresh(): Promise<void> {
         const store = this.plugin.budget.store;
-        const previousMonth = shiftMonth(this.month, -1);
+        const month = this.month;
+        const previousMonth = shiftMonth(month, -1);
 
-        this.income = await store.load(KIND_INCOME, this.month);
-        this.expense = await store.load(KIND_EXPENSE, this.month);
-        this.previousIncome = await store.load(KIND_INCOME, previousMonth);
-        this.previousExpense = await store.load(KIND_EXPENSE, previousMonth);
+        const income = await store.load(KIND_INCOME, month);
+        const expense = await store.load(KIND_EXPENSE, month);
+        const previousIncome = await store.load(KIND_INCOME, previousMonth);
+        const previousExpense = await store.load(KIND_EXPENSE, previousMonth);
+
+        // 읽는 사이 다른 달로 넘어갔으면 그쪽 refresh가 그리게 둔다.
+        if (month !== this.month) return;
+        this.income = income;
+        this.expense = expense;
+        this.previousIncome = previousIncome;
+        this.previousExpense = previousExpense;
 
         this.render();
     }
@@ -1937,7 +2019,8 @@ class BudgetView extends ItemView {
             }
         }
 
-        const missing = missingFixedExpenses(
+        // 아직 오지 않은 달의 고정지출은 빠졌다고 알리지 않는다.
+        const missing = this.month > currentMonth() ? [] : missingFixedExpenses(
             this.plugin.settings.budgetFixedExpenses,
             this.month,
             this.expense,
@@ -2066,26 +2149,26 @@ class BudgetView extends ItemView {
 
         for (const stat of stats) {
             const row = section.createDiv({ cls: 'atoz-budget-category' });
-            row.toggleClass('is-selected', this.categoryFilter === stat.category);
+            const selected = this.categoryFilter?.kind === kind && this.categoryFilter.category === stat.category;
+            row.toggleClass('is-selected', selected);
             row.addEventListener('click', () => {
-                this.categoryFilter = this.categoryFilter === stat.category ? null : stat.category;
+                this.categoryFilter = selected ? null : { kind, category: stat.category };
                 this.render();
             });
             // 미분류는 실제 카테고리 이름이 아니라서 바꿀 수 없다.
             if (stat.category !== t('budget.uncategorized')) {
-                row.addEventListener('contextmenu', (event) => {
-                    event.preventDefault();
+                onContextMenu(row, (x, y) => {
                     const menu = new Menu();
                     menu.addItem((item) => item
                         .setTitle(t('budget.renameCategory'))
                         .setIcon('pencil')
                         .onClick(() => {
                             new RenameCategoryModal(this.plugin, kind, stat.category, () => {
-                                if (this.categoryFilter === stat.category) this.categoryFilter = null;
+                                if (selected) this.categoryFilter = null;
                                 void this.refresh();
                             }).open();
                         }));
-                    menu.showAtMouseEvent(event);
+                    menu.showAtPosition({ x, y });
                 });
             }
 
@@ -2231,9 +2314,12 @@ class BudgetView extends ItemView {
         // 환불로 그날 순액이 음수일 수 있다. 0선을 기준으로 아래로도 그린다.
         let top = 0;
         let bottom = 0;
+        // 다른 달 날짜로 적힌 내역은 막대에 없으므로 평균도 막대에 그린 값으로만 낸다.
+        let sum = 0;
         for (const value of values) {
             top = Math.max(top, value);
             bottom = Math.min(bottom, value);
+            sum += value;
         }
         const span = top - bottom;
         if (span <= 0) return;
@@ -2264,7 +2350,7 @@ class BudgetView extends ItemView {
 
         section.createDiv({
             cls: 'atoz-budget-chart-caption',
-            text: t('budget.barsCaption', { max: formatWon(top), average: formatWon(Math.round(stats.expense / values.length)) }),
+            text: t('budget.barsCaption', { max: formatWon(top), average: formatWon(Math.round(sum / values.length)) }),
         });
     }
 
@@ -2389,7 +2475,7 @@ class BudgetView extends ItemView {
                 const category = row.entry.category.trim().length === 0
                     ? t('budget.uncategorized')
                     : row.entry.category.trim();
-                if (category !== this.categoryFilter) continue;
+                if (row.kind !== this.categoryFilter.kind || category !== this.categoryFilter.category) continue;
             }
             if (needle.length > 0) {
                 const haystack = (row.entry.title + ' ' + row.entry.category + ' ' + row.entry.memo)
@@ -2442,7 +2528,7 @@ class BudgetView extends ItemView {
         if (this.categoryFilter !== null) {
             const chip = controls.createEl('button', {
                 cls: 'atoz-budget-chip',
-                text: this.categoryFilter + ' ✕',
+                text: this.categoryFilter.category + ' ✕',
             });
             chip.addEventListener('click', () => {
                 this.categoryFilter = null;
@@ -2512,8 +2598,7 @@ class BudgetView extends ItemView {
                 }).open();
             });
 
-            tr.addEventListener('contextmenu', (event) => {
-                event.preventDefault();
+            onContextMenu(tr, () => {
                 const ledger = row.kind === KIND_INCOME ? this.income : this.expense;
                 if (ledger) void this.openSource(ledger, row.entry.lineIndex);
             });

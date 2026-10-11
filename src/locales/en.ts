@@ -405,6 +405,7 @@ export const en = {
     'budget.limits.add': 'Add',
     'budget.limits.reserved': 'The name total is reserved for the overall budget.',
     'budget.limits.invalid': 'Enter the {{category}} budget as a number.',
+    'budget.limits.negative': '{{category}} budget cannot be negative.',
     'budget.limits.saved': 'Saved the {{month}} budget.',
     'budget.fixed.title': '{{month}} fixed expenses',
     'budget.fixed.allRecorded': 'All of this month\'s fixed expenses are recorded.',
