@@ -191,7 +191,7 @@ export class DaynightView extends ItemView {
             };
             // 월초에 아직 이번 달 기록이 없어도 빈 파일을 만들지 않도록 마지막 기록이 든 파일을 연다.
             addLink('file-text', t('daynight.openFile'), () => void this.app.workspace.getLeaf(false).openFile(last.file));
-            addLink('layout-dashboard', t('daynight.openDashboard'), () => void this.plugin.daynight.activateDashboard());
+            addLink('moon', t('daynight.openDashboard'), () => void this.plugin.daynight.activateDashboard());
         }
 
         const isAsleep = last?.type === 'sleep';

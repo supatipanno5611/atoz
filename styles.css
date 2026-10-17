@@ -619,15 +619,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-daynight-dashboard-header {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-}
-
-.atoz-daynight-dashboard-title {
-    flex: 1;
-    font-size: var(--font-ui-large);
-    font-weight: var(--font-semibold);
+    justify-content: flex-end;
 }
 
 .atoz-daynight-dashboard-ranges {

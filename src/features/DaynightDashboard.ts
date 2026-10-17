@@ -108,7 +108,7 @@ export class DaynightDashboardView extends ItemView {
 
     getViewType(): string { return VIEW_TYPE_DAYNIGHT_DASHBOARD; }
     getDisplayText(): string { return t('daynight.dashboard.viewName'); }
-    getIcon(): string { return 'layout-dashboard'; }
+    getIcon(): string { return 'moon'; }
 
     async onOpen(): Promise<void> {
         this.render();
@@ -121,7 +121,6 @@ export class DaynightDashboardView extends ItemView {
 
         const settings = this.plugin.settings;
         const header = container.createDiv({ cls: 'atoz-daynight-dashboard-header' });
-        header.createDiv({ cls: 'atoz-daynight-dashboard-title', text: t('daynight.dashboard.viewName') });
         const ranges = header.createDiv({ cls: 'atoz-daynight-dashboard-ranges' });
         for (const days of DASHBOARD_RANGES) {
             const button = ranges.createEl('button', {
