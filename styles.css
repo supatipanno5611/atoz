@@ -597,6 +597,164 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background-color: var(--atoz-daynight-morning-hover);
 }
 
+/* ── 사이드바 바로가기 ── */
+.atoz-daynight-links {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+}
+
+/* ── Daynight 대시보드 ── */
+.workspace-leaf-content .view-content.atoz-daynight-dashboard {
+    --atoz-daynight-morning: #f0a640;
+    container-type: inline-size;
+}
+
+.atoz-daynight-dashboard-header,
+.atoz-daynight-dashboard-grid,
+.atoz-daynight-dashboard-empty {
+    max-width: 900px;
+    margin: 0 auto 16px;
+}
+
+.atoz-daynight-dashboard-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.atoz-daynight-dashboard-title {
+    flex: 1;
+    font-size: var(--font-ui-large);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-daynight-dashboard-ranges {
+    display: flex;
+    gap: 4px;
+}
+
+.atoz-daynight-dashboard-ranges button {
+    height: auto;
+    padding: 4px 10px;
+    font-size: var(--font-ui-small);
+    background: none;
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+.atoz-daynight-dashboard-ranges button.is-active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.atoz-daynight-dashboard-empty {
+    color: var(--text-muted);
+}
+
+.atoz-daynight-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+/* 좁은 화면에서는 나란히 둔 카드도 위아래로 쌓는다. */
+@container (max-width: 560px) {
+    .atoz-daynight-dashboard-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.atoz-daynight-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-daynight-card.is-wide {
+    grid-column: 1 / -1;
+}
+
+.atoz-daynight-card-title {
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-daynight-card-value {
+    font-size: 1.6em;
+    font-weight: var(--font-semibold);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight-window-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight-window-row > :first-child {
+    width: 3em;
+}
+
+.atoz-daynight-window-main {
+    font-size: var(--font-ui-large);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-daynight-ratio-chart,
+.atoz-daynight-actogram {
+    width: 100%;
+    height: auto;
+}
+
+.atoz-daynight-threshold-line {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+}
+
+.atoz-daynight-threshold {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.atoz-daynight-threshold .slider {
+    flex: 1;
+}
+
+.atoz-daynight-histogram {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 4px 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight-histogram-track {
+    height: 8px;
+}
+
+/* 깨어 있는 시간은 사이드바와 같은 아침색으로 칠한다. */
+.atoz-daynight-histogram-bar {
+    height: 100%;
+    border-radius: 2px;
+    background-color: var(--atoz-daynight-morning);
+}
+
+.atoz-daynight-histogram-count {
+    text-align: right;
+    color: var(--text-muted);
+}
+
 /* ------------------------------------------------------------------ *
  * 가계부 — 대시보드 뷰
  * ------------------------------------------------------------------ */

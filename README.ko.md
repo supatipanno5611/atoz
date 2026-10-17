@@ -19,7 +19,7 @@
 | 노트 정보 | 노트 전체 또는 선택 영역의 글자 수, 읽는 시간, 노트별 목표 글자 수 |
 | 입력 보조 | 조각글 추천, 기호 추천, 짝 기호 스마트 삭제 |
 | 이동 보조 | 파일 퀵 슬롯, 명령어 슬롯, 사이드바 탭 순환 |
-| 수면 기록 | 버튼 하나로 잠든 시각과 일어난 시각을 기록하고 Daynight 사이드바에서 24시간 차트로 확인 |
+| 수면 기록 | 버튼 하나로 잠든 시각과 일어난 시각을 기록하고 Daynight 사이드바에서 24시간 차트로 확인, 장기 패턴은 대시보드에서 확인 |
 
 각 기능의 자세한 동작은 [atoz 문서](https://atoz-docs.vercel.app)에서 볼 수 있습니다.
 
@@ -108,7 +108,9 @@ Later 노트는 `later: "[[원본 노트]]"` 속성으로 원본과 연결됩니
 
 ### Daynight로 수면 기록
 
-달 리본 아이콘이나 `Daynight: 사이드바 열기` 명령으로 사이드바를 엽니다. 하단 버튼으로 `지금 자기` 또는 `지금 일어나기`를 기록하면 월별 `sleep-YYYY-MM.md` 표에 한 줄씩 추가됩니다. 사이드바에는 현재 상태, `‹`와 `›`로 수면 구간을 하나씩 넘겨 보는 24시간 차트, 최근 기록(설정에서 개수 조정, 기본 4개)이 표시됩니다. 마지막 기록만 고치거나 지울 수 있어 잠듦과 일어남이 항상 번갈아 기록됩니다.
+달 리본 아이콘이나 `Daynight: 사이드바 열기` 명령으로 사이드바를 엽니다. 하단 버튼으로 `지금 자기` 또는 `지금 일어나기`를 기록하면 월별 `sleep-YYYY-MM.md` 표에 한 줄씩 추가됩니다. 사이드바에는 현재 상태, `‹`와 `›`로 수면 구간을 하나씩 넘겨 보는 24시간 차트, 최근 기록(설정에서 개수 조정, 기본 4개)이 표시됩니다. 마지막 기록만 고치거나 지울 수 있어 잠듦과 일어남이 항상 번갈아 기록됩니다. 최근 기록 아래 버튼으로 기록 파일과 대시보드를 열 수 있습니다.
+
+`Daynight: 대시보드 열기` 명령은 대시보드를 새 탭으로 엽니다. 최근 7일·30일·90일 또는 전체 기간에 대해 주된 수면·활동 시간대(슬라이더로 임계값 조정, 기본 50%), 수면 규칙성 지수, 최장·평균 각성 시간과 분포, double plot 액토그램을 보여 줍니다.
 
 ### frontmatter 정리
 
@@ -174,6 +176,7 @@ notelist:
 | `버전: 비교 창 열기` | 현재 노트의 두 시점 사이에 바뀐 내용을 보여 줍니다. |
 | `노트 목록: 모두 새로 고치기` | `notelist: true`인 노트의 본문 목록을 다시 만듭니다. |
 | `Daynight: 사이드바 열기` | 수면 기록을 오른쪽 사이드바에 표시합니다. |
+| `Daynight: 대시보드 열기` | 장기 수면 통계를 새 탭에 표시합니다. |
 | `왼쪽/오른쪽 사이드바: 다음/이전 탭` | 왼쪽 또는 오른쪽 사이드바의 탭을 차례로 넘깁니다. |
 | `퀵 슬롯: 현재 파일 넣기/빼기` | 현재 파일을 퀵 슬롯에 지정하거나 슬롯을 비웁니다. |
 | `퀵 슬롯: 골라서 열기` / `퀵 슬롯: 1~4번 열기` | 퀵 슬롯에 지정된 파일을 엽니다. |
@@ -205,7 +208,7 @@ notelist:
 | [mobile-toolbar](https://atoz-docs.vercel.app/feature-12-mobile-toolbar) | 모바일 툴바 숨기기/보이기 |
 | [snippets](https://atoz-docs.vercel.app/feature-13-snippets) | 조각글 제안 |
 | [symbols](https://atoz-docs.vercel.app/feature-14-symbols) | 기호 제안과 스마트 삭제 |
-| [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight 수면 기록 사이드바 |
+| [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight 수면 기록 사이드바와 대시보드 |
 | [versions](https://atoz-docs.vercel.app/feature-16-versions) | 버전 저장, 되돌리기, 비교 |
 | [note-list](https://atoz-docs.vercel.app/feature-17-note-list) | 노트 목록 자동 생성 |
 | [slots](https://atoz-docs.vercel.app/feature-18-slots) | 퀵 슬롯과 명령어 슬롯 |

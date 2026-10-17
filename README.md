@@ -21,7 +21,7 @@ It brings frequently used editing actions, source-linked Later notes, note versi
 | Note info | Character counts for the note or selection, reading time, and per-note writing targets |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
 | Navigation | Quick slots for files, command slots, and cycling through sidebar tabs |
-| Sleep log | Record sleep and wake times with one button and view them as a 24-hour chart in the Daynight sidebar |
+| Sleep log | Record sleep and wake times with one button and view them as a 24-hour chart in the Daynight sidebar, with long-term patterns in a dashboard |
 
 The plugin automatically uses Korean UI text when Obsidian's interface language is Korean. All other interface languages use English.
 
@@ -116,7 +116,9 @@ Set `notelist: true` in a note's frontmatter. The plugin fills the note body wit
 
 ### Log sleep with Daynight
 
-Open the Daynight sidebar from the moon ribbon icon or the **Daynight: Open sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the most recent records (four by default, adjustable in settings). Only the last record can be edited or deleted, so sleep and wake records always alternate.
+Open the Daynight sidebar from the moon ribbon icon or the **Daynight: Open sidebar** command. Press the button at the bottom to record **Sleep now** or **Wake up now**. Records are appended to a monthly `sleep-YYYY-MM.md` table. The sidebar shows the current state, a 24-hour chart that steps through sleep periods with `‹` and `›`, and the most recent records (four by default, adjustable in settings). Only the last record can be edited or deleted, so sleep and wake records always alternate. Buttons below the recent records open the record file and the dashboard.
+
+The **Daynight: Open dashboard** command opens the dashboard in a new tab. For the last 7, 30, or 90 days or all records, it shows your main sleep and active hours (the threshold is adjustable with a slider, 50% by default), a sleep regularity index, the longest and average time awake with a distribution chart, and a double-plotted actogram.
 
 ### Clean up frontmatter
 
@@ -180,6 +182,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Version: Open comparison view** | Shows what changed between two versions of the current note. |
 | **Note list: Refresh all** | Rebuilds the body of every note with `notelist: true`. |
 | **Daynight: Open sidebar** | Shows the sleep log in the right sidebar. |
+| **Daynight: Open dashboard** | Shows long-term sleep statistics in a new tab. |
 | **Left/Right sidebar: next/previous tab** | Cycles through the tabs of the left or right sidebar. |
 | **Quick slot: Add or remove current file** | Assigns the current file to a quick slot or clears a slot. |
 | **Quick slot: Choose and open** / **Quick slot: Open slot 1–4** | Opens a file assigned to a quick slot. |
@@ -211,7 +214,7 @@ Detailed feature documentation is available in Korean at [atoz-docs](https://ato
 | [mobile-toolbar](https://atoz-docs.vercel.app/feature-12-mobile-toolbar) | Mobile toolbar visibility |
 | [snippets](https://atoz-docs.vercel.app/feature-13-snippets) | Snippet suggestions |
 | [symbols](https://atoz-docs.vercel.app/feature-14-symbols) | Symbol suggestions and paired deletion |
-| [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight sleep log sidebar |
+| [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight sleep log sidebar and dashboard |
 | [versions](https://atoz-docs.vercel.app/feature-16-versions) | Saving, reverting, and comparing versions |
 | [note-list](https://atoz-docs.vercel.app/feature-17-note-list) | Auto-generated note lists |
 | [slots](https://atoz-docs.vercel.app/feature-18-slots) | Quick slots and command slots |

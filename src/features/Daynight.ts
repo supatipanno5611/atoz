@@ -1,6 +1,7 @@
 import { ItemView, TAbstractFile, TFile, WorkspaceLeaf, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
+import { DaynightDashboardView, VIEW_TYPE_DAYNIGHT_DASHBOARD } from './DaynightDashboard';
 
 export const VIEW_TYPE_DAYNIGHT = 'atoz-daynight-view';
 const DEFAULT_FOLDER = 'sleep';
@@ -8,7 +9,7 @@ const FILE_NAME_PATTERN = /^sleep-\d{4}-\d{2}\.md$/;
 const ROW_PATTERN = /^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|\s*(sleep|wake)\s*\|$/;
 const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
+export const DAY = 24 * HOUR;
 const RELOAD_DELAY = 100;
 // 차트 배경을 어둡게 칠하는 밤 시간대
 const NIGHT_START_HOUR = 18;
@@ -28,14 +29,14 @@ interface DaynightRecord {
     line: string;
 }
 
-const pad = (value: number): string => String(value).padStart(2, '0');
+export const pad = (value: number): string => String(value).padStart(2, '0');
 
-function formatDuration(ms: number): string {
+export function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
     return t('daynight.duration', { hours: Math.floor(minutes / 60), minutes: minutes % 60, paddedMinutes: pad(minutes % 60) });
 }
 
-function formatShortDate(time: number): string {
+export function formatShortDate(time: number): string {
     const date = new Date(time);
     return `${date.getMonth() + 1}/${date.getDate()}`;
 }
@@ -54,14 +55,14 @@ function formatRow(date: Date, type: DaynightType): string {
     return `| ${day} | ${pad(date.getHours())}:${pad(date.getMinutes())} | ${type} |`;
 }
 
-interface DaynightSegment {
+export interface DaynightSegment {
     from: number;
     to: number;
     type: DaynightType;
 }
 
 // 각 기록에서 다음 기록까지를 그 기록 종류의 구간으로 만든다. 마지막 구간은 지금까지 진행 중이다.
-function toSegments(records: DaynightRecord[], now: number): DaynightSegment[] {
+export function toSegments(records: DaynightRecord[], now: number): DaynightSegment[] {
     return records.map((record, index) => ({
         from: record.time,
         to: records[index + 1]?.time ?? now,
@@ -181,6 +182,16 @@ export class DaynightView extends ItemView {
             const focused = selected ?? segments[segments.length - 1]!;
             this.renderChart(body, segments, start, end, end === now ? now : null, focused);
             this.renderRecent(body, records);
+
+            const links = body.createDiv({ cls: 'atoz-daynight-links' });
+            const addLink = (icon: string, label: string, onClick: () => void): void => {
+                const button = links.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
+                setIcon(button, icon);
+                button.addEventListener('click', onClick);
+            };
+            // 월초에 아직 이번 달 기록이 없어도 빈 파일을 만들지 않도록 마지막 기록이 든 파일을 연다.
+            addLink('file-text', t('daynight.openFile'), () => void this.app.workspace.getLeaf(false).openFile(last.file));
+            addLink('layout-dashboard', t('daynight.openDashboard'), () => void this.plugin.daynight.activateDashboard());
         }
 
         const isAsleep = last?.type === 'sleep';
@@ -393,6 +404,14 @@ export class DaynightFeature {
             callback: () => void this.activateView(),
         });
 
+        this.plugin.registerView(VIEW_TYPE_DAYNIGHT_DASHBOARD, (leaf) => new DaynightDashboardView(leaf, this.plugin));
+
+        this.plugin.addCommand({
+            id: 'open-daynight-dashboard',
+            name: t('command.openDaynightDashboard'),
+            callback: () => void this.activateDashboard(),
+        });
+
         this.plugin.addRibbonIcon('moon', t('ribbon.openDaynightView'), () => void this.activateView());
 
         this.plugin.app.workspace.onLayoutReady(() => {
@@ -431,6 +450,19 @@ export class DaynightFeature {
         if (!leaf) return;
         await leaf.setViewState({ type: VIEW_TYPE_DAYNIGHT, active: true });
         void this.plugin.app.workspace.revealLeaf(leaf);
+    }
+
+    /** 이미 열려 있으면 그 탭으로 가고, 없으면 메인 영역에 새 탭으로 연다. */
+    async activateDashboard(): Promise<void> {
+        const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT_DASHBOARD)[0];
+        if (existing) {
+            await this.plugin.app.workspace.revealLeaf(existing);
+            return;
+        }
+
+        const leaf = this.plugin.app.workspace.getLeaf('tab');
+        await leaf.setViewState({ type: VIEW_TYPE_DAYNIGHT_DASHBOARD, active: true });
+        await this.plugin.app.workspace.revealLeaf(leaf);
     }
 
     async toggle(): Promise<void> {
@@ -546,6 +578,9 @@ export class DaynightFeature {
             .sort((a, b) => a.time - b.time);
         this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT).forEach((leaf) => {
             if (leaf.view instanceof DaynightView) leaf.view.render();
+        });
+        this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT_DASHBOARD).forEach((leaf) => {
+            if (leaf.view instanceof DaynightDashboardView) leaf.view.render();
         });
     }
 

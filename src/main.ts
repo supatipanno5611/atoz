@@ -21,6 +21,7 @@ import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
 import { DaynightFeature } from './features/Daynight';
+import { DASHBOARD_RANGES } from './features/DaynightDashboard';
 import { BudgetFeature } from './features/Budget';
 import { isRecord } from './utils';
 
@@ -202,6 +203,14 @@ export default class ATOZPlugin extends Plugin {
         if (!Number.isInteger(this.settings.daynightRecentCount) ||
             this.settings.daynightRecentCount < 1) {
             this.settings.daynightRecentCount = DEFAULT_SETTINGS.daynightRecentCount;
+        }
+        if (!DASHBOARD_RANGES.includes(this.settings.daynightDashboardDays)) {
+            this.settings.daynightDashboardDays = DEFAULT_SETTINGS.daynightDashboardDays;
+        }
+        // 대시보드 슬라이더와 같은 10~90%, 10% 단위만 받는다.
+        const threshold = this.settings.daynightDashboardThreshold;
+        if (!Number.isInteger(threshold) || threshold < 10 || threshold > 90 || threshold % 10 !== 0) {
+            this.settings.daynightDashboardThreshold = DEFAULT_SETTINGS.daynightDashboardThreshold;
         }
         const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets

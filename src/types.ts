@@ -19,6 +19,8 @@ export interface ATOZSettings {
     versionFolder: string;
     daynightFolder: string;
     daynightRecentCount: number;
+    daynightDashboardDays: number;
+    daynightDashboardThreshold: number;
     budgetFolder: string;
     budgetCurrencyPrefix: string;
     budgetCurrencySuffix: string;
@@ -164,6 +166,8 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     versionFolder: '',
     daynightFolder: '',
     daynightRecentCount: 4,
+    daynightDashboardDays: 30,
+    daynightDashboardThreshold: 50,
     budgetFolder: '',
     budgetCurrencyPrefix: '',
     budgetCurrencySuffix: isKorean ? '원' : '',
