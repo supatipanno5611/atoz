@@ -26,6 +26,8 @@ function addStat(parent: HTMLElement, label: string, value: string, sub?: string
 }
 
 class DashboardView extends ItemView {
+    // Obsidian은 navigation이 켜진 뷰만 탐색 기록에 남긴다. 켜 두어야 뒤로/앞으로로 페이지를 오갈 수 있다.
+    navigation = true;
     private page: DashboardPageId = 'home';
     private homeEl: HTMLElement;
     private daynightEl: HTMLElement;
@@ -64,16 +66,23 @@ class DashboardView extends ItemView {
 
     // 페이지가 바뀌면 탐색 기록에 남겨 Obsidian의 뒤로/앞으로로 오갈 수 있게 한다.
     async setState(state: unknown, result: ViewStateResult): Promise<void> {
+        let isPageChanged = false;
         if (isRecord(state)) {
             if (isPageId(state.page) && state.page !== this.page) {
                 this.page = state.page;
                 result.history = true;
+                isPageChanged = true;
             }
             if (isRecord(state.budget)) this.budget.setState(state.budget);
             if (isRecord(state.meal)) this.meal.setState(state.meal);
         }
         await super.setState(state, result);
         this.show();
+        // 모바일 하단 바의 뒤로/앞으로 표시는 활성 탭이 바뀔 때만 갱신된다. 노트가 파일을 바꿀 때처럼 알려 준다.
+        // 탐색 기록은 이 함수가 끝난 뒤에 쌓이므로 한 박자 늦게 보낸다.
+        if (isPageChanged && this.app.workspace.getActiveViewOfType(DashboardView) === this) {
+            window.setTimeout(() => this.app.workspace.trigger('active-leaf-change', this.leaf), 0);
+        }
     }
 
     async onOpen(): Promise<void> {
