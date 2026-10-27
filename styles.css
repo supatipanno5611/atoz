@@ -1454,3 +1454,240 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ------------------------------------------------------------------ *
+ * 식사보드
+ * ------------------------------------------------------------------ */
+
+.atoz-meal-board {
+    --atoz-meal-size: 20px;
+    --atoz-meal-shift: 8px;
+    container-type: inline-size;
+}
+
+.atoz-meal-header,
+.atoz-meal-board .atoz-meal-legend,
+.atoz-meal-grid {
+    max-width: 960px;
+    margin: 0 auto 12px;
+}
+
+.atoz-meal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.atoz-meal-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.atoz-meal-month {
+    min-width: 72px;
+    text-align: center;
+    font-weight: var(--font-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-meal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.atoz-meal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px 2px 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-l);
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+}
+
+.atoz-meal-chip:only-child,
+.atoz-meal-chip > .svg-icon:only-child {
+    padding: 2px 6px;
+}
+
+.atoz-meal-chip:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-meal-chip.is-active {
+    border-color: var(--interactive-accent);
+}
+
+/* 팔레트 슬롯의 색을 테마에 맞춰 고른다. 없는 슬롯은 흐린 회색이다. */
+.atoz-meal-marker {
+    --atoz-meal-color: var(--atoz-meal-light);
+    flex-shrink: 0;
+    width: var(--atoz-meal-size, 20px);
+    height: var(--atoz-meal-size, 20px);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--atoz-meal-color);
+    background-color: color-mix(in srgb, var(--atoz-meal-color) 20%, transparent);
+}
+
+.theme-dark .atoz-meal-marker {
+    --atoz-meal-color: var(--atoz-meal-dark);
+}
+
+.atoz-meal-marker.is-unknown {
+    --atoz-meal-color: var(--text-faint);
+}
+
+.atoz-meal-marker .svg-icon {
+    width: calc(var(--atoz-meal-size, 20px) * 0.64);
+    height: calc(var(--atoz-meal-size, 20px) * 0.64);
+}
+
+.atoz-meal-marker.is-placed {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+}
+
+.atoz-meal-marker.is-placed:hover {
+    background-color: color-mix(in srgb, var(--atoz-meal-color) 35%, transparent);
+}
+
+.atoz-meal-grid {
+    font-size: var(--font-ui-smaller);
+}
+
+.atoz-meal-row {
+    display: flex;
+    height: 26px;
+}
+
+.atoz-meal-day {
+    width: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-meal-row.is-today .atoz-meal-day {
+    color: var(--text-accent);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-meal-track {
+    position: relative;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+}
+
+.atoz-meal-cell {
+    border-left: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+}
+
+.atoz-meal-cell:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-meal-row.is-header .atoz-meal-cell {
+    border: none;
+    align-self: end;
+    text-align: center;
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.atoz-meal-row.is-header .atoz-meal-cell:hover {
+    background-color: transparent;
+}
+
+@container (max-width: 560px) {
+    .atoz-meal-board {
+        --atoz-meal-size: 14px;
+        --atoz-meal-shift: 5px;
+    }
+
+    .atoz-meal-row.is-header .atoz-meal-cell {
+        font-size: 9px;
+    }
+}
+
+/* 식사 기록 창과 범례·팔레트 편집 창 */
+.atoz-meal-modal-when {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.atoz-meal-modal-food {
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.atoz-meal-modal-custom {
+    margin-top: 12px;
+}
+
+.atoz-meal-modal-custom > input {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.atoz-meal-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.atoz-meal-picker-icons,
+.atoz-meal-picker-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.atoz-meal-picker-icons .clickable-icon.is-active {
+    background-color: var(--background-modifier-active-hover);
+    color: var(--text-accent);
+}
+
+.atoz-meal-swatch {
+    --atoz-meal-size: 24px;
+    background-color: var(--atoz-meal-color);
+    cursor: pointer;
+}
+
+.atoz-meal-swatch .svg-icon {
+    display: none;
+}
+
+.atoz-meal-swatch.is-active {
+    outline: 2px solid var(--text-normal);
+    outline-offset: 2px;
+}
+
+/* 통합 대시보드 홈의 최근 식사 */
+.atoz-dashboard-meal {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.atoz-dashboard-meal > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

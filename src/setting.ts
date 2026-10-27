@@ -479,6 +479,33 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
+                heading: 'Meal',
+                items: [
+                    {
+                        name: t('settings.meal.folder.name'),
+                        desc: t('settings.meal.folder.desc'),
+                        control: { type: 'text' as const, key: 'mealFolder', placeholder: t('settings.meal.folder.placeholder') },
+                    },
+                    {
+                        name: t('settings.meal.dayStart.name'),
+                        desc: t('settings.meal.dayStart.desc'),
+                        render: (setting: Setting) => {
+                            setting.addDropdown((dropdown) => {
+                                for (let hour = 0; hour < 24; hour++) dropdown.addOption(String(hour), `${hour}:00`);
+                                dropdown
+                                    .setValue(String(this.plugin.settings.mealDayStartHour))
+                                    .onChange(async (value) => {
+                                        this.plugin.settings.mealDayStartHour = Number(value);
+                                        await this.plugin.saveSettings();
+                                        this.plugin.meal.settingsChanged();
+                                    });
+                            });
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'group' as const,
                 heading: 'Budget',
                 items: [
                     {
@@ -633,6 +660,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     this.plugin.info.settingsChanged();
                                     this.plugin.daynight.settingsChanged();
                                     this.plugin.budget.settingsChanged();
+                                    this.plugin.meal.settingsChanged();
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
@@ -648,6 +676,7 @@ export class ATOZSettingTab extends PluginSettingTab {
         await super.setControlValue(key, value);
         if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
         if (key.startsWith('budget')) this.plugin.budget.settingsChanged();
+        if (key === 'mealFolder') this.plugin.meal.settingsChanged();
     }
 
     private refreshSettings(): void {

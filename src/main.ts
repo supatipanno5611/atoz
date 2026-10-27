@@ -24,6 +24,7 @@ import { DaynightFeature } from './features/Daynight';
 import { DASHBOARD_RANGES } from './features/DaynightDashboard';
 import { BudgetFeature } from './features/Budget';
 import { DashboardFeature } from './features/Dashboard';
+import { MealFeature, isHexColor } from './features/Meal';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -58,6 +59,7 @@ export default class ATOZPlugin extends Plugin {
     daynight!: DaynightFeature;
     budget!: BudgetFeature;
     dashboard!: DashboardFeature;
+    meal!: MealFeature;
 
     activeSidebarMode: 'later' | null = null;
 
@@ -88,6 +90,7 @@ export default class ATOZPlugin extends Plugin {
         this.daynight = new DaynightFeature(this);
         this.budget = new BudgetFeature(this);
         this.dashboard = new DashboardFeature(this);
+        this.meal = new MealFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -105,6 +108,7 @@ export default class ATOZPlugin extends Plugin {
         this.daynight.install();
         this.budget.install();
         this.dashboard.install();
+        this.meal.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
@@ -177,6 +181,7 @@ export default class ATOZPlugin extends Plugin {
         this.versionManager.uninstall();
         this.daynight.uninstall();
         this.budget.uninstall();
+        this.meal.uninstall();
     }
 
     async loadSettings() {
@@ -215,6 +220,27 @@ export default class ATOZPlugin extends Plugin {
         const threshold = this.settings.daynightDashboardThreshold;
         if (!Number.isInteger(threshold) || threshold < 10 || threshold > 90 || threshold % 10 !== 0) {
             this.settings.daynightDashboardThreshold = DEFAULT_SETTINGS.daynightDashboardThreshold;
+        }
+        const hour = this.settings.mealDayStartHour;
+        if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+            this.settings.mealDayStartHour = DEFAULT_SETTINGS.mealDayStartHour;
+        }
+        // 슬롯 수는 고정이다. 모자라거나 잘못된 슬롯은 기본 색으로 채운다.
+        const palette: unknown[] = Array.isArray(this.settings.mealPalette) ? this.settings.mealPalette : [];
+        this.settings.mealPalette = DEFAULT_SETTINGS.mealPalette.map((fallback, i) => {
+            const slot = palette[i];
+            return isRecord(slot) && isHexColor(slot.light) && isHexColor(slot.dark)
+                ? { light: slot.light, dark: slot.dark }
+                : { ...fallback };
+        });
+        const legend: unknown[] = Array.isArray(this.settings.mealLegend) ? this.settings.mealLegend : [];
+        this.settings.mealLegend = legend
+            .filter((item): item is Record<string, string> => isRecord(item) &&
+                typeof item.icon === 'string' && typeof item.color === 'string' && typeof item.label === 'string')
+            .map(({ icon, color, label }) => ({ icon: icon!, color: color!, label: label! }));
+        const pick = this.settings.mealLastPick;
+        if (!isRecord(pick) || typeof pick.icon !== 'string' || typeof pick.color !== 'string') {
+            this.settings.mealLastPick = null;
         }
         const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets

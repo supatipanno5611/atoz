@@ -5,15 +5,17 @@ import { isRecord } from '../utils';
 import { BudgetPage, formatWon } from './Budget';
 import { formatDuration, formatShortDate } from './Daynight';
 import { DaynightDashboardPage, daynightSummary } from './DaynightDashboard';
+import { MealBoardPage, createMealMarker } from './Meal';
 
 const VIEW_TYPE_DASHBOARD = 'atoz-dashboard';
 // 예전에 따로 열리던 대시보드. 남아 있는 탭은 열 때 닫는다.
 const LEGACY_VIEW_TYPES = ['atoz-daynight-dashboard', 'atoz-budget-view'];
 
-export type DashboardPageId = 'home' | 'daynight' | 'budget';
+export type DashboardPageId = 'home' | 'daynight' | 'budget' | 'meal';
+type DashboardSource = Exclude<DashboardPageId, 'home'>;
 
 function isPageId(value: unknown): value is DashboardPageId {
-    return value === 'home' || value === 'daynight' || value === 'budget';
+    return value === 'home' || value === 'daynight' || value === 'budget' || value === 'meal';
 }
 
 function addStat(parent: HTMLElement, label: string, value: string, sub?: string): void {
@@ -28,8 +30,10 @@ class DashboardView extends ItemView {
     private homeEl: HTMLElement;
     private daynightEl: HTMLElement;
     private budgetEl: HTMLElement;
+    private mealEl: HTMLElement;
     private daynight: DaynightDashboardPage;
     private budget: BudgetPage;
+    private meal: MealBoardPage;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -37,8 +41,10 @@ class DashboardView extends ItemView {
         this.homeEl = this.contentEl.createDiv({ cls: 'atoz-dashboard-home' });
         this.daynightEl = this.contentEl.createDiv();
         this.budgetEl = this.contentEl.createDiv();
+        this.mealEl = this.contentEl.createDiv();
         this.daynight = new DaynightDashboardPage(plugin, this.daynightEl);
         this.budget = new BudgetPage(plugin, this.budgetEl);
+        this.meal = new MealBoardPage(plugin, this.mealEl);
     }
 
     getViewType(): string { return VIEW_TYPE_DASHBOARD; }
@@ -47,12 +53,13 @@ class DashboardView extends ItemView {
     getDisplayText(): string {
         if (this.page === 'daynight') return t('daynight.viewName');
         if (this.page === 'budget') return t('budget.viewName');
+        if (this.page === 'meal') return t('meal.viewName');
         return t('dashboard.viewName');
     }
 
-    /** 보던 페이지와 가계부 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
+    /** 보던 페이지와 가계부·식사보드 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
     getState(): Record<string, unknown> {
-        return { page: this.page, budget: this.budget.getState() };
+        return { page: this.page, budget: this.budget.getState(), meal: this.meal.getState() };
     }
 
     // 페이지가 바뀌면 탐색 기록에 남겨 Obsidian의 뒤로/앞으로로 오갈 수 있게 한다.
@@ -63,6 +70,7 @@ class DashboardView extends ItemView {
                 result.history = true;
             }
             if (isRecord(state.budget)) this.budget.setState(state.budget);
+            if (isRecord(state.meal)) this.meal.setState(state.meal);
         }
         await super.setState(state, result);
         this.show();
@@ -73,7 +81,7 @@ class DashboardView extends ItemView {
     }
 
     /** 데이터가 바뀐 기능의 내용이 보이고 있을 때만 다시 그린다. 숨은 페이지는 보일 때 그린다. */
-    refresh(source: 'daynight' | 'budget'): void {
+    refresh(source: DashboardSource): void {
         if (this.page === 'home') void this.renderHome();
         else if (this.page === source) this.renderPage();
     }
@@ -82,6 +90,7 @@ class DashboardView extends ItemView {
         this.homeEl.toggle(this.page === 'home');
         this.daynightEl.toggle(this.page === 'daynight');
         this.budgetEl.toggle(this.page === 'budget');
+        this.mealEl.toggle(this.page === 'meal');
         if (this.page === 'home') void this.renderHome();
         else this.renderPage();
     }
@@ -89,6 +98,7 @@ class DashboardView extends ItemView {
     private renderPage(): void {
         if (this.page === 'daynight') this.daynight.render();
         else if (this.page === 'budget') void this.budget.refresh();
+        else if (this.page === 'meal') this.meal.render();
     }
 
     private async renderHome(): Promise<void> {
@@ -109,7 +119,22 @@ class DashboardView extends ItemView {
             summary.regularity === null ? '—' : String(summary.regularity),
         );
 
+        // 가계부는 파일을 읽어야 하므로 카드 자리만 먼저 잡아 순서를 지킨다.
         const budget = this.addCard(grid, 'wallet', t('budget.viewName'), 'budget');
+
+        const meal = this.addCard(grid, 'utensils', t('meal.viewName'), 'meal');
+        const latestMeal = this.plugin.meal.latest();
+        const mealStat = meal.createDiv({ cls: 'atoz-dashboard-stat' });
+        mealStat.createDiv({ cls: 'atoz-dashboard-muted', text: t('dashboard.latestMeal') });
+        const mealValue = mealStat.createDiv({ cls: 'atoz-dashboard-value atoz-dashboard-meal' });
+        if (latestMeal) {
+            createMealMarker(mealValue, this.plugin, latestMeal.food ? latestMeal : { icon: 'circle-help', color: latestMeal.color });
+            mealValue.createSpan({ text: latestMeal.food || t('meal.unknownFood') });
+        } else {
+            mealValue.setText('—');
+        }
+        addStat(meal, t('dashboard.sinceMeal'), latestMeal ? formatDuration(Date.now() - latestMeal.time) : '—');
+
         const { total, latest } = await this.plugin.budget.summary();
         addStat(budget, t('dashboard.monthExpense'), formatWon(total));
         addStat(
@@ -155,7 +180,7 @@ export class DashboardFeature {
         await workspace.revealLeaf(leaf);
     }
 
-    refresh(source: 'daynight' | 'budget'): void {
+    refresh(source: DashboardSource): void {
         for (const leaf of this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)) {
             if (leaf.view instanceof DashboardView) leaf.view.refresh(source);
         }

@@ -28,6 +28,11 @@ export interface ATOZSettings {
     budgetIncomeCategories: string[];
     budgetFixedExpenses: BudgetFixedExpense[];
     budgetCarryOver: BudgetCarryOverMode;
+    mealFolder: string;
+    mealDayStartHour: number;
+    mealPalette: MealColor[];
+    mealLegend: MealLegendItem[];
+    mealLastPick: MealPick | null;
     isSupportCollapsed: boolean;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
@@ -45,6 +50,22 @@ export interface SymbolItem {
 }
 
 export type BudgetCarryOverMode = 'ask' | 'always' | 'never';
+
+/** 식사 표시 색. 슬롯 하나에 라이트·다크 테마 색을 따로 둔다. */
+export interface MealColor {
+    light: string;
+    dark: string;
+}
+
+/** 식사 표시. color는 팔레트 슬롯 이름(c-1 …)이다. */
+export interface MealPick {
+    icon: string;
+    color: string;
+}
+
+export interface MealLegendItem extends MealPick {
+    label: string;
+}
 
 export interface BudgetFixedExpense {
     title: string;
@@ -179,6 +200,38 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
         : ['Salary', 'Side income', 'Allowance', 'Interest & dividends', 'Refunds', 'Other'],
     budgetFixedExpenses: [],
     budgetCarryOver: 'ask',
+    mealFolder: '',
+    mealDayStartHour: 5,
+    // Color Hunt 인기 팔레트에서 고른 색. 라이트는 흰 배경, 다크는 어두운 배경에서 잘 보이는 색이다.
+    mealPalette: [
+        { light: '#ff0000', dark: '#ff9494' },
+        { light: '#df7861', dark: '#dba39a' },
+        { light: '#ad8b73', dark: '#ceab93' },
+        { light: '#aa8b56', dark: '#e3caa5' },
+        { light: '#8a8635', dark: '#eae7b1' },
+        { light: '#5f8d4e', dark: '#a7ff83' },
+        { light: '#508d4e', dark: '#c6ebc5' },
+        { light: '#3d8361', dark: '#bcead5' },
+        { light: '#43766c', dark: '#1fab89' },
+        { light: '#0d7377', dark: '#71c9ce' },
+        { light: '#6096b4', dark: '#6096b4' },
+        { light: '#3f72af', dark: '#769fcd' },
+        { light: '#535c91', dark: '#a6b1e1' },
+        { light: '#9290c3', dark: '#9896f1' },
+        { light: '#5c469c', dark: '#beadfa' },
+        { light: '#bc6ff1', dark: '#cca8e9' },
+        { light: '#a367b1', dark: '#e5beec' },
+        { light: '#b0578d', dark: '#ffabe1' },
+        { light: '#be5985', dark: '#e8a0bf' },
+        { light: '#ff2e63', dark: '#e6a4b4' },
+    ],
+    mealLegend: [
+        { icon: 'house', color: 'c-7', label: isKorean ? '집밥' : 'Home-cooked' },
+        { icon: 'bike', color: 'c-2', label: isKorean ? '배달' : 'Delivery' },
+        { icon: 'store', color: 'c-12', label: isKorean ? '외식' : 'Eating out' },
+        { icon: 'cookie', color: 'c-19', label: isKorean ? '간식' : 'Snack' },
+    ],
+    mealLastPick: null,
     isSupportCollapsed: false,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,
