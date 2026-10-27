@@ -605,7 +605,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 /* ── Daynight 대시보드 ── */
-.workspace-leaf-content .view-content.atoz-daynight-dashboard {
+.atoz-daynight-dashboard {
     --atoz-daynight-morning: #f0a640;
     container-type: inline-size;
 }
@@ -753,8 +753,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 /* 메인 탭에서 열리므로 폭이 넓어질 수 있다. 읽기 좋은 폭에서 멈추고 가운데 정렬한다. */
 .atoz-budget-view {
-    padding: 12px 14px 32px;
-    overflow-y: auto;
+    padding-bottom: 32px;
 }
 
 .atoz-budget-view > * {
@@ -1388,4 +1387,70 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     .atoz-budget-fixed-info {
         flex: 1 1 100%;
     }
+}
+
+/* ------------------------------------------------------------------ *
+ * 통합 대시보드 — 홈
+ * ------------------------------------------------------------------ */
+
+.atoz-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.atoz-dashboard-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    cursor: pointer;
+}
+
+.atoz-dashboard-card:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-dashboard-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-dashboard-card-title .svg-icon {
+    color: var(--text-muted);
+}
+
+.atoz-dashboard-card-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.atoz-dashboard-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-dashboard-value {
+    font-size: 1.4em;
+    font-weight: var(--font-semibold);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-dashboard-muted {
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

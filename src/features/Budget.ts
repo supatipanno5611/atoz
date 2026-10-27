@@ -1,7 +1,6 @@
 import {
     AbstractInputSuggest,
     App,
-    ItemView,
     Menu,
     Modal,
     Notice,
@@ -10,17 +9,13 @@ import {
     TAbstractFile,
     TFile,
     TFolder,
-    ViewStateResult,
-    WorkspaceLeaf,
     normalizePath,
     setIcon,
 } from 'obsidian';
 import type ATOZPlugin from '../main';
 import type { BudgetFixedExpense } from '../types';
 import { t } from '../locales';
-import { isRecord } from '../utils';
 
-const VIEW_TYPE_BUDGET = 'atoz-budget-view';
 const DEFAULT_FOLDER = 'budget';
 
 type LedgerKind = 'income' | 'expense';
@@ -91,7 +86,7 @@ export function formatAmount(value: number): string {
 let currencyPrefix = '';
 let currencySuffix = '';
 
-function formatWon(value: number): string {
+export function formatWon(value: number): string {
     return currencyPrefix + formatAmount(value) + currencySuffix;
 }
 
@@ -1804,8 +1799,8 @@ function percentText(value: number): string {
     return (value >= 0 ? '+' : '') + (value * 100).toFixed(1) + '%';
 }
 
-class BudgetView extends ItemView {
-    private plugin: ATOZPlugin;
+export class BudgetPage {
+    private app: App;
 
     private month: string = currentMonth();
     private income: Ledger | null = null;
@@ -1820,24 +1815,12 @@ class BudgetView extends ItemView {
     private sortAsc = true;
     private dailyMode: DailyMode = 'bar';
 
-    constructor(leaf: WorkspaceLeaf, plugin: ATOZPlugin) {
-        super(leaf);
-        this.plugin = plugin;
+    constructor(private plugin: ATOZPlugin, private contentEl: HTMLElement) {
+        this.app = plugin.app;
+        contentEl.addClass('atoz-budget-view');
     }
 
-    getViewType(): string {
-        return VIEW_TYPE_BUDGET;
-    }
-
-    getDisplayText(): string {
-        return t('budget.viewName');
-    }
-
-    getIcon(): string {
-        return 'wallet';
-    }
-
-    /** 보던 달과 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
+    /** 보던 달과 보기 설정은 대시보드가 워크스페이스에 저장해 다시 열 때 되살린다. */
     getState(): Record<string, unknown> {
         return {
             month: this.month,
@@ -1848,26 +1831,13 @@ class BudgetView extends ItemView {
         };
     }
 
-    async setState(state: unknown, result: ViewStateResult): Promise<void> {
-        if (isRecord(state)) {
-            if (typeof state.month === 'string' && isValidMonth(state.month)) this.month = state.month;
-            const kind = state.kindFilter;
-            if (kind === 'all' || kind === 'income' || kind === 'expense') this.kindFilter = kind;
-            if (state.dailyMode === 'bar' || state.dailyMode === 'cumulative') this.dailyMode = state.dailyMode;
-            if (state.sortKey === 'date' || state.sortKey === 'amount') this.sortKey = state.sortKey;
-            if (typeof state.sortAsc === 'boolean') this.sortAsc = state.sortAsc;
-        }
-        await super.setState(state, result);
-        await this.refresh();
-    }
-
-    async onOpen(): Promise<void> {
-        this.contentEl.addClass('atoz-budget-view');
-        await this.refresh();
-    }
-
-    async onClose(): Promise<void> {
-        this.contentEl.empty();
+    setState(state: Record<string, unknown>): void {
+        if (typeof state.month === 'string' && isValidMonth(state.month)) this.month = state.month;
+        const kind = state.kindFilter;
+        if (kind === 'all' || kind === 'income' || kind === 'expense') this.kindFilter = kind;
+        if (state.dailyMode === 'bar' || state.dailyMode === 'cumulative') this.dailyMode = state.dailyMode;
+        if (state.sortKey === 'date' || state.sortKey === 'amount') this.sortKey = state.sortKey;
+        if (typeof state.sortAsc === 'boolean') this.sortAsc = state.sortAsc;
     }
 
     setMonth(month: string): void {
@@ -2620,6 +2590,20 @@ class BudgetView extends ItemView {
  * 기능
  * ------------------------------------------------------------------ */
 
+export interface BudgetSummary {
+    total: number;
+    latest: Pick<Entry, 'date' | 'title' | 'amount'> | null;
+}
+
+// 날짜가 같으면 파일에서 아래에 있는 내역을 더 최근으로 본다.
+function latestEntry(ledger: Ledger | null): Entry | null {
+    let latest: Entry | null = null;
+    for (const entry of ledger?.entries ?? []) {
+        if (!latest || entry.date > latest.date || (entry.date === latest.date && entry.lineIndex > latest.lineIndex)) latest = entry;
+    }
+    return latest;
+}
+
 export class BudgetFeature {
     store: LedgerStore;
 
@@ -2638,14 +2622,10 @@ export class BudgetFeature {
     }
 
     install(): void {
-        this.plugin.registerView(VIEW_TYPE_BUDGET, (leaf) => new BudgetView(leaf, this.plugin));
-
-        this.plugin.addRibbonIcon('wallet', t('ribbon.openBudgetView'), () => void this.activateView());
-
         this.plugin.addCommand({
             id: 'open-budget-view',
             name: t('command.openBudgetView'),
-            callback: () => void this.activateView(),
+            callback: () => void this.plugin.dashboard.open('budget'),
         });
 
         this.plugin.addCommand({
@@ -2760,17 +2740,12 @@ export class BudgetFeature {
         await this.plugin.app.workspace.getLeaf(false).openFile(file);
     }
 
-    /** 이미 열려 있으면 그 탭으로 가고, 없으면 메인 영역에 새 탭으로 연다. */
-    async activateView(): Promise<void> {
-        const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_BUDGET)[0];
-        if (existing) {
-            await this.plugin.app.workspace.revealLeaf(existing);
-            return;
-        }
-
-        const leaf = this.plugin.app.workspace.getLeaf('tab');
-        await leaf.setViewState({ type: VIEW_TYPE_BUDGET, active: true });
-        await this.plugin.app.workspace.revealLeaf(leaf);
+    /** 홈 카드에 보일 이번 달 지출 합계와 가장 최근 지출. 이번 달 지출이 없으면 지난달에서 찾는다. */
+    async summary(): Promise<BudgetSummary> {
+        const month = currentMonth();
+        const expense = await this.store.load(KIND_EXPENSE, month);
+        const latest = latestEntry(expense) ?? latestEntry(await this.store.load(KIND_EXPENSE, shiftMonth(month, -1)));
+        return { total: expense ? sumAmounts(expense.entries) : 0, latest };
     }
 
     /** 파일이 여러 번 바뀔 때 한 번만 다시 그리도록 모아둔다. */
@@ -2778,10 +2753,7 @@ export class BudgetFeature {
         if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
         this.refreshTimer = window.setTimeout(() => {
             this.refreshTimer = null;
-            for (const leaf of this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_BUDGET)) {
-                const view = leaf.view;
-                if (view instanceof BudgetView) void view.refresh();
-            }
+            this.plugin.dashboard.refresh('budget');
         }, 300);
     }
 }

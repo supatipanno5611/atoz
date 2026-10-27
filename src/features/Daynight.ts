@@ -1,7 +1,6 @@
 import { ItemView, TAbstractFile, TFile, WorkspaceLeaf, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
-import { DaynightDashboardView, VIEW_TYPE_DAYNIGHT_DASHBOARD } from './DaynightDashboard';
 
 export const VIEW_TYPE_DAYNIGHT = 'atoz-daynight-view';
 const DEFAULT_FOLDER = 'sleep';
@@ -191,7 +190,7 @@ export class DaynightView extends ItemView {
             };
             // 월초에 아직 이번 달 기록이 없어도 빈 파일을 만들지 않도록 마지막 기록이 든 파일을 연다.
             addLink('file-text', t('daynight.openFile'), () => void this.app.workspace.getLeaf(false).openFile(last.file));
-            addLink('moon', t('daynight.openDashboard'), () => void this.plugin.daynight.activateDashboard());
+            addLink('moon', t('daynight.openDashboard'), () => void this.plugin.dashboard.open('daynight'));
         }
 
         const isAsleep = last?.type === 'sleep';
@@ -404,15 +403,11 @@ export class DaynightFeature {
             callback: () => void this.activateView(),
         });
 
-        this.plugin.registerView(VIEW_TYPE_DAYNIGHT_DASHBOARD, (leaf) => new DaynightDashboardView(leaf, this.plugin));
-
         this.plugin.addCommand({
             id: 'open-daynight-dashboard',
             name: t('command.openDaynightDashboard'),
-            callback: () => void this.activateDashboard(),
+            callback: () => void this.plugin.dashboard.open('daynight'),
         });
-
-        this.plugin.addRibbonIcon('moon', t('ribbon.openDaynightView'), () => void this.activateView());
 
         this.plugin.app.workspace.onLayoutReady(() => {
             const vault = this.plugin.app.vault;
@@ -450,19 +445,6 @@ export class DaynightFeature {
         if (!leaf) return;
         await leaf.setViewState({ type: VIEW_TYPE_DAYNIGHT, active: true });
         void this.plugin.app.workspace.revealLeaf(leaf);
-    }
-
-    /** 이미 열려 있으면 그 탭으로 가고, 없으면 메인 영역에 새 탭으로 연다. */
-    async activateDashboard(): Promise<void> {
-        const existing = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT_DASHBOARD)[0];
-        if (existing) {
-            await this.plugin.app.workspace.revealLeaf(existing);
-            return;
-        }
-
-        const leaf = this.plugin.app.workspace.getLeaf('tab');
-        await leaf.setViewState({ type: VIEW_TYPE_DAYNIGHT_DASHBOARD, active: true });
-        await this.plugin.app.workspace.revealLeaf(leaf);
     }
 
     async toggle(): Promise<void> {
@@ -579,9 +561,7 @@ export class DaynightFeature {
         this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT).forEach((leaf) => {
             if (leaf.view instanceof DaynightView) leaf.view.render();
         });
-        this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT_DASHBOARD).forEach((leaf) => {
-            if (leaf.view instanceof DaynightDashboardView) leaf.view.render();
-        });
+        this.plugin.dashboard.refresh('daynight');
     }
 
     private onFileEvent(file: TAbstractFile): void {

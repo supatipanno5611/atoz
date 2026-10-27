@@ -1,9 +1,7 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import { DAY, DaynightSegment, formatDuration, formatShortDate, pad, toSegments } from './Daynight';
 
-export const VIEW_TYPE_DAYNIGHT_DASHBOARD = 'atoz-daynight-dashboard';
 // 집계 기간(일). 0은 전체 기간이다.
 export const DASHBOARD_RANGES = [7, 30, 90, 0];
 const SLOT_MINUTES = 15;
@@ -101,23 +99,41 @@ function regularityIndex(segments: DaynightSegment[], start: number, end: number
     return count > 0 ? Math.round(200 * same / count - 100) : null;
 }
 
-export class DaynightDashboardView extends ItemView {
-    constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
-        super(leaf);
-    }
+// 집계 기간의 시작. 첫 기록 이전은 상태를 모르므로 집계에서 뺀다.
+function rangeStart(firstTime: number, days: number, now: number): number {
+    return Math.max(days === 0 ? firstTime : now - days * DAY, firstTime);
+}
 
-    getViewType(): string { return VIEW_TYPE_DAYNIGHT_DASHBOARD; }
-    getDisplayText(): string { return t('daynight.dashboard.viewName'); }
-    getIcon(): string { return 'moon'; }
+export interface DaynightSummary {
+    lastSleep: DaynightSegment | null;
+    regularity: number | null;
+    days: number;
+}
 
-    async onOpen(): Promise<void> {
-        this.render();
+/** 홈 카드에 보일 가장 최근에 끝난 수면과 대시보드 집계 기간의 규칙성. */
+export function daynightSummary(plugin: ATOZPlugin): DaynightSummary {
+    const days = plugin.settings.daynightDashboardDays;
+    const records = plugin.daynight.records;
+    const first = records[0];
+    if (!first) return { lastSleep: null, regularity: null, days };
+    const now = Date.now();
+    const segments = toSegments(records, now);
+    const start = rangeStart(first.time, days, now);
+    return {
+        lastSleep: segments.slice(0, -1).filter(({ type }) => type === 'sleep').pop() ?? null,
+        regularity: regularityIndex(clipSegments(segments, start, now), start, now),
+        days,
+    };
+}
+
+export class DaynightDashboardPage {
+    constructor(private plugin: ATOZPlugin, private container: HTMLElement) {
+        container.addClass('atoz-daynight-dashboard');
     }
 
     render(): void {
-        const container = this.containerEl.children[1] as HTMLElement;
+        const container = this.container;
         container.empty();
-        container.addClass('atoz-daynight-dashboard');
 
         const settings = this.plugin.settings;
         const header = container.createDiv({ cls: 'atoz-daynight-dashboard-header' });
@@ -143,8 +159,7 @@ export class DaynightDashboardView extends ItemView {
 
         const now = Date.now();
         const days = settings.daynightDashboardDays;
-        // 첫 기록 이전은 상태를 모르므로 집계에서 뺀다.
-        const start = Math.max(days === 0 ? first.time : now - days * DAY, first.time);
+        const start = rangeStart(first.time, days, now);
         const segments = toSegments(records, now);
         const clipped = clipSegments(segments, start, now);
 
