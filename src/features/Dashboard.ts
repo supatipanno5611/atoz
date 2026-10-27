@@ -6,16 +6,17 @@ import { BudgetPage, formatWon } from './Budget';
 import { formatDuration, formatShortDate } from './Daynight';
 import { DaynightDashboardPage, daynightSummary } from './DaynightDashboard';
 import { MealBoardPage, createMealMarker } from './Meal';
+import { TimelinePage, formatMatch, summarizeDay, timelineToday } from './Timeline';
 
 const VIEW_TYPE_DASHBOARD = 'atoz-dashboard';
 // 예전에 따로 열리던 대시보드. 남아 있는 탭은 열 때 닫는다.
 const LEGACY_VIEW_TYPES = ['atoz-daynight-dashboard', 'atoz-budget-view'];
 
-export type DashboardPageId = 'home' | 'daynight' | 'budget' | 'meal';
+export type DashboardPageId = 'home' | 'daynight' | 'budget' | 'meal' | 'timeline';
 type DashboardSource = Exclude<DashboardPageId, 'home'>;
 
 function isPageId(value: unknown): value is DashboardPageId {
-    return value === 'home' || value === 'daynight' || value === 'budget' || value === 'meal';
+    return value === 'home' || value === 'daynight' || value === 'budget' || value === 'meal' || value === 'timeline';
 }
 
 function addStat(parent: HTMLElement, label: string, value: string, sub?: string): void {
@@ -33,9 +34,11 @@ class DashboardView extends ItemView {
     private daynightEl: HTMLElement;
     private budgetEl: HTMLElement;
     private mealEl: HTMLElement;
+    private timelineEl: HTMLElement;
     private daynight: DaynightDashboardPage;
     private budget: BudgetPage;
     private meal: MealBoardPage;
+    private timeline: TimelinePage;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -44,9 +47,11 @@ class DashboardView extends ItemView {
         this.daynightEl = this.contentEl.createDiv();
         this.budgetEl = this.contentEl.createDiv();
         this.mealEl = this.contentEl.createDiv();
+        this.timelineEl = this.contentEl.createDiv();
         this.daynight = new DaynightDashboardPage(plugin, this.daynightEl);
         this.budget = new BudgetPage(plugin, this.budgetEl);
         this.meal = new MealBoardPage(plugin, this.mealEl);
+        this.timeline = new TimelinePage(plugin, this.timelineEl);
     }
 
     getViewType(): string { return VIEW_TYPE_DASHBOARD; }
@@ -56,12 +61,13 @@ class DashboardView extends ItemView {
         if (this.page === 'daynight') return t('daynight.viewName');
         if (this.page === 'budget') return t('budget.viewName');
         if (this.page === 'meal') return t('meal.viewName');
+        if (this.page === 'timeline') return t('timeline.viewName');
         return t('dashboard.viewName');
     }
 
-    /** 보던 페이지와 가계부·식사보드 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
+    /** 보던 페이지와 가계부·식사보드·타임라인 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
     getState(): Record<string, unknown> {
-        return { page: this.page, budget: this.budget.getState(), meal: this.meal.getState() };
+        return { page: this.page, budget: this.budget.getState(), meal: this.meal.getState(), timeline: this.timeline.getState() };
     }
 
     // 페이지가 바뀌면 탐색 기록에 남겨 Obsidian의 뒤로/앞으로로 오갈 수 있게 한다.
@@ -75,6 +81,7 @@ class DashboardView extends ItemView {
             }
             if (isRecord(state.budget)) this.budget.setState(state.budget);
             if (isRecord(state.meal)) this.meal.setState(state.meal);
+            if (isRecord(state.timeline)) this.timeline.setState(state.timeline);
         }
         await super.setState(state, result);
         this.show();
@@ -92,7 +99,7 @@ class DashboardView extends ItemView {
     /** 데이터가 바뀐 기능의 내용이 보이고 있을 때만 다시 그린다. 숨은 페이지는 보일 때 그린다. */
     refresh(source: DashboardSource): void {
         if (this.page === 'home') void this.renderHome();
-        else if (this.page === source) this.renderPage();
+        else if (this.page === source) this.renderPage(false);
     }
 
     private show(): void {
@@ -100,14 +107,17 @@ class DashboardView extends ItemView {
         this.daynightEl.toggle(this.page === 'daynight');
         this.budgetEl.toggle(this.page === 'budget');
         this.mealEl.toggle(this.page === 'meal');
+        this.timelineEl.toggle(this.page === 'timeline');
         if (this.page === 'home') void this.renderHome();
-        else this.renderPage();
+        else this.renderPage(true);
     }
 
-    private renderPage(): void {
+    /** isShown이면 페이지를 새로 보여 주는 것이다. 타임라인은 이때만 스크롤을 옮긴다. */
+    private renderPage(isShown: boolean): void {
         if (this.page === 'daynight') this.daynight.render();
         else if (this.page === 'budget') void this.budget.refresh();
         else if (this.page === 'meal') this.meal.render();
+        else if (this.page === 'timeline') this.timeline.render(isShown);
     }
 
     private async renderHome(): Promise<void> {
@@ -143,6 +153,22 @@ class DashboardView extends ItemView {
             mealValue.setText('—');
         }
         addStat(meal, t('dashboard.sinceMeal'), latestMeal ? formatDuration(Date.now() - latestMeal.time) : '—');
+
+        const timeline = this.addCard(grid, 'calendar-clock', t('timeline.viewName'), 'timeline');
+        const current = this.plugin.timeline.current();
+        addStat(
+            timeline,
+            t('dashboard.currentActivity'),
+            current?.category ?? '—',
+            current ? formatDuration(Date.now() - current.time) : undefined,
+        );
+        const today = summarizeDay(this.plugin, timelineToday(this.plugin), Date.now());
+        addStat(
+            timeline,
+            t('dashboard.todayMatch'),
+            formatMatch(today),
+            today.elapsedPlan > 0 ? t('dashboard.ofPlan', { plan: formatDuration(today.elapsedPlan) }) : undefined,
+        );
 
         const { total, latest } = await this.plugin.budget.summary();
         addStat(budget, t('dashboard.monthExpense'), formatWon(total));

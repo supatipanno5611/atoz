@@ -33,6 +33,10 @@ export interface ATOZSettings {
     mealPalette: MealColor[];
     mealLegend: MealLegendItem[];
     mealLastPick: MealPick | null;
+    timelineFolder: string;
+    timelineDayStartHour: number;
+    // 카테고리 이름별 색. 정해지지 않은 카테고리는 회색으로 그린다.
+    timelineColors: Record<string, MealColor>;
     isSupportCollapsed: boolean;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
@@ -232,6 +236,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
         { icon: 'cookie', color: 'c-19', label: isKorean ? '간식' : 'Snack' },
     ],
     mealLastPick: null,
+    timelineFolder: '',
+    timelineDayStartHour: 5,
+    timelineColors: {},
     isSupportCollapsed: false,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,

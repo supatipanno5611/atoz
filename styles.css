@@ -1691,3 +1691,195 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ------------------------------------------------------------------ *
+ * 타임라인
+ * ------------------------------------------------------------------ */
+
+.atoz-timeline {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-bottom: 24px;
+}
+
+.atoz-timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 8px;
+}
+
+.atoz-timeline-date {
+    min-width: 136px;
+    text-align: center;
+    font-weight: var(--font-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-timeline-empty,
+.atoz-timeline-summary,
+.atoz-timeline-muted {
+    color: var(--text-muted);
+}
+
+.atoz-timeline-empty {
+    padding: 24px 0;
+    text-align: center;
+}
+
+.atoz-timeline-summary {
+    margin-bottom: 12px;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-timeline-lane-labels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding-left: 28px;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+}
+
+.atoz-timeline-chart {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding-left: 28px;
+    font-size: var(--font-ui-smaller);
+}
+
+.atoz-timeline-hour {
+    position: absolute;
+    left: 22px;
+    right: 0;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.atoz-timeline-hour > span {
+    position: absolute;
+    left: -22px;
+    top: -0.7em;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-timeline-lane {
+    position: relative;
+}
+
+.atoz-timeline-block,
+.atoz-timeline-dot,
+.atoz-timeline-bar {
+    --atoz-timeline-color: var(--atoz-timeline-light, var(--text-faint));
+}
+
+.theme-dark .atoz-timeline-block,
+.theme-dark .atoz-timeline-dot,
+.theme-dark .atoz-timeline-bar {
+    --atoz-timeline-color: var(--atoz-timeline-dark, var(--text-faint));
+}
+
+.atoz-timeline-block {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    padding: 0 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 13px;
+    cursor: pointer;
+}
+
+.atoz-timeline-lane.is-plan .atoz-timeline-block {
+    border: 1px dashed var(--atoz-timeline-color);
+    border-radius: var(--radius-s);
+    background-color: color-mix(in srgb, var(--atoz-timeline-color) 12%, transparent);
+}
+
+.atoz-timeline-lane.is-log .atoz-timeline-block {
+    border-left: 3px solid var(--atoz-timeline-color);
+    background-color: color-mix(in srgb, var(--atoz-timeline-color) 25%, transparent);
+}
+
+.atoz-timeline-now {
+    position: absolute;
+    left: 22px;
+    right: 0;
+    border-top: 2px solid var(--text-error);
+    pointer-events: none;
+}
+
+.atoz-timeline-now > span {
+    position: absolute;
+    right: 0;
+    top: -0.8em;
+    padding: 0 2px;
+    background-color: var(--background-primary);
+    color: var(--text-error);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-timeline-section {
+    margin: 16px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-timeline-stat {
+    margin-bottom: 8px;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-timeline-stat-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.atoz-timeline-stat-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.atoz-timeline-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: var(--atoz-timeline-color);
+}
+
+.atoz-timeline-bar {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-timeline-bar-plan,
+.atoz-timeline-bar-log {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    border-radius: 3px;
+}
+
+.atoz-timeline-bar-plan {
+    border: 1px dashed var(--atoz-timeline-color);
+}
+
+.atoz-timeline-bar-log {
+    background-color: var(--atoz-timeline-color);
+}

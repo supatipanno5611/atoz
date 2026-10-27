@@ -25,6 +25,7 @@ import { DASHBOARD_RANGES } from './features/DaynightDashboard';
 import { BudgetFeature } from './features/Budget';
 import { DashboardFeature } from './features/Dashboard';
 import { MealFeature, isHexColor } from './features/Meal';
+import { TimelineFeature } from './features/Timeline';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -60,6 +61,7 @@ export default class ATOZPlugin extends Plugin {
     budget!: BudgetFeature;
     dashboard!: DashboardFeature;
     meal!: MealFeature;
+    timeline!: TimelineFeature;
 
     activeSidebarMode: 'later' | null = null;
 
@@ -91,6 +93,7 @@ export default class ATOZPlugin extends Plugin {
         this.budget = new BudgetFeature(this);
         this.dashboard = new DashboardFeature(this);
         this.meal = new MealFeature(this);
+        this.timeline = new TimelineFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -109,6 +112,7 @@ export default class ATOZPlugin extends Plugin {
         this.budget.install();
         this.dashboard.install();
         this.meal.install();
+        this.timeline.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
@@ -182,6 +186,7 @@ export default class ATOZPlugin extends Plugin {
         this.daynight.uninstall();
         this.budget.uninstall();
         this.meal.uninstall();
+        this.timeline.uninstall();
     }
 
     async loadSettings() {
@@ -241,6 +246,19 @@ export default class ATOZPlugin extends Plugin {
         const pick = this.settings.mealLastPick;
         if (!isRecord(pick) || typeof pick.icon !== 'string' || typeof pick.color !== 'string') {
             this.settings.mealLastPick = null;
+        }
+        const timelineHour = this.settings.timelineDayStartHour;
+        if (!Number.isInteger(timelineHour) || timelineHour < 0 || timelineHour > 23) {
+            this.settings.timelineDayStartHour = DEFAULT_SETTINGS.timelineDayStartHour;
+        }
+        const colors: unknown = this.settings.timelineColors;
+        this.settings.timelineColors = {};
+        if (isRecord(colors)) {
+            for (const [category, color] of Object.entries(colors)) {
+                if (isRecord(color) && isHexColor(color.light) && isHexColor(color.dark)) {
+                    this.settings.timelineColors[category] = { light: color.light, dark: color.dark };
+                }
+            }
         }
         const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets
