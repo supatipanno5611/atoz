@@ -555,11 +555,14 @@ export class ATOZSettingTab extends PluginSettingTab {
                             );
                         },
                     },
-                    ...(['budgetExpenseCategories', 'budgetIncomeCategories'] as const).map((key) => ({
-                        name: t(key === 'budgetExpenseCategories'
-                            ? 'settings.budget.expenseCategories.name'
-                            : 'settings.budget.incomeCategories.name'),
-                        desc: t('settings.budget.categories.desc'),
+                    ...([
+                        { key: 'budgetExpenseCategories', name: 'settings.budget.expenseCategories.name', desc: 'settings.budget.categories.desc' },
+                        { key: 'budgetIncomeCategories', name: 'settings.budget.incomeCategories.name', desc: 'settings.budget.categories.desc' },
+                        { key: 'budgetPanelCategories', name: 'settings.budget.panelCategories.name', desc: 'settings.budget.panelCategories.desc' },
+                        { key: 'budgetPayments', name: 'settings.budget.payments.name', desc: 'settings.budget.payments.desc' },
+                    ] as const).map(({ key, name, desc }) => ({
+                        name: t(name),
+                        desc: t(desc),
                         render: (setting: Setting) => {
                             setting.settingEl.addClass('atoz-setting-vertical');
                             setting.addTextArea((ta) => {
@@ -571,6 +574,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                                         .map((line) => line.trim())
                                         .filter((line) => line.length > 0);
                                     void this.plugin.saveSettings();
+                                    this.plugin.daynight.settingsChanged();
                                 });
                             });
                         },

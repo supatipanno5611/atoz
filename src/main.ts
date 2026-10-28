@@ -240,6 +240,7 @@ export default class ATOZPlugin extends Plugin {
         if (!isRecord(pick) || typeof pick.icon !== 'string' || typeof pick.color !== 'string') {
             this.settings.mealLastPick = null;
         }
+        if (typeof this.settings.budgetLastPayment !== 'string') this.settings.budgetLastPayment = '';
         const timelineHour = this.settings.timelineDayStartHour;
         if (!Number.isInteger(timelineHour) || timelineHour < 0 || timelineHour > 23) {
             this.settings.timelineDayStartHour = DEFAULT_SETTINGS.timelineDayStartHour;

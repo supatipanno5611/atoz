@@ -25,6 +25,11 @@ export interface ATOZSettings {
     budgetCurrencySuffix: string;
     budgetExpenseCategories: string[];
     budgetIncomeCategories: string[];
+    // 기록 패널에 지출 알약으로 띄울 지출 카테고리와 그 순서.
+    budgetPanelCategories: string[];
+    budgetPayments: string[];
+    // 다음 입력에서 기본으로 고를 결제 수단.
+    budgetLastPayment: string;
     budgetFixedExpenses: BudgetFixedExpense[];
     budgetCarryOver: BudgetCarryOverMode;
     mealFolder: string;
@@ -194,12 +199,18 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     budgetFolder: '',
     budgetCurrencyPrefix: '',
     budgetCurrencySuffix: isKorean ? '원' : '',
+    // 변동비, 식사에서 넘어오는 지출(식사 범례 이름과 같다), 고정·가끔 쓰는 지출 순서.
     budgetExpenseCategories: isKorean
-        ? ['식비', '카페·간식', '교통', '주거·공과금', '통신', '생필품', '의료', '문화·여가', '의류·미용', '경조사', '교육', '기타']
-        : ['Food', 'Cafe & snacks', 'Transport', 'Housing & utilities', 'Phone & internet', 'Household', 'Medical', 'Leisure', 'Clothing & beauty', 'Gifts & events', 'Education', 'Other'],
+        ? ['장보기', '카페', '교통', '생활', '쇼핑', '문화', '건강', '기타', '외식', '배달', '간식', '주거·공과금', '통신', '경조사', '교육']
+        : ['Groceries', 'Cafe', 'Transport', 'Living', 'Shopping', 'Culture', 'Health', 'Other', 'Eating out', 'Delivery', 'Snack', 'Housing & utilities', 'Phone & internet', 'Gifts & events', 'Education'],
     budgetIncomeCategories: isKorean
         ? ['급여', '부수입', '용돈', '이자·배당', '환급', '기타']
         : ['Salary', 'Side income', 'Allowance', 'Interest & dividends', 'Refunds', 'Other'],
+    budgetPanelCategories: isKorean
+        ? ['장보기', '카페', '교통', '생활', '쇼핑', '문화', '건강', '기타']
+        : ['Groceries', 'Cafe', 'Transport', 'Living', 'Shopping', 'Culture', 'Health', 'Other'],
+    budgetPayments: isKorean ? ['현금', '체크카드', '신용카드'] : ['Cash', 'Debit card', 'Credit card'],
+    budgetLastPayment: '',
     budgetFixedExpenses: [],
     budgetCarryOver: 'ask',
     mealFolder: '',

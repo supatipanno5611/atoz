@@ -28,9 +28,14 @@ const COL_DATE = 'Date';
 const COL_TITLE = 'Item';
 const COL_CATEGORY = 'Category';
 const COL_AMOUNT = 'Amount';
-const COL_MEMO = 'Memo';
+const COL_TIME = 'Time';
+const COL_PAYMENT = 'Payment';
+const COL_TAGS = 'Tags';
 
-const DEFAULT_HEADERS = [COL_DATE, COL_TITLE, COL_CATEGORY, COL_AMOUNT, COL_MEMO];
+// 예전 파일의 Memo 열은 모르는 열로 읽어 다시 쓸 때 그대로 둔다.
+const DEFAULT_HEADERS = [COL_DATE, COL_TIME, COL_TITLE, COL_CATEGORY, COL_AMOUNT, COL_PAYMENT, COL_TAGS];
+// 파일에 없던 열은 그 열에 값을 처음 쓸 때 표 끝에 붙인다.
+const OPTIONAL_COLUMNS = [COL_TIME, COL_PAYMENT, COL_TAGS];
 
 const FM_KIND = 'type';
 const FM_MONTH = 'month';
@@ -208,6 +213,11 @@ function unescapeCell(text: string): string {
     return out;
 }
 
+/** 태그 칸은 쉼표로 나눈다: '여행, 부산'. */
+export function splitTags(text: string): string[] {
+    return uniqueStrings(text.split(','));
+}
+
 function uniqueStrings(values: string[]): string[] {
     const seen: Record<string, boolean> = {};
     const out: string[] = [];
@@ -322,7 +332,11 @@ interface Entry {
     amount: number;
     /** 파일에 적혀 있던 금액 셀. 고치지 않은 행은 다시 쓸 때 이 글자를 그대로 둔다. */
     amountCell?: string;
-    memo: string;
+    /** HH:MM. 기록 패널에서 넣은 내역만 채워진다. */
+    time: string;
+    payment: string;
+    /** 쉼표로 나눈 태그. */
+    tags: string;
     /** 우리가 모르는 열이 있어도 다시 쓸 때 잃지 않도록 보관한다. */
     extra: Record<string, string>;
     /** Ledger.rows 안에서의 위치. */
@@ -444,8 +458,8 @@ function buildEntry(
     const extra: Record<string, string> = {};
     for (let i = 0; i < headers.length; i++) {
         const name = headers[i] ?? '';
-        if (name === COL_DATE || name === COL_TITLE || name === COL_CATEGORY
-            || name === COL_AMOUNT || name === COL_MEMO) continue;
+        if (name === COL_DATE || name === COL_TITLE || name === COL_CATEGORY || name === COL_AMOUNT
+            || name === COL_TIME || name === COL_PAYMENT || name === COL_TAGS) continue;
         if (name.length === 0) continue;
         extra[name] = cells[i] ?? '';
     }
@@ -456,7 +470,9 @@ function buildEntry(
         category: cellAt(headers, cells, COL_CATEGORY) ?? '',
         amount,
         amountCell,
-        memo: cellAt(headers, cells, COL_MEMO) ?? '',
+        time: cellAt(headers, cells, COL_TIME) ?? '',
+        payment: cellAt(headers, cells, COL_PAYMENT) ?? '',
+        tags: cellAt(headers, cells, COL_TAGS) ?? '',
         extra,
         rowIndex,
         raw,
@@ -545,7 +561,9 @@ function entryCells(headers: string[], entry: Entry): string[] {
         else if (header === COL_TITLE) cells.push(escapeCell(entry.title));
         else if (header === COL_CATEGORY) cells.push(escapeCell(entry.category));
         else if (header === COL_AMOUNT) cells.push(escapeCell(entry.amountCell ?? formatAmount(entry.amount)));
-        else if (header === COL_MEMO) cells.push(escapeCell(entry.memo));
+        else if (header === COL_TIME) cells.push(escapeCell(entry.time));
+        else if (header === COL_PAYMENT) cells.push(escapeCell(entry.payment));
+        else if (header === COL_TAGS) cells.push(escapeCell(entry.tags));
         else cells.push(escapeCell(entry.extra[header] ?? ''));
     }
     return cells;
@@ -621,12 +639,14 @@ function serializeLedger(ledger: Ledger, rows: LedgerRow[]): string {
  * 저장소 — 파일 찾기 / 만들기 / 고치기
  * ------------------------------------------------------------------ */
 
-interface EntryDraft {
+export interface EntryDraft {
     date: string;
+    time: string;
     title: string;
     category: string;
     amount: number;
-    memo: string;
+    payment: string;
+    tags: string;
     /** 다른 파일에서 옮겨 온 내역이 들고 오는 추가 열 값. */
     extra?: Record<string, string>;
 }
@@ -778,6 +798,12 @@ class LedgerStore {
             const rows = ledger.rows.slice();
             failure = mutate(ledger, rows);
             if (failure !== null) return data;
+            for (const column of OPTIONAL_COLUMNS) {
+                if (ledger.headers.includes(column)) continue;
+                if (rows.some((row) => row.entry !== null && entryCells([column], row.entry)[0] !== '')) {
+                    ledger.headers.push(column);
+                }
+            }
             return serializeLedger(ledger, rows);
         });
         return failure;
@@ -810,10 +836,12 @@ class LedgerStore {
     private draftToRow(draft: EntryDraft, extra: Record<string, string>): LedgerRow {
         const entry: Entry = {
             date: draft.date,
+            time: draft.time,
             title: draft.title,
             category: draft.category,
             amount: draft.amount,
-            memo: draft.memo,
+            payment: draft.payment,
+            tags: draft.tags,
             extra,
             rowIndex: -1,
             raw: '',
@@ -1188,6 +1216,29 @@ function amountInput(parent: HTMLElement, value: string): HTMLInputElement {
     return input;
 }
 
+/** 결제 수단 버튼. 고른 것을 다시 누르면 비운다. */
+export function renderPaymentToggle(
+    parent: HTMLElement,
+    payments: string[],
+    get: () => string,
+    set: (payment: string) => void,
+): void {
+    const group = parent.createDiv({ cls: 'atoz-budget-segment' });
+    const buttons: HTMLElement[] = [];
+    const sync = (): void => {
+        buttons.forEach((button, i) => button.toggleClass('is-active', payments[i] === get()));
+    };
+    for (const payment of payments) {
+        const button = group.createEl('button', { cls: 'atoz-budget-segment-button', text: payment });
+        button.addEventListener('click', () => {
+            set(get() === payment ? '' : payment);
+            sync();
+        });
+        buttons.push(button);
+    }
+    sync();
+}
+
 /** 한글 조합을 끝내는 Enter와 자동완성이 이미 받아 간 Enter는 넘긴다. */
 function onEnter(input: HTMLInputElement, handler: () => void): void {
     input.addEventListener('keydown', (event) => {
@@ -1268,7 +1319,8 @@ class EntryModal extends Modal {
     private titleInputEl: HTMLInputElement | null = null;
     private categoryEl: HTMLInputElement | null = null;
     private dateEl: HTMLInputElement | null = null;
-    private memoEl: HTMLInputElement | null = null;
+    private tagsEl: HTMLInputElement | null = null;
+    private payment: string;
     private kindButtons = new Map<LedgerKind, HTMLElement>();
     private isSaving = false;
 
@@ -1277,6 +1329,7 @@ class EntryModal extends Modal {
         this.plugin = plugin;
         this.options = options;
         this.kind = options.kind;
+        this.payment = options.entry ? options.entry.payment : plugin.settings.budgetLastPayment;
         this.setTitle(options.entry ? t('budget.editEntry') : recordTitle(this.kind));
     }
 
@@ -1312,9 +1365,15 @@ class EntryModal extends Modal {
         this.dateEl = dateHolder.createEl('input', { type: 'date' });
         this.dateEl.value = entry?.date ?? this.options.defaultDate ?? todayISO();
 
-        this.memoEl = textInput(fieldRow(this.contentEl, t('budget.memo')), entry?.memo ?? '', t('budget.optional'));
+        renderPaymentToggle(
+            fieldRow(this.contentEl, t('budget.payment')),
+            this.plugin.settings.budgetPayments,
+            () => this.payment,
+            (payment) => { this.payment = payment; },
+        );
+        this.tagsEl = textInput(fieldRow(this.contentEl, t('budget.tags')), entry?.tags ?? '', t('budget.tagsPlaceholder'));
 
-        for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.dateEl, this.memoEl]) {
+        for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.dateEl, this.tagsEl]) {
             onEnter(input, () => void this.submit());
         }
 
@@ -1360,19 +1419,15 @@ class EntryModal extends Modal {
             return null;
         }
 
-        const title = (this.titleInputEl?.value ?? '').trim();
-        if (title.length === 0) {
-            new Notice(t('budget.notice.itemRequired'));
-            this.titleInputEl?.focus();
-            return null;
-        }
-
         return {
             date,
-            title,
+            // 시각은 입력 창에서 받지 않는다. 고칠 때는 원래 시각을 지킨다.
+            time: this.options.entry?.time ?? '',
+            title: (this.titleInputEl?.value ?? '').trim(),
             category: (this.categoryEl?.value ?? '').trim(),
             amount,
-            memo: (this.memoEl?.value ?? '').trim(),
+            payment: this.payment,
+            tags: splitTags(this.tagsEl?.value ?? '').join(', '),
         };
     }
 
@@ -1417,6 +1472,7 @@ class EntryModal extends Modal {
         }
 
         if (!ok) return;
+        await this.plugin.budget.rememberPayment(draft.payment);
         new Notice(t(entry ? 'budget.notice.updated' : 'budget.notice.recorded', {
             kind: kindLabel(this.kind),
             amount: formatWon(draft.amount),
@@ -1426,7 +1482,7 @@ class EntryModal extends Modal {
             this.close();
             return;
         }
-        for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.memoEl]) {
+        for (const input of [this.amountEl, this.titleInputEl, this.categoryEl, this.tagsEl]) {
             if (input) input.value = '';
         }
         this.amountEl?.focus();
@@ -1742,10 +1798,12 @@ class FixedExpenseModal extends Modal {
 
             drafts.push({
                 date,
+                time: '',
                 title: item.fixed.title,
                 category: item.fixed.category,
                 amount,
-                memo: '',
+                payment: '',
+                tags: '',
             });
         }
 
@@ -1883,6 +1941,7 @@ export class BudgetPage {
         this.renderWarnings(root);
         this.renderSummary(root, stats, previous);
         this.renderCategories(root, stats, previous);
+        this.renderPayments(root, stats);
         this.renderDaily(root, stats);
         this.renderEntries(root);
     }
@@ -2186,6 +2245,31 @@ export class BudgetPage {
         }
     }
 
+    /* -------------------------------------------------- 결제 수단 */
+
+    /** 결제 수단을 하나도 적지 않은 달에는 그리지 않는다. */
+    private renderPayments(root: HTMLElement, stats: MonthStats): void {
+        const totals = new Map<string, number>();
+        for (const entry of this.expense?.entries ?? []) {
+            const key = entry.payment.trim().length === 0 ? t('budget.noPayment') : entry.payment.trim();
+            totals.set(key, (totals.get(key) ?? 0) + entry.amount);
+        }
+        if (!(this.expense?.entries ?? []).some((entry) => entry.payment.trim().length > 0)) return;
+
+        const section = root.createDiv({ cls: 'atoz-budget-section' });
+        section.createDiv({ cls: 'atoz-budget-section-title', text: t('budget.expenseByPayment') });
+        for (const [payment, amount] of [...totals].sort((a, b) => b[1] - a[1])) {
+            const row = section.createDiv({ cls: 'atoz-budget-category' });
+            const head = row.createDiv({ cls: 'atoz-budget-category-head' });
+            head.createSpan({ cls: 'atoz-budget-category-name', text: payment });
+            head.createSpan({ cls: 'atoz-budget-category-amounts' })
+                .createSpan({ cls: 'atoz-budget-category-amount', text: formatWon(amount) });
+            const share = stats.expense === 0 ? 0 : amount / stats.expense;
+            const fill = row.createDiv({ cls: 'atoz-budget-bar-track' }).createDiv({ cls: 'atoz-budget-bar-fill' });
+            fill.style.width = Math.min(100, Math.max(0, share * 100)) + '%';
+        }
+    }
+
     /* -------------------------------------------------- 일별 추이 */
 
     private renderDaily(root: HTMLElement, stats: MonthStats): void {
@@ -2448,7 +2532,7 @@ export class BudgetPage {
                 if (row.kind !== this.categoryFilter.kind || category !== this.categoryFilter.category) continue;
             }
             if (needle.length > 0) {
-                const haystack = (row.entry.title + ' ' + row.entry.category + ' ' + row.entry.memo)
+                const haystack = (row.entry.title + ' ' + row.entry.category + ' ' + row.entry.tags)
                     .toLowerCase();
                 if (haystack.indexOf(needle) === -1) continue;
             }
@@ -2458,8 +2542,10 @@ export class BudgetPage {
         const direction = this.sortAsc ? 1 : -1;
         filtered.sort((a, b) => {
             if (this.sortKey === 'amount') return (a.entry.amount - b.entry.amount) * direction;
-            if (a.entry.date === b.entry.date) return 0;
-            return (a.entry.date < b.entry.date ? -1 : 1) * direction;
+            const left = a.entry.date + ' ' + a.entry.time;
+            const right = b.entry.date + ' ' + b.entry.time;
+            if (left === right) return 0;
+            return (left < right ? -1 : 1) * direction;
         });
 
         return filtered;
@@ -2545,12 +2631,13 @@ export class BudgetPage {
         const body = table.createEl('tbody');
         for (const row of rows) {
             const tr = body.createEl('tr', { cls: 'atoz-budget-row atoz-budget-row-' + (row.kind === KIND_INCOME ? 'income' : 'expense') });
-            tr.createEl('td', { text: row.entry.date.slice(5) });
+            tr.createEl('td', { text: (row.entry.date.slice(5) + ' ' + row.entry.time).trim() });
 
             const titleCell = tr.createEl('td');
             titleCell.createSpan({ text: row.entry.title });
-            if (row.entry.memo.length > 0) {
-                titleCell.createSpan({ cls: 'atoz-budget-row-memo', text: row.entry.memo });
+            const detail = [row.entry.payment].concat(splitTags(row.entry.tags)).filter((text) => text.length > 0);
+            if (detail.length > 0) {
+                titleCell.createSpan({ cls: 'atoz-budget-row-memo', text: detail.join(' · ') });
             }
 
             tr.createEl('td', { text: row.entry.category });
@@ -2698,6 +2785,13 @@ export class BudgetFeature {
         // 옛 이름이 자동완성 후보에 남지 않도록 다시 모은다.
         this.observed[kind] = [];
         return count;
+    }
+
+    /** 다음 입력의 기본 결제 수단. 비운 채 저장하면 기억을 바꾸지 않는다. */
+    async rememberPayment(payment: string): Promise<void> {
+        if (payment.length === 0 || payment === this.plugin.settings.budgetLastPayment) return;
+        this.plugin.settings.budgetLastPayment = payment;
+        await this.plugin.saveSettings();
     }
 
     categoriesFor(kind: LedgerKind): string[] {
