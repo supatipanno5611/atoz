@@ -470,7 +470,7 @@ export class DaynightView extends ItemView {
         if (this.amountTarget?.meal) this.renderAmountForm(pills.parentElement!, this.amountTarget);
     }
 
-    // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 블록 파일을 메인 탭에 연다.
+    // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 메인 탭에 계획 페이지를 연다.
     private renderActivities(container: HTMLElement, now: number): void {
         const pills = this.pills(container, t('record.activity'));
         const current = this.plugin.timeline.current();
@@ -486,7 +486,7 @@ export class DaynightView extends ItemView {
         }
         const add = pills.createEl('button', { cls: 'atoz-record-pill', attr: { 'aria-label': t('record.addActivity') } });
         setIcon(add.createSpan({ cls: 'atoz-record-pill-icon' }), 'plus');
-        add.addEventListener('click', () => void this.plugin.timeline.openBlocks());
+        add.addEventListener('click', () => void this.plugin.dashboard.open('plan'));
     }
 
     private openAmount(target: AmountTarget): void {
