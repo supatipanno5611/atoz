@@ -119,8 +119,8 @@ export class DaynightView extends ItemView {
     }
 
     getViewType(): string { return VIEW_TYPE_DAYNIGHT; }
-    getDisplayText(): string { return t('daynight.viewName'); }
-    getIcon(): string { return 'moon'; }
+    getDisplayText(): string { return t('record.viewName'); }
+    getIcon(): string { return 'clock'; }
 
     async onOpen(): Promise<void> {
         // 고치거나 금액을 넣는 중에는 다시 그리면 입력이 닫히므로 건너뛴다.
@@ -218,15 +218,6 @@ export class DaynightView extends ItemView {
                 : current ? t('record.doing', { activity: current.category })
                     : t('record.idle'),
         });
-        const links = head.createDiv({ cls: 'atoz-daynight-links' });
-        const addLink = (icon: string, label: string, onClick: () => void): void => {
-            const button = links.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
-            setIcon(button, icon);
-            button.addEventListener('click', onClick);
-        };
-        // 월초에 아직 이번 달 기록이 없어도 빈 파일을 만들지 않도록 마지막 기록이 든 파일을 연다.
-        if (last) addLink('file-text', t('daynight.openFile'), () => void this.app.workspace.getLeaf(false).openFile(last.file));
-        addLink('layout-dashboard', t('daynight.openDashboard'), () => void this.plugin.dashboard.open('daynight'));
 
         const at = (time: number): string =>
             formatShortDate(time) === formatShortDate(now) ? formatTime(time) : formatShortDateTime(time);
@@ -463,13 +454,13 @@ export class DaynightView extends ItemView {
         if (this.amountTarget?.meal === null) this.renderAmountForm(pills.parentElement!, this.amountTarget);
     }
 
-    // 가계부 지출 카테고리와 이름이 같은 식사(외식·배달·간식)는 금액 칸을 함께 연다.
+    // 첫 범례(집밥)는 바로 기록하고, 나머지(배달·외식·간식)는 금액 칸을 함께 연다.
     private renderMeals(container: HTMLElement): void {
         const settings = this.plugin.settings;
         if (settings.mealLegend.length === 0) return;
         const pills = this.pills(container, t('record.meal'));
-        for (const item of settings.mealLegend) {
-            const hasAmount = settings.budgetExpenseCategories.includes(item.label);
+        for (const [index, item] of settings.mealLegend.entries()) {
+            const hasAmount = index > 0;
             const button = this.pill(pills, item.label, this.plugin.meal.colorOf(item.color), () => {
                 if (hasAmount) this.openAmount({ category: item.label, meal: item });
                 else void this.plugin.meal.add(Date.now(), '', item);
@@ -479,19 +470,11 @@ export class DaynightView extends ItemView {
         if (this.amountTarget?.meal) this.renderAmountForm(pills.parentElement!, this.amountTarget);
     }
 
-    // 활성 알약을 다시 누르면 그 활동이 끝난다.
+    // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 블록 파일을 메인 탭에 연다.
     private renderActivities(container: HTMLElement, now: number): void {
         const pills = this.pills(container, t('record.activity'));
-        const blocks = this.plugin.timeline.blocks;
-        if (blocks.length === 0) {
-            const button = pills.createEl('button', { cls: 'atoz-record-pill' });
-            button.createSpan({ text: t('record.addBlocks') });
-            setIcon(button.createSpan({ cls: 'atoz-record-pill-icon' }), 'plus');
-            button.addEventListener('click', () => void this.plugin.timeline.openBlocks());
-            return;
-        }
         const current = this.plugin.timeline.current();
-        for (const name of blocks) {
+        for (const name of this.plugin.timeline.blocks) {
             const isCurrent = current?.category === name;
             const button = this.pill(pills, name, this.plugin.settings.timelineColors[name], () => {
                 void this.plugin.timeline.addLog(Date.now(), isCurrent ? END_CATEGORY : name);
@@ -501,6 +484,9 @@ export class DaynightView extends ItemView {
                 button.createSpan({ cls: 'atoz-record-elapsed', text: formatElapsed(now - current.time) });
             }
         }
+        const add = pills.createEl('button', { cls: 'atoz-record-pill', attr: { 'aria-label': t('record.addActivity') } });
+        setIcon(add.createSpan({ cls: 'atoz-record-pill-icon' }), 'plus');
+        add.addEventListener('click', () => void this.plugin.timeline.openBlocks());
     }
 
     private openAmount(target: AmountTarget): void {

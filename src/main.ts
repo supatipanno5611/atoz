@@ -199,6 +199,12 @@ export default class ATOZPlugin extends Plugin {
         delete data.clipboardHistoryLimit;
         delete data.clipboardPreviewLength;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+        // 패널 지출 카테고리를 예전 기본값(8개) 그대로 쓰고 있으면 지금 기본값(4개)으로 줄인다.
+        const panelCategories = this.settings.budgetPanelCategories;
+        if (Array.isArray(panelCategories) && (panelCategories.join() === '장보기,카페,교통,생활,쇼핑,문화,건강,기타'
+            || panelCategories.join() === 'Groceries,Cafe,Transport,Living,Shopping,Culture,Health,Other')) {
+            this.settings.budgetPanelCategories = DEFAULT_SETTINGS.budgetPanelCategories;
+        }
         if (this.settings.readingTimeCharacterBasis !== 'with-spaces' &&
             this.settings.readingTimeCharacterBasis !== 'without-spaces') {
             this.settings.readingTimeCharacterBasis = DEFAULT_SETTINGS.readingTimeCharacterBasis;

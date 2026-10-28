@@ -418,10 +418,15 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     flex: 1;
     min-height: 60px;
     overflow: auto;
+    scrollbar-width: none;
     display: flex;
     flex-direction: column;
     padding-top: 8px;
     border-top: 1px solid var(--background-modifier-border);
+}
+
+.atoz-record-feed::-webkit-scrollbar {
+    display: none;
 }
 
 .atoz-record-list {
@@ -773,12 +778,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 /* ── 사이드바 바로가기 ── */
-.atoz-daynight-links {
-    display: flex;
-    justify-content: flex-end;
-    gap: 2px;
-}
-
 /* ── Daynight 대시보드 ── */
 .atoz-daynight-dashboard {
     --atoz-daynight-morning: #f0a640;

@@ -207,8 +207,8 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
         ? ['급여', '부수입', '용돈', '이자·배당', '환급', '기타']
         : ['Salary', 'Side income', 'Allowance', 'Interest & dividends', 'Refunds', 'Other'],
     budgetPanelCategories: isKorean
-        ? ['장보기', '카페', '교통', '생활', '쇼핑', '문화', '건강', '기타']
-        : ['Groceries', 'Cafe', 'Transport', 'Living', 'Shopping', 'Culture', 'Health', 'Other'],
+        ? ['장보기', '카페', '교통', '생활']
+        : ['Groceries', 'Cafe', 'Transport', 'Living'],
     budgetPayments: isKorean ? ['현금', '체크카드', '신용카드'] : ['Cash', 'Debit card', 'Credit card'],
     budgetLastPayment: '',
     budgetFixedExpenses: [],

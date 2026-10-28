@@ -8,6 +8,10 @@ const FILE_NAME_PATTERN = /^((log|plan)-\d{4}-\d{2}|blocks)\.md$/;
 const BLOCKS_FILE = 'blocks.md';
 const LOG_HEADER = '| Date | Time | Category | Memo |\n| --- | --- | --- | --- |\n';
 const BLOCKS_HEADER = '| Name | Minutes | Repeat |\n| --- | --- | --- |\n';
+// blocks.md가 없을 때 쓰는 활동. 파일을 처음 만들 때도 이것으로 채운다.
+const DEFAULT_BLOCKS = isKorean
+    ? ['일', '공부', '운동', '휴식', '이동']
+    : ['Work', 'Study', 'Exercise', 'Rest', 'Commute'];
 // 블록 표의 첫 칸(이름). 머리 줄과 구분선은 따로 거른다.
 const BLOCK_ROW_PATTERN = /^\|([^|]*)\|/;
 /** 카테고리 자리에 이것을 쓴 기록은 하던 활동의 끝이다. 다음 기록까지 '기록 없음'이 된다. */
@@ -393,14 +397,19 @@ export class TimelineFeature {
         await this.enqueue(() => this.loadFiles([log.file.path]));
     }
 
-    /** 블록 파일을 연다. 없으면 머리 줄만 있는 파일을 만든다. */
+    /** 블록 파일을 메인 영역의 새 탭으로 연다. 없으면 기본 활동을 적어 만든다. */
     async openBlocks(): Promise<void> {
         const folder = this.getFolder();
-        const path = normalizePath(`${folder}/${BLOCKS_FILE}`);
+        const path = this.blocksPath();
         const vault = this.plugin.app.vault;
         if (!vault.getFolderByPath(folder)) await vault.createFolder(folder);
-        const file = vault.getFileByPath(path) ?? await vault.create(path, BLOCKS_HEADER);
-        await this.plugin.app.workspace.getLeaf(false).openFile(file);
+        const file = vault.getFileByPath(path)
+            ?? await vault.create(path, BLOCKS_HEADER + DEFAULT_BLOCKS.map((name) => `| ${name} | | |\n`).join(''));
+        await this.plugin.app.workspace.getLeaf('tab').openFile(file);
+    }
+
+    private blocksPath(): string {
+        return normalizePath(`${this.getFolder()}/${BLOCKS_FILE}`);
     }
 
     private enqueue(job: () => Promise<void>): Promise<void> {
@@ -479,7 +488,9 @@ export class TimelineFeature {
         const all = [...this.fileRecords.values()];
         this.logs = all.flatMap((records) => records.logs).sort((a, b) => a.time - b.time);
         this.plans = all.flatMap((records) => records.plans).sort((a, b) => a.from - b.from);
-        this.blocks = [...new Set(all.flatMap((records) => records.blocks))];
+        this.blocks = this.fileRecords.has(this.blocksPath())
+            ? [...new Set(all.flatMap((records) => records.blocks))]
+            : DEFAULT_BLOCKS;
         this.plugin.dashboard.refresh('timeline');
         this.plugin.daynight.renderViews();
     }
