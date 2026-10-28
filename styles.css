@@ -260,10 +260,20 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     --atoz-daynight-morning: #f0a640;
     --atoz-daynight-morning-hover: #f5b75e;
     --atoz-daynight-on-morning: #412402;
+    --atoz-record-fill: color-mix(in srgb, var(--text-normal) 4%, transparent);
     display: flex;
     flex-direction: column;
     gap: 12px;
     overflow: hidden;
+}
+
+/* 활동·식사 색. 색이 정해지지 않았으면 회색이다. */
+.atoz-record-colored {
+    --atoz-record-color: var(--atoz-record-light, var(--text-faint));
+}
+
+.theme-dark .atoz-record-colored {
+    --atoz-record-color: var(--atoz-record-dark, var(--text-faint));
 }
 
 /* ── 상태 ── */
@@ -271,33 +281,27 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 4px 2px 0;
+    padding: 2px 2px 0;
 }
 
 .atoz-daynight-hero-label {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: var(--font-ui-small);
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
 }
 
 .atoz-daynight-dot {
-    width: 7px;
-    height: 7px;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-}
-
-.atoz-daynight-dot.is-awake {
-    background-color: var(--atoz-daynight-morning);
-}
-
-.atoz-daynight-dot.is-asleep {
-    background-color: var(--interactive-accent);
+    background-color: var(--atoz-record-color);
 }
 
 .atoz-daynight-hero-value {
-    font-size: 2em;
+    font-size: 28px;
     font-weight: var(--font-semibold);
     line-height: 1.2;
     letter-spacing: -0.01em;
@@ -306,7 +310,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-hero-sub {
-    font-size: var(--font-ui-small);
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
@@ -416,12 +420,15 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     overflow: auto;
     display: flex;
     flex-direction: column;
+    padding-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
 }
 
 .atoz-record-list {
     margin-top: auto;
     display: flex;
     flex-direction: column;
+    gap: 2px;
     font-size: var(--font-ui-small);
 }
 
@@ -430,20 +437,30 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 30px;
-    padding: 0 6px;
+    min-height: 32px;
+    padding: 4px 6px;
     border-radius: var(--radius-s);
 }
 
 .atoz-record-fold {
+    gap: 6px;
+    min-height: 30px;
+    padding: 2px 6px;
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     cursor: pointer;
 }
 
 .atoz-record-fold svg,
-.atoz-record-icon svg {
-    width: 14px;
-    height: 14px;
+.atoz-record-mark svg {
+    width: 15px;
+    height: 15px;
+}
+
+.atoz-record-divider {
+    padding: 6px 6px 2px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
 }
 
 .atoz-record-empty {
@@ -451,25 +468,51 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     color: var(--text-faint);
 }
 
+.atoz-record-row {
+    border-radius: var(--radius-s);
+}
+
 .atoz-record-row.is-editable .atoz-record-head {
     cursor: pointer;
 }
 
 .atoz-record-fold:hover,
-.atoz-record-row.is-editable .atoz-record-head:hover,
+.atoz-record-row.is-editable:not(.is-open) .atoz-record-head:hover,
 .atoz-record-row.is-open {
     background: var(--background-modifier-hover);
-    border-radius: var(--radius-s);
 }
 
 .atoz-record-time {
+    flex-shrink: 0;
+    width: 38px;
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
 
-.atoz-record-icon {
+/* 줄 앞 표시: 활동은 점, 활동 끝은 빈 고리, 그 밖은 아이콘 */
+.atoz-record-mark {
+    flex-shrink: 0;
+    width: 16px;
     display: flex;
-    color: var(--text-muted);
+    align-items: center;
+    justify-content: center;
+    color: var(--atoz-record-color);
+}
+
+.atoz-record-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--atoz-record-color);
+}
+
+.atoz-record-ring {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1.5px solid var(--atoz-record-color);
 }
 
 .atoz-record-text {
@@ -480,23 +523,34 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     white-space: nowrap;
 }
 
+.atoz-record-note,
+.atoz-record-row.is-end .atoz-record-text {
+    color: var(--text-muted);
+}
+
 .atoz-record-value {
+    flex-shrink: 0;
+    font-size: var(--font-ui-smaller);
     font-variant-numeric: tabular-nums;
 }
 
-.atoz-record-editor,
-.atoz-record-amount-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 6px 6px;
+.atoz-record-value.is-income {
+    color: var(--color-green);
 }
 
-.atoz-record-note-input,
-.atoz-record-amount-row input {
+/* 입력 칸은 기록 이름 앞(시각 칸 다음)에 맞춘다. */
+.atoz-record-editor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px 8px 52px;
+}
+
+.atoz-record-note-input {
     flex: 1;
     min-width: 0;
-    height: 26px;
+    height: 28px;
+    font-size: var(--font-ui-smaller);
 }
 
 /* ── 알약 ── */
@@ -504,11 +558,18 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.atoz-record-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .atoz-record-section-title {
-    margin-bottom: 4px;
     font-size: var(--font-ui-smaller);
     color: var(--text-muted);
 }
@@ -520,21 +581,41 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight .atoz-record-pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 30px;
+    gap: 6px;
+    height: 32px;
     padding: 0 12px;
-    border-radius: 15px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    background: var(--atoz-record-fill);
+    box-shadow: none;
+    color: var(--text-normal);
     font-size: var(--font-ui-small);
 }
 
-.atoz-daynight .atoz-record-pill.is-active {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
+.atoz-daynight .atoz-record-pill:hover {
+    background: var(--background-modifier-hover);
 }
 
-.atoz-record-pill .atoz-meal-marker,
+/* 지금 하는 활동은 그 활동 색 테두리 */
+.atoz-daynight .atoz-record-pill.is-active {
+    border-color: var(--atoz-record-color);
+    background: var(--background-modifier-hover);
+}
+
+/* 금액 칸을 연 알약은 강조색 */
+.atoz-daynight .atoz-record-pill.is-open {
+    border-color: var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+
+.atoz-record-elapsed {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
 .atoz-record-pill-icon svg {
     width: 14px;
     height: 14px;
@@ -542,19 +623,60 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-record-amount {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
     padding: 8px;
+    border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
-    background: var(--background-secondary);
+    background: var(--background-primary);
 }
 
-.atoz-record-amount-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-weight: var(--font-medium);
+.atoz-record-amount-title {
+    font-size: var(--font-ui-small);
+    white-space: nowrap;
+}
+
+.atoz-daynight .atoz-record-amount-toggle,
+.atoz-daynight .atoz-record-amount-submit {
+    height: 30px;
+    box-shadow: none;
+    white-space: nowrap;
+}
+
+.atoz-daynight .atoz-record-amount-toggle {
+    padding: 0 8px;
+    border: none;
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--text-normal) 15%, transparent);
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+}
+
+.atoz-daynight .atoz-record-amount-toggle.is-income {
+    background: color-mix(in srgb, var(--color-green) 15%, transparent);
+    color: var(--color-green);
+}
+
+.atoz-daynight .atoz-record-amount-toggle.is-empty {
+    color: var(--text-muted);
+}
+
+.atoz-record-amount-toggle svg {
+    width: 15px;
+    height: 15px;
+}
+
+.atoz-record-amount .atoz-budget-amount-input {
+    flex: 1 1 0;
+    min-width: 48px;
+    height: 30px;
+    text-align: right;
+}
+
+.atoz-daynight .atoz-record-amount-submit {
+    padding: 0 10px;
+    font-size: var(--font-ui-small);
 }
 
 .atoz-record-status {
@@ -565,8 +687,13 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-daynight .atoz-daynight-action {
     display: flex;
     align-items: center;
-    height: auto;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
     padding: 0;
+    border-radius: var(--radius-s);
     border: none;
     background: none;
     box-shadow: none;
@@ -588,11 +715,12 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight .atoz-daynight-time-input {
-    flex: 1;
-    min-width: 0;
-    height: 26px;
-    padding: 0 6px;
-    font-size: var(--font-ui-small);
+    flex-shrink: 0;
+    /* '오후 08:30'처럼 오전·오후가 붙는 언어도 다 보이게 내용 폭을 따른다. */
+    width: auto;
+    height: 28px;
+    padding: 0 4px;
+    font-size: var(--font-ui-smaller);
     font-variant-numeric: tabular-nums;
 }
 
@@ -616,6 +744,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     font-size: var(--font-ui-medium);
     font-weight: var(--font-medium);
     border: none;
+    border-radius: var(--radius-m);
     box-shadow: none;
     transition: transform 120ms ease-out, background-color 150ms ease-out;
 }
