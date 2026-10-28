@@ -16,7 +16,6 @@ import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS, isValidWritingTarget, type WritingTargetPreset } from './types';
 import { t } from './locales';
-import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
@@ -48,13 +47,10 @@ export default class ATOZPlugin extends Plugin {
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
-    later!: LaterFeature;
     info!: InfoFeature;
     noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
     daynight!: DaynightFeature;
-
-    activeSidebarMode: 'later' | null = null;
 
     private saveTimer: number | null = null;
     private _koIme_isComposingState: boolean = false;
@@ -76,7 +72,6 @@ export default class ATOZPlugin extends Plugin {
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
-        this.later = new LaterFeature(this);
         this.info = new InfoFeature(this);
         this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
@@ -90,8 +85,6 @@ export default class ATOZPlugin extends Plugin {
         this.registerEditorSuggest(new SnippetsSuggestions(this));
         this.registerEditorSuggest(new SymbolSuggestions(this));
 
-        this.registerView(VIEW_TYPE_LATER, (leaf) => new LaterView(leaf, this));
-        this.later.install();
         this.info.install();
         this.noteList.install();
         this.versionManager.install();
@@ -99,8 +92,8 @@ export default class ATOZPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
+            this.app.workspace.detachLeavesOfType('atoz-later-view');
             this.mobile.install();
-            this.later.captureCurrentRootFile();
             this.app.workspace.onLayoutReady(() => {
            		let _koIme_lastCheckedCount = -1;
            		let _koIme_stableTickCounter = 0;
@@ -163,7 +156,6 @@ export default class ATOZPlugin extends Plugin {
         }
         this._koIme_isFeatureActivated = false;
         this.mobile.uninstall();
-        this.later.uninstall();
         this.info.uninstall();
         this.versionManager.uninstall();
         this.daynight.uninstall();
@@ -175,6 +167,7 @@ export default class ATOZPlugin extends Plugin {
             ? { ...loadedData }
             : {};
         delete data.laterFilePath;
+        delete data.moveLineTargetFolder;
         delete data.workTimestampFormat;
         delete data.moveLineSuffix;
         const hadFolderVisibilityData = 'isAllFoldersHidden' in data;
@@ -229,10 +222,9 @@ export default class ATOZPlugin extends Plugin {
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const frontmatter: unknown = cache?.frontmatter;
-            const isLaterNote = isRecord(frontmatter) && frontmatter.later !== undefined;
             const isVersionNote = isRecord(frontmatter) && frontmatter.version !== undefined;
             const isExcludedCandidate = file.path === activeFile?.path ||
-                file.path === workFilePath || file.path === 'log.md' || isLaterNote || isVersionNote;
+                file.path === workFilePath || file.path === 'log.md' || isVersionNote;
 
             if (!isExcludedCandidate) {
                 candidates.push({
@@ -263,7 +255,6 @@ export default class ATOZPlugin extends Plugin {
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', t('ribbon.openWorkFile'), () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-panel-bottom', t('ribbon.toggleMobileToolbar'), () => this.mobile.toggleMobileToolbarHidden());
-        this.addRibbonIcon('lucide-archive-restore', t('ribbon.openLaterView'), () => void this.later.activateView());
         this.addRibbonIcon('lucide-bookmark-plus', t('ribbon.bookmarkActiveTab'), () => this.bookmarkActiveTab());
         for (let i = 1; i <= 4; i++) {
             this.addRibbonIcon(`lucide-dice-${i}`, t('ribbon.openQuickSlot', { slot: i }), () => void this.quickSlot.openSlot(i));
@@ -304,18 +295,12 @@ export default class ATOZPlugin extends Plugin {
 
         this.addCommand({ id: 'open-work-file', name: t('command.openWorkFile'), callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'close-all-tabs', name: t('command.closeAllTabs'), callback: () => void this.work.cleanupTabs() });
-        this.addCommand({ id: 'clipboard-select-prev', name: t('command.selectPreviousSidebarItem'), callback: () => this.selectSidebarItem('prev') });
-        this.addCommand({ id: 'clipboard-select-next', name: t('command.selectNextSidebarItem'), callback: () => this.selectSidebarItem('next') });
-        this.addCommand({ id: 'paste-clipboard-selected', name: t('command.takeSelectedSidebarItem'), icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
-        this.addCommand({ id: 'open-later-view', name: t('command.openLaterView'), callback: () => void this.later.activateView() });
-        this.addCommand({ id: 'resolve-later-links', name: t('command.resolveLaterLinks'), callback: () => void this.later.resolveDuplicateLinks() });
 
         this.addCommand({ id: 'cycle-left-sidebar-next', name: t('command.nextLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
         this.addCommand({ id: 'cycle-left-sidebar-prev', name: t('command.previousLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
         this.addCommand({ id: 'cycle-right-sidebar-next', name: t('command.nextRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: t('command.previousRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
-        this.addCommand({ id: 'move-line-to-target', name: t('command.moveSelectionToLater'), icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveSelectionToLater(editor, view.file) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: t('command.restartKoreanImeFix'), callback: () => { this._koIme_resetFeatureState(); } });
 
         this.addCommand({ id: 'open-quick-slot-assigner', name: t('command.openQuickSlotAssigner'), callback: () => this.quickSlot.openAssignModal() });
@@ -336,25 +321,6 @@ export default class ATOZPlugin extends Plugin {
         	await this.saveSettings();
             new Notice(t('notice.commandSlotsCleared'));
         }});
-    }
-
-    private selectSidebarItem(direction: 'prev' | 'next'): void {
-        if (this.activeSidebarMode === 'later' && this.app.workspace.getLeavesOfType(VIEW_TYPE_LATER).length > 0) {
-            if (direction === 'prev') this.later.selectPrev();
-            else this.later.selectNext();
-            return;
-        }
-
-        new Notice(t('notice.selectLaterSidebarTab'));
-    }
-
-    private async takeSidebarItem(): Promise<void> {
-        if (this.activeSidebarMode === 'later' && this.app.workspace.getLeavesOfType(VIEW_TYPE_LATER).length > 0) {
-            await this.later.takeSelected();
-            return;
-        }
-
-        new Notice(t('notice.selectLaterSidebarTab'));
     }
 
     registerEvents() {

@@ -8,14 +8,14 @@ English | [한국어](README.ko.md)
 
 `a to z` is an Obsidian plugin designed to streamline writing workflows, with particular support for Korean users.
 
-It brings frequently used editing actions, source-linked Later notes, note versions, frontmatter and topic management, note info, snippets, symbol input, and a sleep log together as commands and settings.
+It brings frequently used editing actions, note versions, frontmatter and topic management, note info, snippets, symbol input, and a sleep log together as commands and settings.
 
 ## Features
 
 | Area | Main features |
 | --- | --- |
 | Editing | Copy or cut an entire note, copy or cut the selection or current line, delete the current line, and focus the main editor |
-| Note organization | Move selected text to source-specific Later notes, move the current file, clean up tabs, and keep auto-generated note lists |
+| Note organization | Move the current file, clean up tabs, and keep auto-generated note lists |
 | Versions | Save numbered versions of a note, revert to one, and see what changed between two versions |
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
 | Note info | Character counts for the note or selection, reading time, and per-note writing targets |
@@ -86,7 +86,6 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Symbol suggestion limit | `5` | Maximum number of symbol suggestions shown. |
 | Symbol list | Default symbol set | Configures each symbol's ID, displayed character, and optional closing character. |
 | Work note path | `work.md` | File opened by the **Open work note** command. |
-| Later note folder | Empty (vault root) | Folder where source-specific Later notes are created. |
 | Version note folder | Empty (next to the source note) | Folder where version notes are created. |
 | Sleep record folder | Empty (`sleep`) | Folder where monthly sleep records are saved. |
 | Number of slots | `4` | Number of slots shown in command slot modals. |
@@ -94,15 +93,6 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 Use **Reset all settings** to restore these defaults.
 
 ## Common workflows
-
-### Save text for Later
-
-1. Select text in a regular note or `work.md`, or place the cursor on a line.
-2. Run **Later: Send selection or current line**.
-3. The content is saved in `<source-name>_later.md` and removed from the source note.
-4. Select an entry in the later sidebar to move it back to the source note.
-
-Each Later note is linked to its source by the `later: "[[Source note]]"` property.
 
 ### Save and compare versions
 
@@ -130,7 +120,6 @@ description:
 cssclasses:
 aliases:
 tags:
-later:
 target-characters:
 target-tolerance:
 min-characters:
@@ -169,12 +158,6 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Note info: Set writing target** | Assigns a configured preset or a typed target, or clears the current target. |
 | **Open work note** | Opens the configured work note. |
 | **Close all unpinned tabs** | Closes unpinned tabs in the main workspace. |
-| **Later: Send selection or current line** | Moves the exact selection or current line into a source-linked later note. |
-| **Later: Open sidebar** | Shows later entries linked to the current note. |
-| **Later: Select previous item** | Selects the previous entry in the later sidebar. |
-| **Later: Select next item** | Selects the next entry in the later sidebar. |
-| **Later: Insert selected item into source** | Moves the selected later entry back into the source editor. |
-| **Later: Resolve duplicate links** | Keeps one linked later note when multiple notes point to the same source. |
 | **Version: Save current state** | Saves the current note as a numbered version note. |
 | **Version: Revert to saved version** | Replaces the note body with a saved version. |
 | **Version: Open comparison view** | Shows what changed between two versions of the current note. |
@@ -189,7 +172,7 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Command slot: Clear all** | Clears every command slot. |
 | **Restart input method fix** | Restarts the Korean input method fix. |
 
-Ribbon icons provide quick access to the work note, mobile toolbar, Later sidebar, bookmarking the active tab, quick slots 1–4, note info, and the Daynight sidebar.
+Ribbon icons provide quick access to the work note, mobile toolbar, bookmarking the active tab, quick slots 1–4, note info, and the Daynight sidebar.
 
 ## Documentation
 
@@ -203,7 +186,6 @@ Detailed feature documentation is available in Korean at [atoz-docs](https://ato
 | [focus-root-leaf](https://atoz-docs.vercel.app/feature-4-focus-root-leaf) | Focus the main editor |
 | [move-current-file](https://atoz-docs.vercel.app/feature-5-move-current-file) | Move the current file |
 | [work](https://atoz-docs.vercel.app/feature-6-work) | Work note and tab cleanup |
-| [later-sidebar](https://atoz-docs.vercel.app/feature-7-later-sidebar) | Source-specific Later notes and sidebar |
 | [edit-topics](https://atoz-docs.vercel.app/feature-8-edit-topics) | Topic editing |
 | [date-property](https://atoz-docs.vercel.app/feature-9-date-property) | Date properties |
 | [lint-properties](https://atoz-docs.vercel.app/feature-10-lint-properties) | Property cleanup |
