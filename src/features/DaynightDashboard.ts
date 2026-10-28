@@ -1,6 +1,9 @@
+import { setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
-import { DAY, DaynightSegment, formatDuration, formatShortDate, pad, toSegments } from './Daynight';
+import {
+    DAY, DaynightSegment, formatDuration, formatShortDate, formatShortDateTime, formatTime, pad, toSegments,
+} from './Daynight';
 
 // 집계 기간(일). 0은 전체 기간이다.
 export const DASHBOARD_RANGES = [7, 30, 90, 0];
@@ -12,6 +15,14 @@ const SAMPLE_STEP = 5 * 60 * 1000;
 const AWAKE_BIN_HOURS = 4;
 const AWAKE_BIN_COUNT = 7;
 
+// 24시간 차트 배경을 어둡게 칠하는 밤 시간대
+const NIGHT_START_HOUR = 18;
+const NIGHT_END_HOUR = 6;
+
+// 24시간 차트 좌표계
+const DAY_CHART_WIDTH = 860;
+const BAR_TOP = 18;
+const BAR_HEIGHT = 32;
 // 시간대 차트 좌표계
 // 대시보드 최대 폭에 맞춰 글자가 거의 그대로의 크기로 보이게 한다.
 const WINDOW_CHART_WIDTH = 860;
@@ -127,6 +138,9 @@ export function daynightSummary(plugin: ATOZPlugin): DaynightSummary {
 }
 
 export class DaynightDashboardPage {
+    // 24시간 차트에서 고른 구간의 시작 시각. null이면 현재 시각에서 끝나는 24시간을 보여 준다.
+    private selectedStart: number | null = null;
+
     constructor(private plugin: ATOZPlugin, private container: HTMLElement) {
         container.addClass('atoz-daynight-dashboard');
     }
@@ -164,6 +178,7 @@ export class DaynightDashboardPage {
         const clipped = clipSegments(segments, start, now);
 
         const grid = container.createDiv({ cls: 'atoz-daynight-dashboard-grid' });
+        this.renderDay(this.createCard(grid, t('daynight.dashboard.day'), 'is-wide'), segments, now);
         this.renderWindows(this.createCard(grid, t('daynight.dashboard.windows'), 'is-wide'), clipped);
         this.renderRegularity(this.createCard(grid, t('daynight.dashboard.regularity')), clipped, start, now);
         // 각성 시간은 덩어리 단위로 세므로 끝이 기간 안에 있으면 통째로 넣는다. 진행 중인 구간은 뺀다.
@@ -179,6 +194,140 @@ export class DaynightDashboardPage {
         if (cls) card.addClass(cls);
         card.createDiv({ cls: 'atoz-daynight-card-title', text: title });
         return card;
+    }
+
+    private renderDay(card: HTMLElement, segments: DaynightSegment[], now: number): void {
+        // 진행 중인 마지막 구간은 현재 화면과 같으므로 끝난 구간만 고를 수 있다.
+        const finished = segments.slice(0, -1);
+        // 기록이 지워져 선택한 구간이 없어지면 현재로 돌아간다.
+        const selectedIndex = finished.findIndex(({ from }) => from === this.selectedStart);
+        const selected = finished[selectedIndex] ?? null;
+        if (!selected) this.selectedStart = null;
+
+        // 선택한 구간을 가운데에 두되 현재 시각 너머로는 넘어가지 않는다.
+        const end = selected ? Math.min((selected.from + selected.to + DAY) / 2, now) : now;
+        const start = end - DAY;
+
+        const nav = card.createDiv({ cls: 'atoz-daynight-nav' });
+        nav.createSpan({ cls: 'atoz-daynight-range', text: `${formatShortDateTime(start)} – ${formatShortDateTime(end)}` });
+        const controls = nav.createDiv({ cls: 'atoz-daynight-controls' });
+        // 현재에서 ‹는 가장 최근에 끝난 구간을, 그 구간에서 ›는 현재를 연다.
+        const addNavButton = (icon: string, label: string, disabled: boolean, targetIndex: number): void => {
+            const button = controls.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
+            setIcon(button, icon);
+            button.disabled = disabled;
+            button.addEventListener('click', () => {
+                this.selectedStart = finished[targetIndex]?.from ?? null;
+                this.render();
+            });
+        };
+        const currentIndex = selected ? selectedIndex : finished.length;
+        addNavButton('chevron-left', t('daynight.previous'), currentIndex === 0, currentIndex - 1);
+        addNavButton('rotate-ccw', t('daynight.now'), !selected, -1);
+        addNavButton('chevron-right', t('daynight.next'), !selected, currentIndex + 1);
+
+        // 고른 구간이 없으면 진행 중인 마지막 구간을 진하게 둔다.
+        const focused = selected ?? segments[segments.length - 1]!;
+        this.renderDayChart(card, segments, start, end, end === now ? now : null, focused);
+
+        // 진하게 칠한 구간을 한 줄로 풀어 쓴다. 진행 중인 구간은 끝 시각을 적지 않는다.
+        const { from, to, type } = focused;
+        const isSleep = type === 'sleep';
+        const sameDay = formatShortDate(from) === formatShortDate(to);
+        const formatEdge = (time: number): string => sameDay ? formatTime(time) : formatShortDateTime(time);
+        const parts = [
+            t(isSleep ? 'daynight.sleepOn' : 'daynight.awakeOn', { date: formatShortDate(from) }),
+            formatDuration(to - from),
+            t(isSleep ? 'daynight.sleptAt' : 'daynight.wokeAt', { time: formatEdge(from) }),
+        ];
+        if (selected) parts.push(t(isSleep ? 'daynight.wokeAt' : 'daynight.sleptAt', { time: formatEdge(to) }));
+        card.createDiv({ cls: 'atoz-daynight-muted', text: parts.join(' · ') });
+    }
+
+    private renderDayChart(
+        container: HTMLElement,
+        segments: DaynightSegment[],
+        start: number,
+        end: number,
+        now: number | null,
+        focused: DaynightSegment,
+    ): void {
+        const x = (time: number): number => (time - start) / (end - start) * DAY_CHART_WIDTH;
+        const svg = container.createSvg('svg', {
+            cls: 'atoz-daynight-chart',
+            attr: { viewBox: `0 0 ${DAY_CHART_WIDTH} ${BAR_TOP + BAR_HEIGHT + 16}` },
+        });
+        svg.createSvg('rect', {
+            cls: 'atoz-daynight-track',
+            attr: { x: 0, y: BAR_TOP, width: DAY_CHART_WIDTH, height: BAR_HEIGHT, rx: 6 },
+        });
+
+        // 밤 시간대 배경은 띠의 둥근 모서리 안으로 잘라 그린다.
+        const clipPath = svg.createSvg('defs').createSvg('clipPath', { attr: { id: 'atoz-daynight-track-clip' } });
+        clipPath.createSvg('rect', { attr: { x: 0, y: BAR_TOP, width: DAY_CHART_WIDTH, height: BAR_HEIGHT, rx: 6 } });
+        const nights = svg.createSvg('g', { attr: { 'clip-path': 'url(#atoz-daynight-track-clip)' } });
+        const night = new Date(start);
+        night.setDate(night.getDate() - 1);
+        night.setHours(NIGHT_START_HOUR, 0, 0, 0);
+        for (; night.getTime() < end; night.setDate(night.getDate() + 1)) {
+            const nightEnd = new Date(night);
+            nightEnd.setDate(nightEnd.getDate() + 1);
+            nightEnd.setHours(NIGHT_END_HOUR);
+            const from = Math.max(night.getTime(), start);
+            const to = Math.min(nightEnd.getTime(), end);
+            if (to <= from) continue;
+            nights.createSvg('rect', {
+                cls: 'atoz-daynight-night',
+                attr: { x: x(from), y: BAR_TOP, width: x(to) - x(from), height: BAR_HEIGHT },
+            });
+        }
+
+        // 시계 기준 3시간 눈금
+        const tick = new Date(start);
+        tick.setMinutes(0, 0, 0);
+        while (tick.getTime() < start || tick.getHours() % 3 !== 0) tick.setHours(tick.getHours() + 1);
+        for (; tick.getTime() <= end; tick.setHours(tick.getHours() + 3)) {
+            const tickX = x(tick.getTime());
+            const isMidnight = tick.getHours() === 0;
+            // createSvg는 cls를 classList.add로 넣어서 공백이 든 문자열을 주면 예외가 난다.
+            const grid = svg.createSvg('line', {
+                cls: 'atoz-daynight-grid',
+                attr: { x1: tickX, y1: BAR_TOP, x2: tickX, y2: BAR_TOP + BAR_HEIGHT },
+            });
+            if (isMidnight) grid.addClass('atoz-daynight-midnight');
+            const label = svg.createSvg('text', {
+                cls: 'atoz-daynight-label',
+                attr: { x: Math.min(Math.max(tickX, 6), DAY_CHART_WIDTH - 6), y: BAR_TOP + BAR_HEIGHT + 13, 'text-anchor': 'middle' },
+            });
+            label.textContent = String(tick.getHours());
+            if (isMidnight) {
+                const dateLabel = svg.createSvg('text', {
+                    cls: 'atoz-daynight-label',
+                    attr: { x: Math.min(tickX, DAY_CHART_WIDTH - 30), y: 11 },
+                });
+                dateLabel.textContent = formatShortDate(tick.getTime());
+            }
+        }
+
+        // 수면 구간과 깨어 있는 구간을 번갈아 칠한다.
+        for (const segment of segments) {
+            const clippedFrom = Math.max(segment.from, start);
+            const clippedTo = Math.min(segment.to, end);
+            if (clippedTo <= clippedFrom) continue;
+            const bar = svg.createSvg('rect', {
+                cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-wake',
+                attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
+            });
+            if (segment.from !== focused.from) bar.addClass('atoz-daynight-dim');
+        }
+
+        if (now !== null) {
+            const nowX = Math.min(x(now), DAY_CHART_WIDTH - 1);
+            svg.createSvg('line', {
+                cls: 'atoz-daynight-now',
+                attr: { x1: nowX, y1: BAR_TOP - 4, x2: nowX, y2: BAR_TOP + BAR_HEIGHT + 4 },
+            });
+        }
     }
 
     private renderWindows(card: HTMLElement, segments: DaynightSegment[]): void {

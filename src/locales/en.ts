@@ -350,6 +350,7 @@ export const en = {
     'daynight.openDashboard': 'Open dashboard',
     'daynight.dashboard.days': '{{days}} days',
     'daynight.dashboard.all': 'All',
+    'daynight.dashboard.day': '24 hours',
     'daynight.dashboard.windows': 'Main hours',
     'daynight.dashboard.sleepWindow': 'Sleep',
     'daynight.dashboard.activeWindow': 'Active',

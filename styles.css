@@ -310,11 +310,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     background-color: var(--interactive-accent);
 }
 
-/* 지난 수면을 볼 때는 상태가 아니라 기록이므로 회색으로 둔다. */
-.atoz-daynight-dot.is-past {
-    background-color: var(--text-faint);
-}
-
 .atoz-daynight-hero-value {
     font-size: 2em;
     font-weight: var(--font-semibold);
@@ -611,6 +606,12 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-daynight-card.is-wide {
     grid-column: 1 / -1;
+}
+
+/* 카드에는 테두리가 있으니 구간 이동 줄의 구분선을 뺀다. */
+.atoz-daynight-card .atoz-daynight-nav {
+    padding-top: 0;
+    border-top: none;
 }
 
 .atoz-daynight-card-title {

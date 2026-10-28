@@ -340,6 +340,7 @@ export const ko: Record<TranslationKey, string> = {
     'daynight.openDashboard': '대시보드 열기',
     'daynight.dashboard.days': '{{days}}일',
     'daynight.dashboard.all': '전체',
+    'daynight.dashboard.day': '24시간',
     'daynight.dashboard.windows': '주된 시간대',
     'daynight.dashboard.sleepWindow': '수면',
     'daynight.dashboard.activeWindow': '활동',
