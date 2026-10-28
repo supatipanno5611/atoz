@@ -266,20 +266,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     overflow: hidden;
 }
 
-.atoz-daynight-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-/* 사이드바가 낮아도 차트가 줄어들지 않고 스크롤되게 한다. */
-.atoz-daynight-body > * {
-    flex-shrink: 0;
-}
-
 /* ── 상태 ── */
 .atoz-daynight-hero {
     display: flex;
@@ -418,37 +404,161 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     stroke-width: 1.5;
 }
 
-/* ── 최근 기록 ── */
+/* ── 기록 목록 ── */
 .atoz-daynight-muted {
     color: var(--text-muted);
 }
 
-.atoz-daynight-recent {
+/* 기록은 아래에서부터 쌓여 최신 기록이 버튼 바로 위에 온다. */
+.atoz-record-feed {
+    flex: 1;
+    min-height: 60px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.atoz-record-list {
+    margin-top: auto;
     display: flex;
     flex-direction: column;
     font-size: var(--font-ui-small);
 }
 
-.atoz-daynight-record {
+.atoz-record-fold,
+.atoz-record-head {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     min-height: 30px;
     padding: 0 6px;
     border-radius: var(--radius-s);
 }
 
-.atoz-daynight-record-time {
-    flex: 1;
-    font-variant-numeric: tabular-nums;
-}
-
-.atoz-daynight-last {
+.atoz-record-fold {
+    color: var(--text-muted);
     cursor: pointer;
 }
 
-.atoz-daynight-last:hover {
+.atoz-record-fold svg,
+.atoz-record-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.atoz-record-empty {
+    padding: 6px;
+    color: var(--text-faint);
+}
+
+.atoz-record-row.is-editable .atoz-record-head {
+    cursor: pointer;
+}
+
+.atoz-record-fold:hover,
+.atoz-record-row.is-editable .atoz-record-head:hover,
+.atoz-record-row.is-open {
     background: var(--background-modifier-hover);
+    border-radius: var(--radius-s);
+}
+
+.atoz-record-time {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-record-icon {
+    display: flex;
+    color: var(--text-muted);
+}
+
+.atoz-record-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-record-value {
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-record-editor,
+.atoz-record-amount-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 6px;
+}
+
+.atoz-record-note-input,
+.atoz-record-amount-row input {
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+}
+
+/* ── 알약 ── */
+.atoz-record-controls {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.atoz-record-section-title {
+    margin-bottom: 4px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-record-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.atoz-daynight .atoz-record-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 15px;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-daynight .atoz-record-pill.is-active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.atoz-record-pill .atoz-meal-marker,
+.atoz-record-pill-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.atoz-record-amount {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-radius: var(--radius-m);
+    background: var(--background-secondary);
+}
+
+.atoz-record-amount-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: var(--font-medium);
+}
+
+.atoz-record-status {
+    flex: 1;
 }
 
 /* 버튼 모양 없이 아이콘만 보이게 한다. */

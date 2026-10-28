@@ -17,7 +17,6 @@ export interface ATOZSettings {
     workFilePath: string;
     versionFolder: string;
     daynightFolder: string;
-    daynightRecentCount: number;
     daynightDashboardDays: number;
     daynightDashboardThreshold: number;
     budgetFolder: string;
@@ -195,7 +194,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     workFilePath: 'work.md',
     versionFolder: '',
     daynightFolder: '',
-    daynightRecentCount: 4,
     daynightDashboardDays: 30,
     daynightDashboardThreshold: 50,
     budgetFolder: '',

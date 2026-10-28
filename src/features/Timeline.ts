@@ -4,7 +4,14 @@ import { isKorean, t } from '../locales';
 import { formatDuration, pad } from './Daynight';
 
 const DEFAULT_FOLDER = 'timeline';
-const FILE_NAME_PATTERN = /^(log|plan)-\d{4}-\d{2}\.md$/;
+const FILE_NAME_PATTERN = /^((log|plan)-\d{4}-\d{2}|blocks)\.md$/;
+const BLOCKS_FILE = 'blocks.md';
+const LOG_HEADER = '| Date | Time | Category | Memo |\n| --- | --- | --- | --- |\n';
+const BLOCKS_HEADER = '| Name | Minutes | Repeat |\n| --- | --- | --- |\n';
+// 블록 표의 첫 칸(이름). 머리 줄과 구분선은 따로 거른다.
+const BLOCK_ROW_PATTERN = /^\|([^|]*)\|/;
+/** 카테고리 자리에 이것을 쓴 기록은 하던 활동의 끝이다. 다음 기록까지 '기록 없음'이 된다. */
+export const END_CATEGORY = '-';
 // 카테고리 칸에는 |가 없고, 메모는 마지막 칸이므로 욕심껏 잡는다.
 const LOG_ROW_PATTERN = /^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|([^|]*)\|(.*)\|$/;
 const PLAN_ROW_PATTERN = /^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|\s*(\d{2}):(\d{2})\s*\|([^|]*)\|(.*)\|$/;
@@ -16,10 +23,12 @@ const HOUR_HEIGHT = 30;
 // 이 높이보다 낮은 블록은 라벨을 빼고 색만 그린다.
 const LABEL_MIN_HEIGHT = 13;
 
-interface LogRecord {
+export interface LogRecord {
     time: number;
     category: string;
     memo: string;
+    file: TFile;
+    line: string;
 }
 
 export interface TimelineBlock {
@@ -37,6 +46,7 @@ interface ClippedBlock extends TimelineBlock {
 interface FileRecords {
     logs: LogRecord[];
     plans: TimelineBlock[];
+    blocks: string[];
 }
 
 interface CategoryStat {
@@ -61,6 +71,12 @@ function toDateKey(date: Date): string {
 function formatClock(time: number): string {
     const date = new Date(time);
     return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatLogRow(time: number, category: string, memo: string): string {
+    // 표가 깨지지 않도록 메모의 |와 줄바꿈은 바꿔 적는다.
+    const cell = memo.replace(/\|/g, '/').replace(/\s+/g, ' ').trim();
+    return `| ${toDateKey(new Date(time))} | ${formatClock(time)} | ${category} | ${cell} |`;
 }
 
 function shiftDate(key: string, delta: number): string {
@@ -278,6 +294,8 @@ export class TimelinePage {
 export class TimelineFeature {
     logs: LogRecord[] = [];
     plans: TimelineBlock[] = [];
+    /** blocks.md의 블록 이름. 기록 패널의 활동 버튼이 된다. */
+    blocks: string[] = [];
     // 파일 경로별로 읽어 둔 기록. 바뀐 파일만 다시 읽어 바꿔 끼운다.
     private fileRecords = new Map<string, FileRecords>();
     private reloadTimer: number | null = null;
@@ -322,21 +340,67 @@ export class TimelineFeature {
         this.scheduleReload();
     }
 
-    /** 각 기록에서 다음 기록까지를 그 카테고리의 구간으로 만든다. 마지막 구간은 지금까지 진행 중이다. */
+    /**
+     * 각 기록에서 다음 기록까지를 그 카테고리의 구간으로 만든다. 마지막 구간은 지금까지 진행 중이다.
+     * 끝 표시부터 다음 기록까지는 기록 없음이라 구간을 만들지 않는다.
+     */
     segments(now: number): TimelineBlock[] {
         const past = this.logs.filter((log) => log.time <= now);
-        return past.map((log, index) => ({
-            from: log.time,
-            to: past[index + 1]?.time ?? now,
-            category: log.category,
-            memo: log.memo,
-        }));
+        return past
+            .map((log, index) => ({
+                from: log.time,
+                to: past[index + 1]?.time ?? now,
+                category: log.category,
+                memo: log.memo,
+            }))
+            .filter((segment) => segment.category !== END_CATEGORY);
     }
 
-    /** 지금 진행 중인 기록. */
+    /** 지금 진행 중인 기록. 마지막 기록이 끝 표시면 없다. */
     current(): LogRecord | null {
         const now = Date.now();
-        return this.logs.filter((log) => log.time <= now).pop() ?? null;
+        const last = this.logs.filter((log) => log.time <= now).pop() ?? null;
+        return last?.category === END_CATEGORY ? null : last;
+    }
+
+    /** 그 달 기록 파일 끝에 한 줄을 더한다. 파일이 없으면 만든다. */
+    async addLog(time: number, category: string, memo = ''): Promise<void> {
+        const date = new Date(time);
+        const folder = this.getFolder();
+        const path = normalizePath(`${folder}/log-${date.getFullYear()}-${pad(date.getMonth() + 1)}.md`);
+        const row = formatLogRow(time, category, memo);
+        const vault = this.plugin.app.vault;
+        if (!vault.getFolderByPath(folder)) await vault.createFolder(folder);
+        const file = vault.getFileByPath(path);
+        if (file) {
+            await vault.process(file, (data) => (data === '' || data.endsWith('\n') ? data : data + '\n') + row + '\n');
+        } else {
+            await vault.create(path, LOG_HEADER + row + '\n');
+        }
+        await this.enqueue(() => this.loadFiles([path]));
+    }
+
+    /** 기록의 시각·메모를 고친다. 날짜와 카테고리는 그대로다. time이 null이면 지운다. */
+    async replaceLog(log: LogRecord, time: number | null, memo: string): Promise<void> {
+        await this.plugin.app.vault.process(log.file, (data) => {
+            const lines = data.split('\n');
+            const index = lines.map((line) => line.trim()).lastIndexOf(log.line);
+            if (index === -1) return data;
+            if (time === null) lines.splice(index, 1);
+            else lines[index] = formatLogRow(time, log.category, memo);
+            return lines.join('\n');
+        });
+        await this.enqueue(() => this.loadFiles([log.file.path]));
+    }
+
+    /** 블록 파일을 연다. 없으면 머리 줄만 있는 파일을 만든다. */
+    async openBlocks(): Promise<void> {
+        const folder = this.getFolder();
+        const path = normalizePath(`${folder}/${BLOCKS_FILE}`);
+        const vault = this.plugin.app.vault;
+        if (!vault.getFolderByPath(folder)) await vault.createFolder(folder);
+        const file = vault.getFileByPath(path) ?? await vault.create(path, BLOCKS_HEADER);
+        await this.plugin.app.workspace.getLeaf(false).openFile(file);
     }
 
     private enqueue(job: () => Promise<void>): Promise<void> {
@@ -367,12 +431,24 @@ export class TimelineFeature {
     }
 
     private async readFile(file: TFile): Promise<FileRecords> {
-        const records: FileRecords = { logs: [], plans: [] };
+        const records: FileRecords = { logs: [], plans: [], blocks: [] };
         const isPlan = file.name.startsWith('plan-');
+        const isBlocks = file.name === BLOCKS_FILE;
         const content = await this.plugin.app.vault.cachedRead(file);
+        let isHeaderSeen = false;
         for (const rawLine of content.split('\n')) {
             const line = rawLine.trim();
-            if (isPlan) {
+            if (isBlocks) {
+                const match = BLOCK_ROW_PATTERN.exec(line);
+                if (!match) continue;
+                const name = match[1]!.trim();
+                // 첫 표 줄은 머리이고, 구분선(---)도 이름이 아니다.
+                if (!isHeaderSeen) {
+                    isHeaderSeen = true;
+                    continue;
+                }
+                if (name && !/^:?-+:?$/.test(name)) records.blocks.push(name);
+            } else if (isPlan) {
                 const match = PLAN_ROW_PATTERN.exec(line);
                 if (!match) continue;
                 const [, year, month, day, startHour, startMinute, endHour, endMinute, category, memo] = match;
@@ -391,6 +467,8 @@ export class TimelineFeature {
                     time: new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)).getTime(),
                     category: category!.trim(),
                     memo: memo!.trim(),
+                    file,
+                    line,
                 });
             }
         }
@@ -401,7 +479,9 @@ export class TimelineFeature {
         const all = [...this.fileRecords.values()];
         this.logs = all.flatMap((records) => records.logs).sort((a, b) => a.time - b.time);
         this.plans = all.flatMap((records) => records.plans).sort((a, b) => a.from - b.from);
+        this.blocks = [...new Set(all.flatMap((records) => records.blocks))];
         this.plugin.dashboard.refresh('timeline');
+        this.plugin.daynight.renderViews();
     }
 
     private onFileEvent(file: TAbstractFile): void {

@@ -207,10 +207,6 @@ export default class ATOZPlugin extends Plugin {
             this.settings.readingCharactersPerMinute < 1) {
             this.settings.readingCharactersPerMinute = DEFAULT_SETTINGS.readingCharactersPerMinute;
         }
-        if (!Number.isInteger(this.settings.daynightRecentCount) ||
-            this.settings.daynightRecentCount < 1) {
-            this.settings.daynightRecentCount = DEFAULT_SETTINGS.daynightRecentCount;
-        }
         if (!DASHBOARD_RANGES.includes(this.settings.daynightDashboardDays)) {
             this.settings.daynightDashboardDays = DEFAULT_SETTINGS.daynightDashboardDays;
         }

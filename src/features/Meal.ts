@@ -25,7 +25,7 @@ export function isHexColor(value: unknown): value is string {
     return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 }
 
-interface MealRecord {
+export interface MealRecord {
     time: number;
     food: string;
     icon: string;
@@ -473,6 +473,19 @@ export class MealFeature {
         await this.enqueue(() => this.loadFiles([path]));
     }
 
+    /** 기록의 시각·음식을 고친다. 날짜와 표시는 그대로다. time이 null이면 지운다. */
+    async replace(record: MealRecord, time: number | null, food: string): Promise<void> {
+        await this.plugin.app.vault.process(record.file, (data) => {
+            const lines = data.split('\n');
+            const index = lines.map((line) => line.trim()).lastIndexOf(record.line);
+            if (index === -1) return data;
+            if (time === null) lines.splice(index, 1);
+            else lines[index] = formatRow(time, food, record);
+            return lines.join('\n');
+        });
+        await this.enqueue(() => this.loadFiles([record.file.path]));
+    }
+
     private enqueue(job: () => Promise<void>): Promise<void> {
         const run = this.loadQueue.then(job);
         this.loadQueue = run.catch(() => undefined);
@@ -523,6 +536,7 @@ export class MealFeature {
     private publish(): void {
         this.records = [...this.fileRecords.values()].flat().sort((a, b) => a.time - b.time);
         this.plugin.dashboard.refresh('meal');
+        this.plugin.daynight.renderViews();
     }
 
     private onFileEvent(file: TAbstractFile): void {

@@ -18,7 +18,7 @@ import { t } from '../locales';
 
 const DEFAULT_FOLDER = 'budget';
 
-type LedgerKind = 'income' | 'expense';
+export type LedgerKind = 'income' | 'expense';
 
 const KIND_INCOME: LedgerKind = 'income';
 const KIND_EXPENSE: LedgerKind = 'expense';
@@ -325,7 +325,7 @@ function parseFrontMatter(lines: string[]): LedgerFrontMatter {
  * 파싱 — 표
  * ------------------------------------------------------------------ */
 
-interface Entry {
+export interface Entry {
     date: string;
     title: string;
     category: string;
@@ -2916,6 +2916,13 @@ export class BudgetPage {
  * 기능
  * ------------------------------------------------------------------ */
 
+/** 기록 패널에 보이는 가계부 내역 한 건. */
+export interface BudgetRecord {
+    kind: LedgerKind;
+    month: string;
+    entry: Entry;
+}
+
 export interface BudgetSummary {
     total: number;
     latest: Pick<Entry, 'date' | 'title' | 'amount'> | null;
@@ -3050,6 +3057,56 @@ export class BudgetFeature {
         this.observed[ledger.kind] = uniqueStrings((this.observed[ledger.kind] ?? []).concat(found));
     }
 
+    /** 기록 패널의 목록에 섞을, 시각이 적힌 이번 달·지난달 내역. */
+    async timedRecords(): Promise<BudgetRecord[]> {
+        const month = currentMonth();
+        const out: BudgetRecord[] = [];
+        for (const target of [shiftMonth(month, -1), month]) {
+            for (const kind of [KIND_EXPENSE, KIND_INCOME]) {
+                const ledger = await this.store.load(kind, target);
+                for (const entry of ledger?.entries ?? []) {
+                    if (/^\d{2}:\d{2}$/.test(entry.time)) out.push({ kind, month: target, entry });
+                }
+            }
+        }
+        return out;
+    }
+
+    /** 기록 패널에서 지금 시각으로 한 건 남긴다. 항목과 태그는 나중에 고친다. */
+    async recordNow(kind: LedgerKind, category: string, amount: number, payment: string): Promise<void> {
+        const now = new Date();
+        const ok = await this.store.addEntry(kind, currentMonth(), {
+            date: todayISO(),
+            time: pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
+            title: '',
+            category,
+            amount,
+            payment,
+            tags: '',
+        });
+        if (!ok) return;
+        await this.rememberPayment(payment);
+        new Notice(t('budget.notice.recorded', { kind: kindLabel(kind), amount: formatWon(amount) }));
+    }
+
+    /** 날짜는 그대로 두고 시각과 항목만 고친다. */
+    async editRecord(record: BudgetRecord, time: string, title: string): Promise<void> {
+        const { entry } = record;
+        await this.store.updateEntry(record.kind, record.month, entry, {
+            date: entry.date,
+            time,
+            title,
+            category: entry.category,
+            amount: entry.amount,
+            payment: entry.payment,
+            tags: entry.tags,
+        });
+    }
+
+    async deleteRecord(record: BudgetRecord): Promise<void> {
+        await this.store.deleteEntry(record.kind, record.month, record.entry);
+    }
+
     private openEntryModal(kind: LedgerKind): void {
         // 대시보드를 열지 않았어도 최근 파일에서 쓰인 카테고리가 자동완성에 나오게 읽어 둔다.
         const month = currentMonth();
@@ -3091,6 +3148,7 @@ export class BudgetFeature {
         this.refreshTimer = window.setTimeout(() => {
             this.refreshTimer = null;
             this.plugin.dashboard.refresh('budget');
+            this.plugin.daynight.reloadBudget();
         }, 300);
     }
 }
