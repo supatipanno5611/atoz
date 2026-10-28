@@ -76,6 +76,8 @@ export interface MealLegendItem extends MealPick {
 }
 
 export interface BudgetFixedExpense {
+    // 없으면 지출이다(반복 수입을 넣기 전 설정).
+    kind?: 'income' | 'expense';
     title: string;
     category: string;
     // 금액이 매달 다른 항목(전기·가스 등)은 null로 두고 입력할 때 받는다.

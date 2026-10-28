@@ -586,7 +586,15 @@ export class ATOZSettingTab extends PluginSettingTab {
                                 this.plugin.debouncedSave();
                                 this.plugin.budget.settingsChanged();
                             };
-                            setting.addText((text) => text
+                            setting.addDropdown((dropdown) => dropdown
+                                .addOption('expense', t('budget.expense'))
+                                .addOption('income', t('budget.income'))
+                                .setValue(fixed.kind ?? 'expense')
+                                .onChange((value) => {
+                                    fixed.kind = value === 'income' ? 'income' : 'expense';
+                                    save();
+                                })
+                            ).addText((text) => text
                                 .setPlaceholder(t('settings.budget.fixed.title'))
                                 .setValue(fixed.title)
                                 .onChange((value) => {

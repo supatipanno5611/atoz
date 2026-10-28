@@ -1085,6 +1085,36 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     border-top-color: var(--text-faint);
 }
 
+.atoz-budget-legend-mark.is-bar {
+    height: 10px;
+    border-top: none;
+    background-color: var(--interactive-accent);
+}
+
+.atoz-budget-legend-mark.is-income {
+    border-top-color: var(--color-green);
+}
+
+.atoz-budget-chart-line.is-income {
+    stroke: var(--color-green);
+}
+
+.atoz-budget-category-trend {
+    margin-top: 8px;
+    cursor: default;
+}
+
+.atoz-budget-search-total {
+    margin-bottom: 8px;
+    font-weight: var(--font-semibold);
+}
+
+.atoz-budget-search-month {
+    margin: 12px 0 4px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
 .atoz-budget-chart-caption {
     margin-top: 4px;
     font-size: var(--font-ui-smaller);

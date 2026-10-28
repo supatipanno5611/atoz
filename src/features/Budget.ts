@@ -732,6 +732,16 @@ class LedgerStore {
         return ledger;
     }
 
+    /** 모든 달의 가계부. 장기 추이와 검색에 쓴다. */
+    async loadAll(): Promise<Ledger[]> {
+        const out: Ledger[] = [];
+        for (const ref of this.scan()) {
+            const ledger = parseLedger(ref.file.path, await this.app.vault.cachedRead(ref.file));
+            if (ledger) out.push(ledger);
+        }
+        return out;
+    }
+
     private template(kind: LedgerKind, month: string): string {
         const lines: string[] = [];
         lines.push('---');
@@ -1085,33 +1095,40 @@ function computeStats(
 }
 
 /* ------------------------------------------------------------------ *
- * 고정지출
+ * 반복 기록
  * ------------------------------------------------------------------ */
 
 interface MissingFixed {
     fixed: BudgetFixedExpense;
+    kind: LedgerKind;
     date: string;
 }
 
-/** 같은 달 지출부에 같은 이름의 항목이 있으면 입력된 것으로 본다. */
+/** 예전 설정에는 종류가 없다. 그때는 지출로 본다. */
+function fixedKind(fixed: BudgetFixedExpense): LedgerKind {
+    return fixed.kind === KIND_INCOME ? KIND_INCOME : KIND_EXPENSE;
+}
+
+/** 같은 달 같은 종류의 파일에 같은 이름의 항목이 있으면 입력된 것으로 본다. */
 function missingFixedExpenses(
     fixedExpenses: BudgetFixedExpense[],
     month: string,
+    income: Ledger | null,
     expense: Ledger | null,
 ): MissingFixed[] {
-    const recorded: Record<string, boolean> = {};
-    for (const entry of expense?.entries ?? []) {
-        recorded[entry.title.trim()] = true;
-    }
+    const recorded: Record<LedgerKind, Record<string, boolean>> = { income: {}, expense: {} };
+    for (const entry of income?.entries ?? []) recorded.income[entry.title.trim()] = true;
+    for (const entry of expense?.entries ?? []) recorded.expense[entry.title.trim()] = true;
 
     const out: MissingFixed[] = [];
     const lastDay = daysInMonth(month);
     for (const fixed of fixedExpenses) {
         const title = fixed.title.trim();
         if (title.length === 0) continue;
-        if (recorded[title]) continue;
+        const kind = fixedKind(fixed);
+        if (recorded[kind][title]) continue;
         const day = Math.min(Math.max(1, fixed.day), lastDay);
-        out.push({ fixed, date: month + '-' + pad2(day) });
+        out.push({ fixed, kind, date: month + '-' + pad2(day) });
     }
     return out;
 }
@@ -1756,7 +1773,10 @@ class FixedExpenseModal extends Modal {
 
             const info = row.createDiv({ cls: 'atoz-budget-fixed-info' });
             info.createDiv({ cls: 'atoz-budget-fixed-title', text: item.fixed.title });
-            info.createDiv({ cls: 'atoz-budget-fixed-category', text: item.fixed.category });
+            info.createDiv({
+                cls: 'atoz-budget-fixed-category',
+                text: [kindLabel(item.kind), item.fixed.category].filter((text) => text.length > 0).join(' · '),
+            });
 
             const date = row.createEl('input', { type: 'date' });
             date.value = item.date;
@@ -1778,7 +1798,7 @@ class FixedExpenseModal extends Modal {
     }
 
     private async submit(): Promise<void> {
-        const drafts: EntryDraft[] = [];
+        const drafts: { kind: LedgerKind; draft: EntryDraft }[] = [];
 
         for (let i = 0; i < this.missing.length; i++) {
             if (!(this.checks[i]?.checked ?? false)) continue;
@@ -1797,13 +1817,16 @@ class FixedExpenseModal extends Modal {
             }
 
             drafts.push({
-                date,
-                time: '',
-                title: item.fixed.title,
-                category: item.fixed.category,
-                amount,
-                payment: '',
-                tags: '',
+                kind: item.kind,
+                draft: {
+                    date,
+                    time: '',
+                    title: item.fixed.title,
+                    category: item.fixed.category,
+                    amount,
+                    payment: '',
+                    tags: '',
+                },
             });
         }
 
@@ -1816,7 +1839,11 @@ class FixedExpenseModal extends Modal {
         this.isSaving = true;
         let ok = false;
         try {
-            ok = await this.plugin.budget.store.addEntries(KIND_EXPENSE, this.month, drafts);
+            ok = true;
+            for (const kind of [KIND_EXPENSE, KIND_INCOME]) {
+                const group = drafts.filter((item) => item.kind === kind).map((item) => item.draft);
+                if (ok) ok = await this.plugin.budget.store.addEntries(kind, this.month, group);
+            }
         } finally {
             this.isSaving = false;
         }
@@ -1838,11 +1865,26 @@ class FixedExpenseModal extends Modal {
 interface TableRowModel {
     kind: LedgerKind;
     entry: Entry;
+    ledger: Ledger;
 }
 
 type SortKey = 'date' | 'amount';
 
 type DailyMode = 'bar' | 'cumulative';
+
+type TrendRange = 6 | 12 | 'all';
+
+function categoryOf(entry: Entry): string {
+    return entry.category.trim().length === 0 ? t('budget.uncategorized') : entry.category.trim();
+}
+
+/** 항목·카테고리·태그·금액(12,000이든 12000이든)으로 찾는다. */
+function matchesSearch(entry: Entry, needle: string): boolean {
+    const haystack = [entry.title, entry.category, entry.tags, formatAmount(entry.amount), String(entry.amount)]
+        .join(' ')
+        .toLowerCase();
+    return haystack.indexOf(needle) !== -1;
+}
 
 /**
  * 차트 좌표계. 종횡비를 고정해 균일 확대(xMidYMid meet)로 그린다.
@@ -1865,6 +1907,8 @@ export class BudgetPage {
     private expense: Ledger | null = null;
     private previousIncome: Ledger | null = null;
     private previousExpense: Ledger | null = null;
+    /** 모든 달의 가계부. 장기 추이와 검색에 쓴다. */
+    private ledgers: Ledger[] = [];
 
     private categoryFilter: { kind: LedgerKind; category: string } | null = null;
     private kindFilter: LedgerKind | 'all' = 'all';
@@ -1872,6 +1916,7 @@ export class BudgetPage {
     private sortKey: SortKey = 'date';
     private sortAsc = true;
     private dailyMode: DailyMode = 'bar';
+    private trendRange: TrendRange = 12;
 
     constructor(private plugin: ATOZPlugin, private contentEl: HTMLElement) {
         this.app = plugin.app;
@@ -1884,6 +1929,7 @@ export class BudgetPage {
             month: this.month,
             kindFilter: this.kindFilter,
             dailyMode: this.dailyMode,
+            trendRange: this.trendRange,
             sortKey: this.sortKey,
             sortAsc: this.sortAsc,
         };
@@ -1894,6 +1940,7 @@ export class BudgetPage {
         const kind = state.kindFilter;
         if (kind === 'all' || kind === 'income' || kind === 'expense') this.kindFilter = kind;
         if (state.dailyMode === 'bar' || state.dailyMode === 'cumulative') this.dailyMode = state.dailyMode;
+        if (state.trendRange === 6 || state.trendRange === 12 || state.trendRange === 'all') this.trendRange = state.trendRange;
         if (state.sortKey === 'date' || state.sortKey === 'amount') this.sortKey = state.sortKey;
         if (typeof state.sortAsc === 'boolean') this.sortAsc = state.sortAsc;
     }
@@ -1915,6 +1962,7 @@ export class BudgetPage {
         const expense = await store.load(KIND_EXPENSE, month);
         const previousIncome = await store.load(KIND_INCOME, previousMonth);
         const previousExpense = await store.load(KIND_EXPENSE, previousMonth);
+        const ledgers = await store.loadAll();
 
         // 읽는 사이 다른 달로 넘어갔으면 그쪽 refresh가 그리게 둔다.
         if (month !== this.month) return;
@@ -1922,6 +1970,7 @@ export class BudgetPage {
         this.expense = expense;
         this.previousIncome = previousIncome;
         this.previousExpense = previousExpense;
+        this.ledgers = ledgers;
 
         this.render();
     }
@@ -1940,6 +1989,7 @@ export class BudgetPage {
         this.renderHeader(root);
         this.renderWarnings(root);
         this.renderSummary(root, stats, previous);
+        this.renderTrend(root);
         this.renderCategories(root, stats, previous);
         this.renderPayments(root, stats);
         this.renderDaily(root, stats);
@@ -2052,6 +2102,7 @@ export class BudgetPage {
         const missing = this.month > currentMonth() ? [] : missingFixedExpenses(
             this.plugin.settings.budgetFixedExpenses,
             this.month,
+            this.income,
             this.expense,
         );
         if (missing.length > 0) {
@@ -2241,6 +2292,174 @@ export class BudgetPage {
                     cls: 'atoz-budget-category-delta',
                     text: percentText((stat.amount - before) / Math.abs(before)),
                 });
+            }
+
+            // 고른 카테고리는 월별 막대를 펼친다. 차트를 눌러도 접히지 않게 한다.
+            if (selected) {
+                const months = this.trendMonths();
+                const values = this.monthTotals(kind, months, stat.category);
+                const holder = row.createDiv({ cls: 'atoz-budget-category-trend' });
+                holder.addEventListener('click', (event) => event.stopPropagation());
+                this.renderMonthBars(holder, months, values, null, months.map((month, i) =>
+                    month + ' · ' + formatWon(values[i] ?? 0)));
+            }
+        }
+    }
+
+    /* -------------------------------------------------- 장기 추이 */
+
+    /** 보고 있는 달까지의 달 목록. 전체면 가장 오래된 가계부부터. */
+    private trendMonths(): string[] {
+        let first = this.month;
+        if (this.trendRange === 'all') {
+            for (const ledger of this.ledgers) {
+                if (ledger.month < first) first = ledger.month;
+            }
+        } else {
+            first = shiftMonth(this.month, -(this.trendRange - 1));
+        }
+        const months: string[] = [];
+        for (let month = first; month <= this.month; month = shiftMonth(month, 1)) months.push(month);
+        return months;
+    }
+
+    private monthTotals(kind: LedgerKind, months: string[], category?: string): number[] {
+        const totals: Record<string, number> = {};
+        for (const ledger of this.ledgers) {
+            if (ledger.kind !== kind) continue;
+            for (const entry of ledger.entries) {
+                if (category !== undefined && categoryOf(entry) !== category) continue;
+                totals[ledger.month] = (totals[ledger.month] ?? 0) + entry.amount;
+            }
+        }
+        return months.map((month) => totals[month] ?? 0);
+    }
+
+    private renderTrend(root: HTMLElement): void {
+        const months = this.trendMonths();
+        const expense = this.monthTotals(KIND_EXPENSE, months);
+        const income = this.monthTotals(KIND_INCOME, months);
+        let expenseSum = 0;
+        let incomeSum = 0;
+        for (let i = 0; i < months.length; i++) {
+            expenseSum += expense[i] ?? 0;
+            incomeSum += income[i] ?? 0;
+        }
+        if (expenseSum === 0 && incomeSum === 0) return;
+
+        const section = root.createDiv({ cls: 'atoz-budget-section' });
+        const head = section.createDiv({ cls: 'atoz-budget-section-title has-toggle' });
+        head.createSpan({ text: t('budget.trend') });
+        const toggle = head.createDiv({ cls: 'atoz-budget-segment' });
+        const ranges: TrendRange[] = [6, 12, 'all'];
+        for (const range of ranges) {
+            const button = toggle.createEl('button', {
+                cls: 'atoz-budget-segment-button',
+                text: range === 'all' ? t('budget.all') : t('budget.months', { count: range }),
+            });
+            button.toggleClass('is-active', this.trendRange === range);
+            button.addEventListener('click', () => {
+                this.trendRange = range;
+                this.app.workspace.requestSaveLayout();
+                this.render();
+            });
+        }
+
+        const rateText = (value: number, base: number): string =>
+            base > 0 ? (((base - value) / base) * 100).toFixed(1) + '%' : '—';
+        this.renderMonthBars(section, months, expense, income, months.map((month, i) => t('budget.trendTooltip', {
+            month,
+            expense: formatWon(expense[i] ?? 0),
+            income: formatWon(income[i] ?? 0),
+            rate: rateText(expense[i] ?? 0, income[i] ?? 0),
+        })));
+
+        const legend = section.createDiv({ cls: 'atoz-budget-chart-legend' });
+        for (const item of [
+            { cls: 'is-bar', text: t('budget.expense') },
+            { cls: 'is-income', text: t('budget.income') },
+        ]) {
+            const entry = legend.createDiv({ cls: 'atoz-budget-legend-item' });
+            entry.createSpan({ cls: 'atoz-budget-legend-mark ' + item.cls });
+            entry.createSpan({ text: item.text });
+        }
+
+        section.createDiv({
+            cls: 'atoz-budget-chart-caption',
+            text: t('budget.trendCaption', {
+                average: formatWon(Math.round(expenseSum / months.length)),
+                rate: rateText(expenseSum, incomeSum),
+            }),
+        });
+    }
+
+    /** 달마다 막대 하나. line을 주면 같은 축에 선으로 겹쳐 그린다. */
+    private renderMonthBars(
+        parent: HTMLElement,
+        months: string[],
+        values: number[],
+        line: number[] | null,
+        tooltips: string[],
+    ): void {
+        let top = 0;
+        let bottom = 0;
+        for (const value of values.concat(line ?? [])) {
+            top = Math.max(top, value);
+            bottom = Math.min(bottom, value);
+        }
+        const span = top - bottom;
+        if (span <= 0) return;
+
+        const scaleY = (value: number): number =>
+            PLOT_TOP + ((top - value) / span) * (PLOT_BOTTOM - PLOT_TOP);
+        const zeroY = scaleY(0);
+        const svg = this.chartFrame(parent);
+        const slot = CHART_W / months.length;
+        const barWidth = Math.max(1, slot * 0.6);
+
+        for (let i = 0; i < values.length; i++) {
+            const value = values[i] ?? 0;
+            if (value === 0) continue;
+            const valueY = scaleY(value);
+            const rect = svg.createSvg('rect', { cls: 'atoz-budget-chart-bar' });
+            if (value < 0) rect.classList.add('is-negative');
+            rect.setAttribute('x', String(i * slot + (slot - barWidth) / 2));
+            rect.setAttribute('y', String(Math.min(zeroY, valueY)));
+            rect.setAttribute('width', String(barWidth));
+            rect.setAttribute('height', String(Math.max(1, Math.abs(valueY - zeroY))));
+        }
+        this.chartBaseline(svg, zeroY);
+
+        if (line) {
+            const points: string[] = [];
+            for (let i = 0; i < line.length; i++) points.push(((i + 0.5) * slot) + ',' + scaleY(line[i] ?? 0));
+            const polyline = svg.createSvg('polyline', { cls: 'atoz-budget-chart-line is-income' });
+            polyline.setAttribute('points', points.join(' '));
+        }
+
+        for (let i = 0; i < months.length; i++) {
+            const hit = svg.createSvg('rect', { cls: 'atoz-budget-chart-hit' });
+            hit.setAttribute('x', String(i * slot));
+            hit.setAttribute('y', String(PLOT_TOP));
+            hit.setAttribute('width', String(slot));
+            hit.setAttribute('height', String(PLOT_BOTTOM - PLOT_TOP));
+            hit.createSvg('title').setText(tooltips[i] ?? '');
+        }
+
+        // 날짜 축과 같은 방식: 양 끝은 가장자리에 붙이고, 가운데 달만 막대 위치에 맞춘다.
+        const axis = parent.createDiv({ cls: 'atoz-budget-chart-days' });
+        const marks = months.length > 2
+            ? [0, Math.floor((months.length - 1) / 2), months.length - 1]
+            : [0, months.length - 1];
+        for (let i = 0; i < marks.length; i++) {
+            const index = marks[i] ?? 0;
+            if (i > 0 && index === marks[i - 1]) continue;
+            const mark = axis.createSpan({ text: months[index] ?? '' });
+            if (i === 0) mark.addClass('is-first');
+            else if (i === marks.length - 1) mark.addClass('is-last');
+            else {
+                mark.addClass('is-centered');
+                mark.style.left = (((index + 0.5) / months.length) * 100) + '%';
             }
         }
     }
@@ -2516,25 +2735,24 @@ export class BudgetPage {
 
     /* -------------------------------------------------- 내역 */
 
+    /** 검색어가 있으면 모든 달에서 찾는다. 카테고리 필터는 이번 달 내역에만 건다. */
     private collectRows(): TableRowModel[] {
-        const rows: TableRowModel[] = [];
-        for (const entry of this.income?.entries ?? []) rows.push({ kind: KIND_INCOME, entry });
-        for (const entry of this.expense?.entries ?? []) rows.push({ kind: KIND_EXPENSE, entry });
-
         const needle = this.search.trim().toLowerCase();
+        const sources = needle.length > 0
+            ? this.ledgers
+            : [this.income, this.expense].filter((ledger): ledger is Ledger => ledger !== null);
+        const rows: TableRowModel[] = [];
+        for (const ledger of sources) {
+            for (const entry of ledger.entries) rows.push({ kind: ledger.kind, entry, ledger });
+        }
+
         const filtered: TableRowModel[] = [];
         for (const row of rows) {
             if (this.kindFilter !== 'all' && row.kind !== this.kindFilter) continue;
-            if (this.categoryFilter !== null) {
-                const category = row.entry.category.trim().length === 0
-                    ? t('budget.uncategorized')
-                    : row.entry.category.trim();
-                if (row.kind !== this.categoryFilter.kind || category !== this.categoryFilter.category) continue;
-            }
             if (needle.length > 0) {
-                const haystack = (row.entry.title + ' ' + row.entry.category + ' ' + row.entry.tags)
-                    .toLowerCase();
-                if (haystack.indexOf(needle) === -1) continue;
+                if (!matchesSearch(row.entry, needle)) continue;
+            } else if (this.categoryFilter !== null) {
+                if (row.kind !== this.categoryFilter.kind || categoryOf(row.entry) !== this.categoryFilter.category) continue;
             }
             filtered.push(row);
         }
@@ -2613,7 +2831,31 @@ export class BudgetPage {
             holder.createDiv({ cls: 'atoz-budget-empty', text: t('budget.noEntries') });
             return;
         }
+        if (this.search.trim().length === 0) {
+            this.renderTable(holder, rows);
+            return;
+        }
 
+        // 검색 결과는 합계를 먼저 보이고, 최근 달부터 달마다 묶는다.
+        let expense = 0;
+        let income = 0;
+        const byMonth = new Map<string, TableRowModel[]>();
+        for (const row of rows) {
+            if (row.kind === KIND_INCOME) income += row.entry.amount;
+            else expense += row.entry.amount;
+            byMonth.set(row.ledger.month, (byMonth.get(row.ledger.month) ?? []).concat(row));
+        }
+        const parts = [t('budget.count', { count: rows.length })];
+        if (expense !== 0) parts.push(t('budget.expense') + ' ' + formatWon(expense));
+        if (income !== 0) parts.push(t('budget.income') + ' ' + formatWon(income));
+        holder.createDiv({ cls: 'atoz-budget-search-total', text: parts.join(' · ') });
+        for (const month of [...byMonth.keys()].sort().reverse()) {
+            holder.createDiv({ cls: 'atoz-budget-search-month', text: month });
+            this.renderTable(holder, byMonth.get(month) ?? []);
+        }
+    }
+
+    private renderTable(holder: HTMLElement, rows: TableRowModel[]): void {
         const table = holder.createEl('table', { cls: 'atoz-budget-table' });
         const headRow = table.createEl('thead').createEl('tr');
 
@@ -2650,15 +2892,12 @@ export class BudgetPage {
                 new EntryModal(this.plugin, {
                     kind: row.kind,
                     entry: row.entry,
-                    sourceMonth: this.month,
+                    sourceMonth: row.ledger.month,
                     onDone: () => void this.refresh(),
                 }).open();
             });
 
-            onContextMenu(tr, () => {
-                const ledger = row.kind === KIND_INCOME ? this.income : this.expense;
-                if (ledger) void this.openSource(ledger, row.entry.lineIndex);
-            });
+            onContextMenu(tr, () => void this.openSource(row.ledger, row.entry.lineIndex));
         }
     }
 
@@ -2778,7 +3017,10 @@ export class BudgetFeature {
             settings.budgetIncomeCategories = uniqueStrings(settings.budgetIncomeCategories.map(rename));
         } else {
             settings.budgetExpenseCategories = uniqueStrings(settings.budgetExpenseCategories.map(rename));
-            for (const fixed of settings.budgetFixedExpenses) fixed.category = rename(fixed.category);
+            settings.budgetPanelCategories = uniqueStrings(settings.budgetPanelCategories.map(rename));
+        }
+        for (const fixed of settings.budgetFixedExpenses) {
+            if (fixedKind(fixed) === kind) fixed.category = rename(fixed.category);
         }
         await this.plugin.saveSettings();
 
@@ -2824,8 +3066,9 @@ export class BudgetFeature {
 
     private async openFixedExpenses(): Promise<void> {
         const month = currentMonth();
+        const income = await this.store.load(KIND_INCOME, month);
         const expense = await this.store.load(KIND_EXPENSE, month);
-        const missing = missingFixedExpenses(this.plugin.settings.budgetFixedExpenses, month, expense);
+        const missing = missingFixedExpenses(this.plugin.settings.budgetFixedExpenses, month, income, expense);
         new FixedExpenseModal(this.plugin, month, missing, () => this.scheduleRefresh()).open();
     }
 
