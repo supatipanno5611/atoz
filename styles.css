@@ -1495,11 +1495,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    cursor: pointer;
-}
-
-.atoz-meal-marker.is-placed:hover {
-    background-color: color-mix(in srgb, var(--atoz-meal-color) 35%, transparent);
 }
 
 .atoz-meal-grid {
@@ -1536,11 +1531,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-meal-cell {
     border-left: 1px solid var(--background-modifier-border);
     border-bottom: 1px solid var(--background-modifier-border);
-    cursor: pointer;
-}
-
-.atoz-meal-cell:hover {
-    background-color: var(--background-modifier-hover);
 }
 
 .atoz-meal-row.is-header .atoz-meal-cell {
@@ -1548,11 +1538,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     align-self: end;
     text-align: center;
     color: var(--text-muted);
-    cursor: default;
-}
-
-.atoz-meal-row.is-header .atoz-meal-cell:hover {
-    background-color: transparent;
 }
 
 @container (max-width: 560px) {

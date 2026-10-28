@@ -1,4 +1,4 @@
-import { Menu, Modal, Setting, TAbstractFile, TFile, getIcon, getIconIds, normalizePath, setIcon, setTooltip } from 'obsidian';
+import { Modal, Setting, TAbstractFile, TFile, getIcon, getIconIds, normalizePath, setIcon, setTooltip } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import type { MealLegendItem, MealPick } from '../types';
@@ -117,35 +117,29 @@ function renderPicker(container: HTMLElement, plugin: ATOZPlugin, pick: MealPick
     });
 }
 
-interface MealModalOptions {
-    time: number;
-    record?: MealRecord;
-}
-
 class MealModal extends Modal {
     private pick: MealPick;
     private isCustom = false;
 
-    constructor(private plugin: ATOZPlugin, private options: MealModalOptions) {
+    constructor(private plugin: ATOZPlugin) {
         super(plugin.app);
         const settings = plugin.settings;
-        const base = options.record ?? settings.mealLastPick ?? settings.mealLegend[0] ?? { icon: 'utensils', color: 'c-1' };
+        const base = settings.mealLastPick ?? settings.mealLegend[0] ?? { icon: 'utensils', color: 'c-1' };
         this.pick = { icon: base.icon, color: base.color };
     }
 
     onOpen(): void {
         const { contentEl } = this;
         contentEl.addClass('atoz-meal-modal');
-        this.setTitle(t(this.options.record ? 'meal.modal.editTitle' : 'meal.modal.addTitle'));
+        this.setTitle(t('meal.modal.addTitle'));
 
-        const start = new Date(this.options.time);
+        const now = Date.now();
         const when = contentEl.createDiv({ cls: 'atoz-meal-modal-when' });
-        const dateInput = when.createEl('input', { type: 'date', value: toDateKey(start) });
-        const timeInput = when.createEl('input', { type: 'time', value: formatClock(this.options.time) });
+        const dateInput = when.createEl('input', { type: 'date', value: toDateKey(new Date(now)) });
+        const timeInput = when.createEl('input', { type: 'time', value: formatClock(now) });
         const foodInput = contentEl.createEl('input', {
             type: 'text',
             cls: 'atoz-meal-modal-food',
-            value: this.options.record?.food ?? '',
             attr: { placeholder: t('meal.modal.foodPlaceholder') },
         });
 
@@ -186,9 +180,7 @@ class MealModal extends Modal {
             const time = new Date(year!, month! - 1, day, hour, minute).getTime();
             if (Number.isNaN(time)) return;
             this.close();
-            const food = foodInput.value;
-            if (this.options.record) await this.plugin.meal.update(this.options.record, time, food, this.pick);
-            else await this.plugin.meal.add(time, food, this.pick);
+            await this.plugin.meal.add(time, foodInput.value, this.pick);
             await this.plugin.meal.remember(this.pick, this.isCustom ? nameInput.value.trim() : null);
         };
         for (const input of [dateInput, timeInput, foodInput, nameInput]) {
@@ -336,7 +328,6 @@ export class MealBoardPage {
         addButton(nav, 'rotate-ccw', t('meal.thisMonth'), () => moveTo(today.slice(0, 7)));
         const actions = header.createDiv({ cls: 'atoz-meal-nav' });
         addButton(actions, 'palette', t('meal.palette.title'), () => new PaletteModal(plugin).open());
-        addButton(actions, 'plus', t('meal.modal.addTitle'), () => plugin.meal.openModal());
 
         const legend = container.createDiv({ cls: 'atoz-meal-legend' });
         for (const item of plugin.settings.mealLegend) {
@@ -372,12 +363,7 @@ export class MealBoardPage {
             if (key === today) row.addClass('is-today');
             row.createDiv({ cls: 'atoz-meal-day', text: String(day) });
             const track = row.createDiv({ cls: 'atoz-meal-track' });
-            for (let i = 0; i < 24; i++) {
-                const cell = track.createDiv({ cls: 'atoz-meal-cell' });
-                cell.addEventListener('click', () => {
-                    plugin.meal.openModal(new Date(year!, mon! - 1, day, startHour + i).getTime());
-                });
-            }
+            for (let i = 0; i < 24; i++) track.createDiv({ cls: 'atoz-meal-cell' });
 
             let previous: { offset: number; shift: number } | null = null;
             for (const record of byDay.get(key) ?? []) {
@@ -390,17 +376,7 @@ export class MealBoardPage {
                 // 표시가 제 시간 칸을 벗어나지 않도록 분은 칸 안의 20~80% 위치로만 반영한다.
                 const position = Math.floor(offset) + 0.2 + 0.6 * (offset % 1);
                 marker.style.left = `calc(${position / 24 * 100}% + ${shift} * var(--atoz-meal-shift))`;
-                const label = `${formatClock(record.time)} ${record.food || t('meal.unknownFood')}`;
-                setTooltip(marker, label);
-                marker.addEventListener('click', (event) => {
-                    const menu = new Menu();
-                    menu.addItem((menuItem) => menuItem.setTitle(label).setDisabled(true));
-                    menu.addItem((menuItem) => menuItem.setTitle(t('meal.edit')).setIcon('pencil')
-                        .onClick(() => plugin.meal.openModal(record.time, record)));
-                    menu.addItem((menuItem) => menuItem.setTitle(t('meal.delete')).setIcon('trash')
-                        .onClick(() => void plugin.meal.remove(record)));
-                    menu.showAtMouseEvent(event);
-                });
+                setTooltip(marker, `${formatClock(record.time)} ${record.food || t('meal.unknownFood')}`);
             }
         }
     }
@@ -455,8 +431,8 @@ export class MealFeature {
         this.scheduleReload();
     }
 
-    openModal(time = Date.now(), record?: MealRecord): void {
-        new MealModal(this.plugin, { time, record }).open();
+    openModal(): void {
+        new MealModal(this.plugin).open();
     }
 
     colorOf(name: string): { light: string; dark: string } | null {
@@ -495,33 +471,6 @@ export class MealFeature {
             await vault.create(path, TABLE_HEADER + row + '\n');
         }
         await this.enqueue(() => this.loadFiles([path]));
-    }
-
-    // 같은 달이면 그 줄을 바꾸고, 달이 바뀌면 옛 줄을 지우고 새 달 파일에 적는다.
-    async update(record: MealRecord, time: number, food: string, pick: MealPick): Promise<void> {
-        const sameFile = toDateKey(new Date(time)).slice(0, 7) === toDateKey(new Date(record.time)).slice(0, 7);
-        if (sameFile) await this.replaceLine(record, formatRow(time, food, pick));
-        else {
-            await this.replaceLine(record, null);
-            await this.add(time, food, pick);
-        }
-    }
-
-    async remove(record: MealRecord): Promise<void> {
-        await this.replaceLine(record, null);
-    }
-
-    // 기록의 줄을 새 줄로 바꾸고, null이면 지운다.
-    private async replaceLine(record: MealRecord, row: string | null): Promise<void> {
-        await this.plugin.app.vault.process(record.file, (data) => {
-            const lines = data.split('\n');
-            const index = lines.findIndex((line) => line.trim() === record.line);
-            if (index === -1) return data;
-            if (row === null) lines.splice(index, 1);
-            else lines[index] = row;
-            return lines.join('\n');
-        });
-        await this.enqueue(() => this.loadFiles([record.file.path]));
     }
 
     private enqueue(job: () => Promise<void>): Promise<void> {
