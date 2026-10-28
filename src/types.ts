@@ -15,7 +15,6 @@ export interface ATOZSettings {
     symbols: SymbolItem[];
     recentSymbols: Record<string, number>;
     workFilePath: string;
-    moveLineTargetFolder: string;
     versionFolder: string;
     daynightFolder: string;
     daynightRecentCount: number;
@@ -187,7 +186,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     ],
     recentSymbols: {},
     workFilePath: 'work.md',
-    moveLineTargetFolder: '',
     versionFolder: '',
     daynightFolder: '',
     daynightRecentCount: 4,

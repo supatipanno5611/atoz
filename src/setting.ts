@@ -424,17 +424,6 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
-                heading: 'Later',
-                items: [
-                    {
-                        name: t('settings.later.folder.name'),
-                        desc: t('settings.later.folder.desc'),
-                        control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: t('settings.later.folder.placeholder') },
-                     },
-                ],
-            },
-            {
-                type: 'group' as const,
                 heading: t('settings.version.heading'),
                 items: [
                     {
