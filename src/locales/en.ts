@@ -401,6 +401,7 @@ export const en = {
     'record.submit': 'Record',
     'record.addActivity': 'Add activity',
     'record.undo': 'Undo',
+    'record.end': 'End',
     'record.toast.started': 'Started {{activity}} · {{time}}',
     'record.toast.ended': 'Ended {{activity}} · {{duration}}',
     'record.toast.meal': 'Recorded {{meal}} · {{time}}',

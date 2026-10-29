@@ -1,4 +1,4 @@
-import { ItemView, Notice, TAbstractFile, TFile, WorkspaceLeaf, normalizePath, setIcon } from 'obsidian';
+import { ItemView, Notice, TAbstractFile, TFile, WorkspaceLeaf, getIcon, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import type { MealColor, MealLegendItem } from '../types';
@@ -115,8 +115,22 @@ function entryTime(entry: BudgetRecord['entry']): number {
     return new Date(year!, month! - 1, day, hour, minute).getTime();
 }
 
-const SLEEP_COLOR: MealColor = { light: 'var(--interactive-accent)', dark: 'var(--interactive-accent)' };
+const ACCENT_COLOR: MealColor = { light: 'var(--interactive-accent)', dark: 'var(--interactive-accent)' };
+const SLEEP_COLOR = ACCENT_COLOR;
 const WAKE_COLOR: MealColor = { light: 'var(--atoz-daynight-morning)', dark: 'var(--atoz-daynight-morning)' };
+
+// 지출 알약 아이콘. 표에 없는 카테고리는 지갑이다.
+const SPENDING_ICONS: Record<string, string> = {
+    장보기: 'shopping-cart', Groceries: 'shopping-cart',
+    카페: 'coffee', Cafe: 'coffee',
+    교통: 'bus', Transport: 'bus',
+    생활: 'home', Living: 'home',
+};
+
+/** 범례 아이콘. 알 수 없는 이름이면 포크·나이프다. */
+function mealIcon(icon: string): string {
+    return getIcon(icon) ? icon : 'utensils';
+}
 
 /** 상태 점·기록 줄·알약에 색을 붙인다. 색이 정해지지 않았으면 회색으로 그린다. */
 function applyColor(el: HTMLElement, color: MealColor | null | undefined): void {
@@ -286,7 +300,7 @@ export class DaynightView extends ItemView {
         const head = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
         applyColor(
             head.createSpan({ cls: 'atoz-daynight-dot' }),
-            isAsleep ? SLEEP_COLOR : current ? this.plugin.settings.timelineColors[current.category] : null,
+            isAsleep ? SLEEP_COLOR : current ? this.plugin.timeline.colorOf(current.category) ?? ACCENT_COLOR : null,
         );
         head.createSpan({
             cls: 'atoz-record-status',
@@ -294,6 +308,12 @@ export class DaynightView extends ItemView {
                 : current ? t('record.doing', { activity: current.category })
                     : t('record.idle'),
         });
+        // '다시 누르면 끝'을 외우지 않아도 되게 끝내기 버튼을 둔다.
+        if (current) {
+            const key = `activity:${current.category}`;
+            const end = head.createEl('button', { cls: 'atoz-daynight-hero-end', text: t('record.end'), attr: { 'data-lock': key } });
+            end.addEventListener('click', () => void this.lock(key, () => this.toggleActivity(current.category)));
+        }
 
         const at = (time: number): string =>
             formatShortDate(time) === formatShortDate(now) ? formatTime(time) : formatShortDateTime(time);
@@ -392,7 +412,7 @@ export class DaynightView extends ItemView {
             out.push({
                 key: `meal:${meal.file.path}:${meal.line}`,
                 time: meal.time,
-                mark: { icon: 'utensils' },
+                mark: { icon: mealIcon(meal.icon) },
                 color: plugin.meal.colorOf(meal.color),
                 text: legend?.label ?? t('record.meal'),
                 value: '',
@@ -416,7 +436,7 @@ export class DaynightView extends ItemView {
                 key: `log:${log.file.path}:${log.line}`,
                 time: log.time,
                 mark: isEnd ? 'ring' : 'dot',
-                color: plugin.settings.timelineColors[isEnd ? ended ?? '' : log.category],
+                color: plugin.timeline.colorOf(isEnd ? ended ?? '' : log.category),
                 text: !isEnd ? log.category : t('record.ended', { activity: ended ?? t('record.activity') }),
                 value: '',
                 isIncome: false,
@@ -539,10 +559,18 @@ export class DaynightView extends ItemView {
         return section.createDiv({ cls: 'atoz-record-pills' });
     }
 
-    private pill(parent: HTMLElement, text: string, color: MealColor | null | undefined, onClick: () => void): HTMLButtonElement {
+    // icon이 없으면 이름 앞에 색 점을 둔다.
+    private pill(
+        parent: HTMLElement,
+        text: string,
+        color: MealColor | null | undefined,
+        icon: string | null,
+        onClick: () => void,
+    ): HTMLButtonElement {
         const button = parent.createEl('button', { cls: 'atoz-record-pill' });
         applyColor(button, color);
-        button.createSpan({ cls: 'atoz-record-dot' });
+        if (icon) setIcon(button.createSpan({ cls: 'atoz-record-pill-icon' }), icon);
+        else button.createSpan({ cls: 'atoz-record-dot' });
         button.createSpan({ text });
         button.addEventListener('click', onClick);
         return button;
@@ -554,8 +582,12 @@ export class DaynightView extends ItemView {
         if (categories.length === 0) return;
         const pills = this.pills(container, t('record.spending'));
         for (const category of categories) {
-            const button = this.pill(pills, category, null, () => this.openAmount({ category, meal: null }));
-            button.toggleClass('is-open', this.amountTarget?.category === category && this.amountTarget.meal === null);
+            const button = this.pill(pills, category, null, SPENDING_ICONS[category] ?? 'wallet', () => {
+                this.openAmount({ category, meal: null });
+            });
+            const isOpen = this.amountTarget?.category === category && this.amountTarget.meal === null;
+            button.toggleClass('is-open', isOpen);
+            button.setAttr('aria-expanded', String(isOpen));
         }
         if (this.amountTarget?.meal === null) this.renderAmountForm(container, this.amountTarget);
     }
@@ -568,11 +600,17 @@ export class DaynightView extends ItemView {
         for (const [index, item] of settings.mealLegend.entries()) {
             const hasAmount = index > 0;
             const key = `meal:${item.label}`;
-            const button = this.pill(pills, item.label, this.plugin.meal.colorOf(item.color), () => {
+            const button = this.pill(pills, item.label, this.plugin.meal.colorOf(item.color), mealIcon(item.icon), () => {
                 if (hasAmount) this.openAmount({ category: item.label, meal: item });
                 else void this.lock(key, () => this.recordMeal(item, null));
             });
-            if (!hasAmount) button.dataset.lock = key;
+            if (hasAmount) {
+                // 바로 기록하는 집밥과 달리 금액 칸이 열린다는 표시
+                button.createSpan({ cls: 'atoz-record-pill-won', text: '₩' });
+                button.setAttr('aria-expanded', String(this.amountTarget?.meal === item));
+            } else {
+                button.dataset.lock = key;
+            }
             button.toggleClass('is-open', this.amountTarget?.meal === item);
         }
         if (this.amountTarget?.meal) this.renderAmountForm(container, this.amountTarget);
@@ -585,11 +623,14 @@ export class DaynightView extends ItemView {
         for (const name of this.plugin.timeline.blocks) {
             const isCurrent = current?.category === name;
             const key = `activity:${name}`;
-            const button = this.pill(pills, name, this.plugin.settings.timelineColors[name], () => {
+            // 진행 중이면 색을 채우고 점 대신 체크를 둔다. 색이 없으면 강조색이다.
+            const color = this.plugin.timeline.colorOf(name) ?? (isCurrent ? ACCENT_COLOR : null);
+            const button = this.pill(pills, name, color, isCurrent ? 'check' : null, () => {
                 void this.lock(key, () => this.toggleActivity(name));
             });
             button.dataset.lock = key;
             button.toggleClass('is-active', isCurrent);
+            button.setAttr('aria-pressed', String(isCurrent));
             if (current && isCurrent) {
                 button.createSpan({ cls: 'atoz-record-elapsed', text: formatElapsed(now - current.time) });
             }

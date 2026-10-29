@@ -1,11 +1,15 @@
 import { Menu, TAbstractFile, TFile, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { isKorean, t } from '../locales';
+import type { MealColor } from '../types';
 import { formatDuration, pad } from './Daynight';
 
 const DEFAULT_FOLDER = 'timeline';
 const FILE_NAME_PATTERN = /^((log|plan)-\d{4}-\d{2}|blocks|later)\.md$/;
 const BLOCKS_FILE = 'blocks.md';
+// 색을 정하지 않은 블록에 blocks.md 순서대로 돌려 쓰는 색. 테마 색 변수라 라이트·다크가 같다.
+const AUTO_COLORS: MealColor[] = ['blue', 'orange', 'green', 'purple', 'red', 'cyan', 'yellow', 'pink']
+    .map((name) => ({ light: `var(--color-${name})`, dark: `var(--color-${name})` }));
 const LATER_FILE = 'later.md';
 const LOG_HEADER = '| Date | Time | Category | Memo |\n| --- | --- | --- | --- |\n';
 const PLAN_HEADER = '| Date | Start | End | Category | Memo |\n| --- | --- | --- | --- | --- |\n';
@@ -200,9 +204,9 @@ export function formatMatch(summary: DaySummary): string {
     return summary.elapsedPlan > 0 ? `${Math.round(summary.matched / summary.elapsedPlan * 100)}%` : '—';
 }
 
-/** 카테고리 색을 블록에 붙인다. 색이 정해지지 않은 카테고리는 회색으로 그린다. */
+/** 카테고리 색을 블록에 붙인다. 블록에도 없는 카테고리는 회색으로 그린다. */
 export function applyColor(el: HTMLElement, plugin: ATOZPlugin, category: string): void {
-    const color = plugin.settings.timelineColors[category];
+    const color = plugin.timeline.colorOf(category);
     if (color) {
         el.style.setProperty('--atoz-timeline-light', color.light);
         el.style.setProperty('--atoz-timeline-dark', color.dark);
@@ -413,6 +417,12 @@ export class TimelineFeature {
                 memo: log.memo,
             }))
             .filter((segment) => segment.category !== END_CATEGORY);
+    }
+
+    /** 정한 색이 없으면 blocks.md 순서로 자동 색을 준다. 저장하지 않고 읽을 때 계산한다. 블록이 아니면 없다. */
+    colorOf(category: string): MealColor | undefined {
+        const index = this.blocks.indexOf(category);
+        return this.plugin.settings.timelineColors[category] ?? (index === -1 ? undefined : AUTO_COLORS[index % AUTO_COLORS.length]);
     }
 
     /** 지금 진행 중인 기록. 마지막 기록이 끝 표시면 없다. */

@@ -335,6 +335,12 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     }
 }
 
+.atoz-daynight .atoz-daynight-hero-end {
+    height: 28px;
+    padding: 0 10px;
+    font-size: var(--font-ui-smaller);
+}
+
 /* 기록이 끊겼을 때 상태 대신 보이는 카드 */
 .atoz-daynight-hero.is-gap .atoz-daynight-hero-label {
     color: var(--text-warning);
@@ -691,10 +697,20 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
     border-radius: 22px;
 }
 
-/* 지금 하는 활동은 그 활동 색 테두리 */
+/* 지금 하는 활동은 그 활동 색으로 채우고 테두리를 두른다. */
 .atoz-daynight .atoz-record-pill.is-active {
     border-color: var(--atoz-record-color);
-    background: var(--background-modifier-hover);
+    background: color-mix(in srgb, var(--atoz-record-color) 18%, transparent);
+}
+
+.atoz-daynight .atoz-record-pill.is-active .atoz-record-pill-icon {
+    color: var(--atoz-record-color);
+}
+
+/* 금액 칸을 여는 알약 표시 */
+.atoz-record-pill-won {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
 }
 
 /* 금액 칸을 연 알약은 강조색 */
@@ -709,9 +725,19 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
     font-variant-numeric: tabular-nums;
 }
 
+.atoz-record-pill-icon {
+    display: flex;
+    color: var(--atoz-record-color);
+}
+
+/* 색이 없는 지출 아이콘은 글자색보다 흐리게 */
+.atoz-record-pill:not([style*="--atoz-record-light"]) .atoz-record-pill-icon {
+    color: var(--text-muted);
+}
+
 .atoz-record-pill-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
 }
 
 .atoz-record-amount {

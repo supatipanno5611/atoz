@@ -391,6 +391,7 @@ export const ko: Record<TranslationKey, string> = {
     'record.submit': '기록',
     'record.addActivity': '활동 추가',
     'record.undo': '되돌리기',
+    'record.end': '끝내기',
     'record.toast.started': '{{activity}} 시작 · {{time}}',
     'record.toast.ended': '{{activity}} 끝 · {{duration}}',
     'record.toast.meal': '{{meal}} 기록함 · {{time}}',
