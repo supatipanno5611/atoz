@@ -1,15 +1,16 @@
 import { ItemView, ViewStateResult, WorkspaceLeaf, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
-import { t } from '../locales';
+import { isKorean, t } from '../locales';
 import { isRecord, makeClickable } from '../utils';
-import { BudgetPage, formatWon } from './Budget';
-import { formatDuration, formatShortDate, formatTime as formatClock } from './Daynight';
+import { BudgetPage, formatWon, type BudgetRecord, type BudgetSummary } from './Budget';
+import { DAY, entryTime as entryTimeOf, formatDuration, formatShortDate, formatTime as formatClock } from './Daynight';
 import { DaynightDashboardPage, daynightSummary } from './DaynightDashboard';
-import { MealBoardPage, createMealMarker } from './Meal';
+import { MealBoardPage } from './Meal';
 import { PlanPage } from './Plan';
-import { TimelinePage, formatMatch, summarizeDay, timelineToday } from './Timeline';
+import { TimelinePage, applyColor as applyTimelineColor, formatMatch, summarizeDay, timelineToday } from './Timeline';
 
 const VIEW_TYPE_DASHBOARD = 'atoz-dashboard';
+const HOUR = 60 * 60 * 1000;
 // 예전에 따로 열리던 대시보드. 남아 있는 탭은 열 때 닫는다.
 const LEGACY_VIEW_TYPES = ['atoz-daynight-dashboard', 'atoz-budget-view'];
 
@@ -136,83 +137,188 @@ class DashboardView extends ItemView {
         else if (this.page === 'plan') this.plan.render();
     }
 
+    // 홈은 '오늘'이 먼저다: 오늘 하루 띠와 비교가 붙은 숫자, 나중에 채울 것, 그리고 기능별 한 줄.
     private async renderHome(): Promise<void> {
+        const plugin = this.plugin;
+        // 가계부는 파일을 읽어야 하므로 먼저 읽고 한 번에 그려 자리가 튀지 않게 한다.
+        const budget = await plugin.budget.summary();
+        const spending = await plugin.budget.timedRecords();
+        const now = Date.now();
+        const startHour = plugin.settings.timelineDayStartHour;
+        const shifted = new Date(now - startHour * HOUR);
+        const dayStart = new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate(), startHour).getTime();
+
         this.homeEl.empty();
         const grid = this.homeEl.createDiv({ cls: 'atoz-dashboard-grid' });
+        this.renderToday(grid, dayStart, now, budget, spending);
+        this.renderLater(grid, now, spending);
+        this.renderPages(grid, dayStart, now, budget);
+    }
 
-        const daynight = this.addCard(grid, 'moon', t('daynight.viewName'), 'daynight');
-        const summary = daynightSummary(this.plugin);
-        addStat(
-            daynight,
-            t('dashboard.lastSleep'),
-            summary.lastSleep ? formatDuration(summary.lastSleep.to - summary.lastSleep.from) : '—',
-            summary.lastSleep ? t('dashboard.wokeAt', { date: formatShortDate(summary.lastSleep.to) }) : undefined,
-        );
-        addStat(
-            daynight,
-            t('dashboard.regularity', { range: summary.days === 0 ? t('daynight.dashboard.all') : t('daynight.dashboard.days', { days: summary.days }) }),
-            summary.regularity === null ? '—' : String(summary.regularity),
-        );
+    private renderToday(grid: HTMLElement, dayStart: number, now: number, budget: BudgetSummary, spending: BudgetRecord[]): void {
+        const plugin = this.plugin;
+        const dayEnd = dayStart + DAY;
+        const card = grid.createDiv({ cls: 'atoz-dashboard-card atoz-home-today' });
+        card.createDiv({
+            cls: 'atoz-dashboard-card-title',
+            text: t('dashboard.today', { date: new Date(dayStart).toLocaleDateString(isKorean ? 'ko-KR' : 'en-US', { month: 'long', day: 'numeric', weekday: 'short' }) }),
+        });
 
-        // 가계부는 파일을 읽어야 하므로 카드 자리만 먼저 잡아 순서를 지킨다.
-        const budget = this.addCard(grid, 'wallet', t('budget.viewName'), 'budget');
-
-        const meal = this.addCard(grid, 'utensils', t('meal.viewName'), 'meal');
-        const latestMeal = this.plugin.meal.latest();
-        const mealStat = meal.createDiv({ cls: 'atoz-dashboard-stat' });
-        mealStat.createDiv({ cls: 'atoz-dashboard-muted', text: t('dashboard.latestMeal') });
-        const mealValue = mealStat.createDiv({ cls: 'atoz-dashboard-value atoz-dashboard-meal' });
-        if (latestMeal) {
-            createMealMarker(mealValue, this.plugin, latestMeal.food ? latestMeal : { icon: 'circle-help', color: latestMeal.color });
-            mealValue.createSpan({ text: latestMeal.food || t('meal.unknownFood') });
-        } else {
-            mealValue.setText('—');
+        // 하루 시작 시각부터 24시간: 잠, 활동, 식사(점), 지출(눈금), 지금 선
+        const band = card.createDiv({ cls: 'atoz-home-band', attr: { 'aria-hidden': 'true' } });
+        const place = (el: HTMLElement, from: number, to: number): void => {
+            const left = Math.max(0, (from - dayStart) / DAY);
+            const right = Math.min(1, (to - dayStart) / DAY);
+            el.style.left = `${left * 100}%`;
+            el.style.width = `${Math.max(0, right - left) * 100}%`;
+        };
+        const segments = plugin.daynight.segments(now);
+        for (const segment of segments) {
+            if (segment.type !== 'sleep' || segment.to <= dayStart || segment.from >= dayEnd) continue;
+            place(band.createSpan({ cls: 'atoz-home-sleep' }), segment.from, segment.to);
         }
-        addStat(meal, t('dashboard.sinceMeal'), latestMeal ? formatDuration(Date.now() - latestMeal.time) : '—');
+        for (const block of plugin.timeline.segments(now)) {
+            if (block.to <= dayStart || block.from >= dayEnd) continue;
+            const bar = band.createSpan({ cls: 'atoz-home-activity' });
+            applyTimelineColor(bar, plugin, block.category);
+            place(bar, block.from, block.to);
+        }
+        const meals = plugin.meal.records.filter((meal) => meal.time >= dayStart && meal.time < dayEnd);
+        for (const meal of meals) place(band.createSpan({ cls: 'atoz-home-meal' }), meal.time, meal.time);
+        const todaySpending = spending.filter(({ kind, entry }) => kind === 'expense' && entryTimeOf(entry) >= dayStart && entryTimeOf(entry) < dayEnd);
+        for (const { entry } of todaySpending) place(band.createSpan({ cls: 'atoz-home-spend' }), entryTimeOf(entry), entryTimeOf(entry));
+        if (now < dayEnd) place(band.createSpan({ cls: 'atoz-home-now' }), now, now);
+        const axis = card.createDiv({ cls: 'atoz-home-axis' });
+        for (let hour = 0; hour <= 24; hour += 6) axis.createSpan({ text: String((plugin.settings.timelineDayStartHour + hour) % 24) });
 
-        const timeline = this.addCard(grid, 'calendar-clock', t('timeline.viewName'), 'timeline');
-        const current = this.plugin.timeline.current();
+        // 숫자 셋. 숫자마다 비교를 붙인다.
+        const stats = card.createDiv({ cls: 'atoz-dashboard-card-body atoz-home-stats' });
+        const finished = segments.slice(0, -1).filter(({ type }) => type === 'sleep');
+        const lastSleep = finished[finished.length - 1];
+        const week = finished.slice(0, -1).filter(({ to }) => to > now - 7 * DAY).map(({ from, to }) => to - from);
+        let sleepSub: string | undefined;
+        if (lastSleep && week.length > 0) {
+            const diff = (lastSleep.to - lastSleep.from) - week.reduce((sum, value) => sum + value, 0) / week.length;
+            sleepSub = t('dashboard.vsUsual', { diff: (diff < 0 ? '−' : '+') + formatDuration(Math.abs(diff)) });
+        }
+        addStat(stats, t('dashboard.sleep'), lastSleep ? formatDuration(lastSleep.to - lastSleep.from) : '—', sleepSub);
+
+        const today = summarizeDay(plugin, timelineToday(plugin), now);
         addStat(
-            timeline,
-            t('dashboard.currentActivity'),
-            current?.category ?? '—',
-            current ? formatDuration(Date.now() - current.time) : undefined,
-        );
-        const today = summarizeDay(this.plugin, timelineToday(this.plugin), Date.now());
-        addStat(
-            timeline,
+            stats,
             t('dashboard.todayMatch'),
             formatMatch(today),
             today.elapsedPlan > 0 ? t('dashboard.ofPlan', { plan: formatDuration(today.elapsedPlan) }) : undefined,
         );
 
-        const plan = this.addCard(grid, 'list-todo', t('plan.viewName'), 'plan');
-        const now = Date.now();
-        const next = this.plugin.timeline.plans.find((block) => block.to > now);
+        // 예산이 있으면 이번 달 지출이 날짜만큼의 예산(페이스) 안인지 본다.
+        const spent = todaySpending.reduce((sum, { entry }) => sum + entry.amount, 0);
+        const date = new Date(now);
+        const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        const pace = budget.budget * date.getDate() / daysInMonth;
         addStat(
-            plan,
-            next && next.from <= now ? t('dashboard.nowPlan') : t('dashboard.nextPlan'),
-            next?.category ?? '—',
-            next ? `${formatShortDate(next.from)} ${formatClock(next.from)}–${formatClock(next.to)}` : undefined,
-        );
-
-        const { total, latest } = await this.plugin.budget.summary();
-        addStat(budget, t('dashboard.monthExpense'), formatWon(total));
-        addStat(
-            budget,
-            t('dashboard.latestExpense'),
-            latest ? formatWon(latest.amount) : '—',
-            latest ? `${latest.date} · ${latest.title}` : undefined,
+            stats,
+            t('dashboard.todaySpent'),
+            formatWon(spent),
+            budget.budget > 0 ? t(budget.total <= pace ? 'dashboard.paceIn' : 'dashboard.paceOver') : undefined,
         );
     }
 
-    private addCard(grid: HTMLElement, icon: string, title: string, page: DashboardPageId): HTMLElement {
-        const card = grid.createDiv({ cls: 'atoz-dashboard-card' });
-        const header = card.createDiv({ cls: 'atoz-dashboard-card-title' });
-        setIcon(header.createSpan(), icon);
-        header.createSpan({ text: title });
-        makeClickable(card, () => void this.leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, state: { page } }));
-        return card.createDiv({ cls: 'atoz-dashboard-card-body' });
+    // 메뉴가 빈 식사와 항목이 빈 지출(최근 7일)을 모아 그 자리에서 채운다. 없으면 카드를 숨긴다.
+    private renderLater(grid: HTMLElement, now: number, spending: BudgetRecord[]): void {
+        const plugin = this.plugin;
+        const since = now - 7 * DAY;
+        const items: { time: number; label: string; missing: string; save: (value: string) => Promise<unknown> }[] = [];
+        for (const meal of plugin.meal.records) {
+            if (meal.time < since || meal.food) continue;
+            const legend = plugin.settings.mealLegend.find((item) => item.icon === meal.icon && item.color === meal.color);
+            items.push({
+                time: meal.time,
+                label: legend?.label ?? t('meal.viewName'),
+                missing: t('dashboard.noMenu'),
+                save: (value) => plugin.meal.replace(meal, meal.time, value),
+            });
+        }
+        for (const record of spending) {
+            const { entry } = record;
+            if (record.kind !== 'expense' || entry.title || entryTimeOf(entry) < since) continue;
+            items.push({
+                time: entryTimeOf(entry),
+                label: `${entry.category || t('budget.uncategorized')} ${formatWon(entry.amount)}`,
+                missing: t('dashboard.noTitle'),
+                save: (value) => plugin.budget.editRecord(record, entry.time, value),
+            });
+        }
+        if (items.length === 0) return;
+        items.sort((a, b) => b.time - a.time);
+
+        const card = grid.createDiv({ cls: 'atoz-dashboard-card atoz-home-later' });
+        const title = card.createDiv({ cls: 'atoz-dashboard-card-title' });
+        title.createSpan({ text: t('dashboard.later') });
+        title.createSpan({ cls: 'atoz-home-badge', text: String(items.length) });
+        const list = card.createDiv({ cls: 'atoz-home-later-list' });
+        for (const item of items) {
+            const row = list.createDiv({ cls: 'atoz-home-later-row' });
+            row.createSpan({ cls: 'atoz-dashboard-muted', text: `${formatShortDate(item.time)} ${formatClock(item.time)}` });
+            row.createSpan({ cls: 'atoz-home-later-label', text: item.label });
+            // 패널 편집과 같은 입력. Enter나 칸 밖으로 나가면 저장하고, 채우면 목록에서 빠진다.
+            const input = row.createEl('input', { type: 'text', cls: 'atoz-record-note-input', attr: { placeholder: item.missing, 'aria-label': item.missing } });
+            const save = (): void => {
+                const value = input.value.trim();
+                if (value) void item.save(value);
+            };
+            input.addEventListener('keydown', (event) => {
+                if (event.isComposing || event.key !== 'Enter') return;
+                event.preventDefault();
+                input.blur();
+            });
+            input.addEventListener('blur', save);
+        }
+    }
+
+    // 기능 목록: 한 줄씩 [아이콘 이름 · 핵심 한 줄 · ›]
+    private renderPages(grid: HTMLElement, dayStart: number, now: number, budget: BudgetSummary): void {
+        const plugin = this.plugin;
+        const list = grid.createDiv({ cls: 'atoz-dashboard-card atoz-home-pages' });
+
+        const summary = daynightSummary(plugin);
+        const week = plugin.daynight.segments(now).slice(0, -1)
+            .filter(({ type, to }) => type === 'sleep' && to > now - 7 * DAY)
+            .map(({ from, to }) => to - from);
+        const average = week.length > 0 ? formatDuration(week.reduce((sum, value) => sum + value, 0) / week.length) : '—';
+        this.addPageRow(list, 'moon', t('daynight.viewName'), 'daynight', summary.regularity === null
+            ? t('dashboard.sleepRowNoScore', { average })
+            : t('dashboard.sleepRow', { average, score: summary.regularity }));
+
+        const meals = plugin.meal.records.filter((meal) => meal.time >= dayStart && meal.time <= now);
+        const lastMeal = meals[meals.length - 1];
+        this.addPageRow(list, 'utensils', t('meal.viewName'), 'meal', lastMeal
+            ? t('dashboard.mealRow', { count: meals.length, since: formatDuration(now - lastMeal.time) })
+            : t('dashboard.noMeal'));
+
+        const current = plugin.timeline.current();
+        this.addPageRow(list, 'calendar-clock', t('timeline.viewName'), 'timeline', current
+            ? t('dashboard.activityRow', { activity: current.category, elapsed: formatDuration(now - current.time) })
+            : t('record.idle'));
+
+        const next = plugin.timeline.plans.find((block) => block.to > now);
+        this.addPageRow(list, 'list-todo', t('plan.viewName'), 'plan', !next ? t('dashboard.noPlan')
+            : next.from <= now ? t('dashboard.nowPlanRow', { plan: next.category, time: formatClock(next.to) })
+                : t('dashboard.nextPlanRow', { plan: next.category, time: `${formatShortDate(next.from)} ${formatClock(next.from)}` }));
+
+        const month = new Date(now).getMonth() + 1;
+        this.addPageRow(list, 'wallet', t('budget.viewName'), 'budget', budget.budget > 0
+            ? t('dashboard.budgetRow', { month, amount: formatWon(budget.total), percent: Math.round(budget.total / budget.budget * 100) })
+            : t('dashboard.budgetRowNoLimit', { month, amount: formatWon(budget.total) }));
+    }
+
+    private addPageRow(list: HTMLElement, icon: string, title: string, page: DashboardPageId, line: string): void {
+        const row = list.createDiv({ cls: 'atoz-home-page' });
+        setIcon(row.createSpan({ cls: 'atoz-home-page-icon' }), icon);
+        row.createSpan({ cls: 'atoz-home-page-name', text: title });
+        row.createSpan({ cls: 'atoz-home-page-line', text: line });
+        setIcon(row.createSpan({ cls: 'atoz-home-page-icon' }), 'chevron-right');
+        makeClickable(row, () => void this.leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, state: { page } }));
     }
 }
 

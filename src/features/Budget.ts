@@ -2943,16 +2943,8 @@ export interface BudgetRecord {
 
 export interface BudgetSummary {
     total: number;
-    latest: Pick<Entry, 'date' | 'title' | 'amount'> | null;
-}
-
-// 날짜가 같으면 파일에서 아래에 있는 내역을 더 최근으로 본다.
-function latestEntry(ledger: Ledger | null): Entry | null {
-    let latest: Entry | null = null;
-    for (const entry of ledger?.entries ?? []) {
-        if (!latest || entry.date > latest.date || (entry.date === latest.date && entry.lineIndex > latest.lineIndex)) latest = entry;
-    }
-    return latest;
+    // 이번 달 예산 합계. 없으면 0이다.
+    budget: number;
 }
 
 export class BudgetFeature {
@@ -3167,11 +3159,10 @@ export class BudgetFeature {
     }
 
     /** 홈 카드에 보일 이번 달 지출 합계와 가장 최근 지출. 이번 달 지출이 없으면 지난달에서 찾는다. */
+    /** 홈에 보일 이번 달 지출과 예산 합계 */
     async summary(): Promise<BudgetSummary> {
-        const month = currentMonth();
-        const expense = await this.store.load(KIND_EXPENSE, month);
-        const latest = latestEntry(expense) ?? latestEntry(await this.store.load(KIND_EXPENSE, shiftMonth(month, -1)));
-        return { total: expense ? sumAmounts(expense.entries) : 0, latest };
+        const expense = await this.store.load(KIND_EXPENSE, currentMonth());
+        return { total: expense ? sumAmounts(expense.entries) : 0, budget: totalBudgetOf(expense) };
     }
 
     /** 파일이 여러 번 바뀔 때 한 번만 다시 그리도록 모아둔다. */

@@ -441,11 +441,6 @@ export class MealFeature {
         return match ? this.plugin.settings.mealPalette[Number(match[1]) - 1] ?? null : null;
     }
 
-    /** 지금까지 가장 최근에 먹은 식사. */
-    latest(): MealRecord | null {
-        const now = Date.now();
-        return this.records.filter((record) => record.time <= now).pop() ?? null;
-    }
 
     /** 마지막으로 쓴 표시를 기억하고, 직접 고른 표시가 범례에 없으면 범례에 더한다. */
     async remember(pick: MealPick, customName: string | null): Promise<void> {

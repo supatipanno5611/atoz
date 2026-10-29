@@ -112,7 +112,7 @@ export function formatGapLength(ms: number): string {
     return ms < DAY ? formatDuration(ms) : t('daynight.dashboard.days', { days: Math.floor(ms / DAY) });
 }
 
-function entryTime(entry: BudgetRecord['entry']): number {
+export function entryTime(entry: BudgetRecord['entry']): number {
     const [year, month, day] = entry.date.split('-').map(Number);
     const [hour, minute] = entry.time.split(':').map(Number);
     return new Date(year!, month! - 1, day, hour, minute).getTime();
