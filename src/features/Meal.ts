@@ -457,7 +457,8 @@ export class MealFeature {
         await this.plugin.saveSettings();
     }
 
-    async add(time: number, food: string, pick: MealPick): Promise<void> {
+    /** 기록을 더하고, 다시 읽은 그 기록을 돌려준다. */
+    async add(time: number, food: string, pick: MealPick): Promise<MealRecord | undefined> {
         const date = new Date(time);
         const folder = this.getFolder();
         const path = normalizePath(`${folder}/meal-${date.getFullYear()}-${pad(date.getMonth() + 1)}.md`);
@@ -471,6 +472,7 @@ export class MealFeature {
             await vault.create(path, TABLE_HEADER + row + '\n');
         }
         await this.enqueue(() => this.loadFiles([path]));
+        return this.records.filter((record) => record.file.path === path && record.line === row).pop();
     }
 
     /** 기록의 시각·음식을 고친다. 날짜와 표시는 그대로다. time이 null이면 지운다. */

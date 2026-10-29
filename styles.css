@@ -775,6 +775,50 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     display: none;
 }
 
+/* 쓰는 중인 버튼은 눌린 모양으로 두고 다시 눌러도 무시한다. */
+.atoz-daynight [data-lock].is-pending {
+    transform: scale(0.97);
+    opacity: 0.7;
+    cursor: progress;
+}
+
+/* ── 되돌리기 토스트 ── */
+.atoz-record-toast {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 4px 4px 4px 12px;
+    border-radius: var(--radius-m);
+    background: var(--text-normal);
+    color: var(--background-primary);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-record-toast-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-daynight .atoz-record-toast-action {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: var(--background-primary);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-daynight .atoz-record-toast-action:hover {
+    background: color-mix(in srgb, var(--background-primary) 15%, transparent);
+}
+
 /* ── 기록 버튼 ── */
 .atoz-daynight .atoz-daynight-toggle {
     flex-shrink: 0;

@@ -422,12 +422,14 @@ export class TimelineFeature {
         return last?.category === END_CATEGORY ? null : last;
     }
 
-    /** 그 달 기록 파일 끝에 한 줄을 더한다. 파일이 없으면 만든다. */
-    async addLog(time: number, category: string, memo = ''): Promise<void> {
+    /** 그 달 기록 파일 끝에 한 줄을 더하고, 다시 읽은 그 기록을 돌려준다. 파일이 없으면 만든다. */
+    async addLog(time: number, category: string, memo = ''): Promise<LogRecord | undefined> {
         const date = new Date(time);
         const path = this.pathOf(`log-${date.getFullYear()}-${pad(date.getMonth() + 1)}.md`);
-        await this.appendRow(path, LOG_HEADER, formatLogRow(time, category, memo));
+        const row = formatLogRow(time, category, memo);
+        await this.appendRow(path, LOG_HEADER, row);
         await this.enqueue(() => this.loadFiles([path]));
+        return this.logs.filter((log) => log.file.path === path && log.line === row).pop();
     }
 
     /** 기록의 시각·메모를 고친다. 날짜와 카테고리는 그대로다. time이 null이면 지운다. */

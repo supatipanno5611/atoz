@@ -2,8 +2,9 @@ import { ItemView, Notice, TAbstractFile, TFile, WorkspaceLeaf, normalizePath, s
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import type { MealColor, MealLegendItem } from '../types';
-import { formatAmount, parseAmount, type BudgetRecord, type LedgerKind } from './Budget';
-import { END_CATEGORY } from './Timeline';
+import { formatAmount, formatWon, parseAmount, type BudgetRecord, type LedgerKind } from './Budget';
+import type { MealRecord } from './Meal';
+import { END_CATEGORY, type LogRecord } from './Timeline';
 
 export const VIEW_TYPE_DAYNIGHT = 'atoz-daynight-view';
 const DEFAULT_FOLDER = 'sleep';
@@ -13,6 +14,10 @@ const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
 export const DAY = 24 * HOUR;
 const RELOAD_DELAY = 100;
+// 되돌리기 토스트가 떠 있는 시간
+const TOAST_DURATION = 6000;
+// 알약을 누른 뒤 쓰기가 끝나도 이만큼은 다시 눌러도 무시한다.
+const PILL_LOCK = 600;
 // 이보다 긴 깨어 있음·잠은 기록이 끊긴 것으로 본다.
 const WAKE_LIMIT = 20 * HOUR;
 const SLEEP_LIMIT = 18 * HOUR;
@@ -138,6 +143,13 @@ interface PanelRecord {
     editable: boolean;
     save: (time: number, note: string) => Promise<void>;
     remove: () => Promise<void>;
+    // 지운 기록을 다시 넣는다(되돌리기).
+    restore: () => Promise<unknown>;
+}
+
+interface ToastAction {
+    label: string;
+    run: () => Promise<unknown> | void;
 }
 
 // 금액 칸을 연 알약. 식사 알약에서 열었으면 금액을 비워도 식사는 남긴다.
@@ -155,6 +167,11 @@ export class DaynightView extends ItemView {
     private amountDraft = '';
     private amountKind: LedgerKind = 'expense';
     private amountPayment = '';
+    // 방금 한 일과 되돌리기. 다시 그려도 사라지지 않게 여기에 둔다.
+    private toast: { text: string; actions: ToastAction[] } | null = null;
+    private toastTimer: number | null = null;
+    // 쓰는 중인 버튼(data-lock 값). 그동안 같은 버튼을 다시 눌러도 무시한다.
+    private pending = new Set<string>();
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -171,6 +188,10 @@ export class DaynightView extends ItemView {
         }, 60 * 1000));
         this.render();
         await this.reloadBudget();
+    }
+
+    async onClose(): Promise<void> {
+        if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     }
 
     async reloadBudget(): Promise<void> {
@@ -223,13 +244,17 @@ export class DaynightView extends ItemView {
         this.renderMeals(controls);
         this.renderActivities(controls, now);
 
+        if (this.toast) this.renderToast(container, this.toast);
+
         const isAsleep = this.lastSleep()?.type === 'sleep';
         const toggleButton = container.createEl('button', {
             cls: `atoz-daynight-toggle ${isAsleep ? 'is-asleep' : 'is-awake'}`,
+            attr: { 'data-lock': 'sleep' },
         });
         setIcon(toggleButton, isAsleep ? 'sun' : 'moon');
         toggleButton.createSpan({ text: isAsleep ? t('daynight.wakeNow') : t('daynight.sleepNow') });
-        toggleButton.addEventListener('click', () => void this.toggleSleep());
+        toggleButton.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
+        this.syncPending();
 
         // 펼친 기록이 있으면 그 줄이 보이게 하고, 없으면 맨 아래 최신 기록을 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
@@ -317,8 +342,8 @@ export class DaynightView extends ItemView {
         hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: t('daynight.gap.desc') });
 
         const actions = hero.createDiv({ cls: 'atoz-daynight-gap-actions' });
-        const restart = actions.createEl('button', { cls: 'mod-cta', text: t('daynight.gap.restart') });
-        restart.addEventListener('click', () => void this.restart());
+        const restart = actions.createEl('button', { cls: 'mod-cta', text: t('daynight.gap.restart'), attr: { 'data-lock': 'sleep' } });
+        restart.addEventListener('click', () => void this.lock('sleep', () => this.restart()));
         const fill = actions.createEl('button', { text: t('daynight.gap.fill') });
         fill.addEventListener('click', () => void this.app.workspace.getLeaf('tab').openFile(last.file));
     }
@@ -355,6 +380,7 @@ export class DaynightView extends ItemView {
                     }
                 },
                 remove: () => plugin.daynight.deleteLast(),
+                restore: () => plugin.daynight.restore(record),
             });
         });
 
@@ -374,6 +400,7 @@ export class DaynightView extends ItemView {
                 editable: true,
                 save: (time, note) => plugin.meal.replace(meal, time, note),
                 remove: () => plugin.meal.replace(meal, null, ''),
+                restore: () => plugin.meal.add(meal.time, meal.food, meal),
             });
         }
 
@@ -396,6 +423,7 @@ export class DaynightView extends ItemView {
                 editable: true,
                 save: (time, note) => plugin.timeline.replaceLog(log, time, note),
                 remove: () => plugin.timeline.replaceLog(log, null, ''),
+                restore: () => plugin.timeline.addLog(log.time, log.category, log.memo),
             });
         });
 
@@ -417,6 +445,7 @@ export class DaynightView extends ItemView {
                 editable: true,
                 save: (time, note) => plugin.budget.editRecord(record, formatTime(time), note),
                 remove: () => plugin.budget.deleteRecord(record),
+                restore: () => plugin.budget.restoreRecord(record),
             });
         }
 
@@ -477,10 +506,14 @@ export class DaynightView extends ItemView {
                 this.render();
             });
         }
-        this.addRecordAction(editor, 'trash-2', t('record.delete'), () => {
+        const remove = this.addRecordAction(editor, 'trash-2', t('record.delete'), () => {
             this.editing = null;
-            void record.remove();
+            void this.lock('delete', async () => {
+                await record.remove();
+                this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())]);
+            });
         });
+        remove.dataset.lock = 'delete';
     }
 
     /** 고친 값이 있으면 저장하고 펼친 기록을 닫는다. */
@@ -532,10 +565,12 @@ export class DaynightView extends ItemView {
         const pills = this.pills(container, t('record.meal'));
         for (const [index, item] of settings.mealLegend.entries()) {
             const hasAmount = index > 0;
+            const key = `meal:${item.label}`;
             const button = this.pill(pills, item.label, this.plugin.meal.colorOf(item.color), () => {
                 if (hasAmount) this.openAmount({ category: item.label, meal: item });
-                else void this.plugin.meal.add(Date.now(), '', item);
+                else void this.lock(key, () => this.recordMeal(item, null));
             });
+            if (!hasAmount) button.dataset.lock = key;
             button.toggleClass('is-open', this.amountTarget?.meal === item);
         }
         if (this.amountTarget?.meal) this.renderAmountForm(pills.parentElement!, this.amountTarget);
@@ -547,9 +582,11 @@ export class DaynightView extends ItemView {
         const current = this.plugin.timeline.current();
         for (const name of this.plugin.timeline.blocks) {
             const isCurrent = current?.category === name;
+            const key = `activity:${name}`;
             const button = this.pill(pills, name, this.plugin.settings.timelineColors[name], () => {
-                void this.plugin.timeline.addLog(Date.now(), isCurrent ? END_CATEGORY : name);
+                void this.lock(key, () => this.toggleActivity(name));
             });
+            button.dataset.lock = key;
             button.toggleClass('is-active', isCurrent);
             if (current && isCurrent) {
                 button.createSpan({ cls: 'atoz-record-elapsed', text: formatElapsed(now - current.time) });
@@ -640,23 +677,147 @@ export class DaynightView extends ItemView {
         }
         this.amountTarget = null;
         this.render();
-        if (target.meal) await this.plugin.meal.add(Date.now(), '', target.meal);
-        if (amount !== null) {
-            await this.plugin.budget.recordNow(target.meal ? 'expense' : this.amountKind, target.category, amount, this.amountPayment);
+        if (target.meal) {
+            await this.recordMeal(target.meal, amount);
+            return;
         }
+        const kind = this.amountKind;
+        const spent = await this.plugin.budget.recordNow(kind, target.category, amount!, this.amountPayment);
+        if (!spent) return;
+        this.showToast(
+            t('record.toast.spent', { category: target.category, amount: (kind === 'income' ? '+' : '') + formatWon(amount!) }),
+            [this.undo(() => this.plugin.budget.deleteRecord(spent))],
+        );
+    }
+
+    // 식사를 남기고 토스트에서 메뉴를 쓰거나 되돌린다. 금액이 있으면 같은 이름의 지출도 함께 남기고 함께 되돌린다.
+    private async recordMeal(item: MealLegendItem, amount: number | null): Promise<void> {
+        const now = Date.now();
+        const meal = await this.plugin.meal.add(now, '', item);
+        const spent = amount === null ? null : await this.plugin.budget.recordNow('expense', item.label, amount, this.amountPayment);
+        if (!meal) return;
+        let text = t('record.toast.meal', { meal: item.label, time: formatTime(now) });
+        if (spent) text += ` · ${formatWon(amount!)}`;
+        this.showToast(text, [
+            { label: t('record.toast.writeMenu'), run: () => this.editMeal(meal) },
+            this.undo(async () => {
+                await this.plugin.meal.replace(meal, null, '');
+                if (spent) await this.plugin.budget.deleteRecord(spent);
+            }),
+        ]);
+    }
+
+    /** 방금 남긴 식사 줄을 펼쳐 먹은 것을 쓰게 한다. */
+    private editMeal(meal: MealRecord): void {
+        const record = this.collect(meal.time).find(({ key }) => key === `meal:${meal.file.path}:${meal.line}`);
+        if (!record) return;
+        this.commitEdit();
+        this.editing = { record, time: formatTime(record.time), note: record.note ?? '' };
+        this.render();
+    }
+
+    // 누른 순간의 상태로 시작과 끝을 고른다. 그린 뒤 상태가 바뀌었어도 두 번 시작하지 않는다.
+    private async toggleActivity(name: string): Promise<void> {
+        const now = Date.now();
+        const current = this.plugin.timeline.current();
+        const isEnd = current?.category === name;
+        const log = await this.plugin.timeline.addLog(now, isEnd ? END_CATEGORY : name);
+        if (!log) return;
+        this.showToast(
+            isEnd
+                ? t('record.toast.ended', { activity: name, duration: formatElapsed(now - current.time) })
+                : t('record.toast.started', { activity: name, time: formatTime(now) }),
+            [this.undoLogs([log])],
+        );
     }
 
     // 잠들면 하던 활동도 끝낸다.
     private async toggleSleep(): Promise<void> {
+        const now = Date.now();
         const isAsleep = this.lastSleep()?.type === 'sleep';
-        if (!isAsleep && this.plugin.timeline.current()) await this.plugin.timeline.addLog(Date.now(), END_CATEGORY);
-        await this.plugin.daynight.toggle();
+        const current = isAsleep ? null : this.plugin.timeline.current();
+        const ended = current ? await this.plugin.timeline.addLog(now, END_CATEGORY) : undefined;
+        if (!await this.plugin.daynight.toggle()) return;
+        const text = isAsleep ? t('record.toast.woke', { time: formatTime(now) })
+            : current ? t('record.toast.sleptEnded', { activity: current.category })
+                : t('record.toast.slept', { time: formatTime(now) });
+        this.showToast(text, [this.undoSleep(ended)]);
     }
 
     // 끊긴 구간은 기록 없음으로 두고 지금부터 깨어 있는 것으로 센다. 그동안 켜져 있던 활동도 끝낸다.
     private async restart(): Promise<void> {
-        if (this.plugin.timeline.current()) await this.plugin.timeline.addLog(Date.now(), END_CATEGORY);
-        await this.plugin.daynight.add('wake');
+        const now = Date.now();
+        const ended = this.plugin.timeline.current() ? await this.plugin.timeline.addLog(now, END_CATEGORY) : undefined;
+        if (!await this.plugin.daynight.add('wake')) return;
+        this.showToast(t('record.toast.restarted', { time: formatTime(now) }), [this.undoSleep(ended)]);
+    }
+
+    // 방금 더한 수면 기록과, 함께 끝낸 활동이 있으면 그 줄도 지운다.
+    private undoSleep(ended: LogRecord | undefined): ToastAction {
+        return this.undo(async () => {
+            await this.plugin.daynight.deleteLast();
+            if (ended) await this.plugin.timeline.replaceLog(ended, null, '');
+        });
+    }
+
+    private undoLogs(logs: LogRecord[]): ToastAction {
+        return this.undo(async () => {
+            for (const log of logs) await this.plugin.timeline.replaceLog(log, null, '');
+        });
+    }
+
+    private undo(run: () => Promise<unknown>): ToastAction {
+        return { label: t('record.undo'), run };
+    }
+
+    private showToast(text: string, actions: ToastAction[]): void {
+        if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+        this.toast = { text, actions };
+        this.toastTimer = window.setTimeout(() => {
+            this.toastTimer = null;
+            this.toast = null;
+            this.render();
+        }, TOAST_DURATION);
+        this.render();
+    }
+
+    // 수면 버튼 바로 위, 엄지가 닿는 자리에 둔다.
+    private renderToast(container: HTMLElement, toast: { text: string; actions: ToastAction[] }): void {
+        const el = container.createDiv({ cls: 'atoz-record-toast', attr: { role: 'status' } });
+        el.createSpan({ cls: 'atoz-record-toast-text', text: toast.text });
+        for (const action of toast.actions) {
+            const button = el.createEl('button', { cls: 'atoz-record-toast-action', text: action.label });
+            button.addEventListener('click', () => {
+                if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+                this.toastTimer = null;
+                this.toast = null;
+                this.render();
+                void action.run();
+            });
+        }
+    }
+
+    // 쓰기가 끝나고 PILL_LOCK이 지날 때까지 같은 버튼을 다시 눌러도 무시한다.
+    private async lock(key: string, action: () => Promise<void>): Promise<void> {
+        if (this.pending.has(key)) return;
+        this.pending.add(key);
+        this.syncPending();
+        try {
+            await Promise.all([action(), new Promise((resolve) => window.setTimeout(resolve, PILL_LOCK))]);
+        } finally {
+            this.pending.delete(key);
+            this.syncPending();
+        }
+    }
+
+    // 다시 그려도 쓰는 중인 버튼은 눌린 모양을 유지한다.
+    private syncPending(): void {
+        this.containerEl.querySelectorAll<HTMLElement>('[data-lock]').forEach((el) => {
+            const isPending = this.pending.has(el.dataset.lock ?? '');
+            el.toggleClass('is-pending', isPending);
+            if (isPending) el.setAttr('aria-busy', 'true');
+            else el.removeAttribute('aria-busy');
+        });
     }
 
     private addRecordAction(row: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
@@ -746,18 +907,19 @@ export class DaynightFeature {
         return splitGaps(toSegments(this.records, now), events);
     }
 
-    async toggle(): Promise<void> {
+    async toggle(): Promise<boolean> {
         const last = this.records[this.records.length - 1];
-        await this.add(last?.type === 'sleep' ? 'wake' : 'sleep');
+        return await this.add(last?.type === 'sleep' ? 'wake' : 'sleep');
     }
 
-    async add(type: DaynightType): Promise<void> {
+    /** 지금 시각으로 한 줄을 더한다. 다른 쓰기가 진행 중이라 쓰지 않았으면 false다. */
+    async add(type: DaynightType): Promise<boolean> {
         const now = new Date();
         const row = formatRow(now, type);
         const folder = this.getFolder();
         const path = normalizePath(`${folder}/sleep-${now.getFullYear()}-${pad(now.getMonth() + 1)}.md`);
 
-        await this.write(path, async () => {
+        return await this.write(path, async () => {
             const vault = this.plugin.app.vault;
             if (!vault.getFolderByPath(folder)) await vault.createFolder(folder);
             const file = vault.getFileByPath(path);
@@ -772,6 +934,12 @@ export class DaynightFeature {
 
     async deleteLast(): Promise<void> {
         await this.replaceLast(() => null);
+    }
+
+    /** 지운 마지막 기록을 원래 파일 끝에 다시 붙인다. */
+    async restore(record: DaynightRecord): Promise<void> {
+        await this.write(record.file.path, () => this.plugin.app.vault.process(record.file, (data) =>
+            (data === '' || data.endsWith('\n') ? data : data + '\n') + record.line + '\n'));
     }
 
     // 날짜와 종류는 그대로 두고 시각만 바꾼다.
@@ -795,13 +963,14 @@ export class DaynightFeature {
         }));
     }
 
-    // 버튼을 연달아 눌러도 기록을 다시 읽기 전에 같은 종류를 두 번 쓰지 않게 한다.
-    private async write(path: string, action: () => Promise<unknown>): Promise<void> {
-        if (this.isWriting) return;
+    // 버튼을 연달아 눌러도 기록을 다시 읽기 전에 같은 종류를 두 번 쓰지 않게 한다. 건너뛰었으면 false다.
+    private async write(path: string, action: () => Promise<unknown>): Promise<boolean> {
+        if (this.isWriting) return false;
         this.isWriting = true;
         try {
             await action();
             await this.enqueue(() => this.loadFiles([path]));
+            return true;
         } finally {
             this.isWriting = false;
         }

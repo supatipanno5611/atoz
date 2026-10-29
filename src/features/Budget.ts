@@ -3085,10 +3085,11 @@ export class BudgetFeature {
         return out;
     }
 
-    /** 기록 패널에서 지금 시각으로 한 건 남긴다. 항목과 태그는 나중에 고친다. */
-    async recordNow(kind: LedgerKind, category: string, amount: number, payment: string): Promise<void> {
+    /** 기록 패널에서 지금 시각으로 한 건 남기고, 되돌릴 수 있게 그 내역을 돌려준다. 항목과 태그는 나중에 고친다. */
+    async recordNow(kind: LedgerKind, category: string, amount: number, payment: string): Promise<BudgetRecord | null> {
         const now = new Date();
-        const ok = await this.store.addEntry(kind, currentMonth(), {
+        const month = currentMonth();
+        const draft: EntryDraft = {
             date: todayISO(),
             time: pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
             title: '',
@@ -3096,10 +3097,23 @@ export class BudgetFeature {
             amount,
             payment,
             tags: '',
-        });
-        if (!ok) return;
+        };
+        const ok = await this.store.addEntry(kind, month, draft);
+        if (!ok) return null;
         await this.rememberPayment(payment);
-        new Notice(t('budget.notice.recorded', { kind: kindLabel(kind), amount: formatWon(amount) }));
+        const ledger = await this.store.load(kind, month);
+        const entry = (ledger?.entries ?? [])
+            .filter((item) => item.date === draft.date && item.time === draft.time && item.category === category
+                && item.amount === amount && item.title === '')
+            .sort((a, b) => a.lineIndex - b.lineIndex)
+            .pop();
+        return entry ? { kind, month, entry } : null;
+    }
+
+    /** 지운 내역을 다시 넣는다. 같은 날짜 자리에 들어간다. */
+    async restoreRecord(record: BudgetRecord): Promise<void> {
+        const { date, time, title, category, amount, payment, tags, extra } = record.entry;
+        await this.store.addEntry(record.kind, record.month, { date, time, title, category, amount, payment, tags, extra });
     }
 
     /** 날짜는 그대로 두고 시각과 항목만 고친다. */
