@@ -535,4 +535,5 @@ export const ko: Record<TranslationKey, string> = {
     'budget.all': '전체',
     'budget.search': '검색',
     'budget.noEntries': '표시할 내역이 없습니다.',
+    'budget.sectionFailed': '이 부분을 그리지 못했어요.',
 };

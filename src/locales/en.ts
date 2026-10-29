@@ -545,6 +545,7 @@ export const en = {
     'budget.all': 'All',
     'budget.search': 'Search',
     'budget.noEntries': 'No entries to show.',
+    'budget.sectionFailed': 'Could not draw this part.',
 } as const;
 
 export type TranslationKey = keyof typeof en;

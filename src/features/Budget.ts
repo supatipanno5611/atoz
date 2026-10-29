@@ -1986,14 +1986,25 @@ export class BudgetPage {
             this.previousExpense,
         );
 
-        this.renderHeader(root);
-        this.renderWarnings(root);
-        this.renderSummary(root, stats, previous);
-        this.renderTrend(root);
-        this.renderCategories(root, stats, previous);
-        this.renderPayments(root, stats);
-        this.renderDaily(root, stats);
-        this.renderEntries(root);
+        const sections: (() => void)[] = [
+            () => this.renderHeader(root),
+            () => this.renderWarnings(root),
+            () => this.renderSummary(root, stats, previous),
+            () => this.renderTrend(root),
+            () => this.renderCategories(root, stats, previous),
+            () => this.renderPayments(root, stats),
+            () => this.renderDaily(root, stats),
+            () => this.renderEntries(root),
+        ];
+        // 한 섹션이 실패해도 나머지(특히 내역 표)는 그린다.
+        for (const draw of sections) {
+            try {
+                draw();
+            } catch (error) {
+                console.error(error);
+                root.createDiv({ cls: 'atoz-budget-empty', text: t('budget.sectionFailed') });
+            }
+        }
     }
 
     /* -------------------------------------------------- 헤더 */
@@ -2433,7 +2444,9 @@ export class BudgetPage {
         if (line) {
             const points: string[] = [];
             for (let i = 0; i < line.length; i++) points.push(((i + 0.5) * slot) + ',' + scaleY(line[i] ?? 0));
-            const polyline = svg.createSvg('polyline', { cls: 'atoz-budget-chart-line is-income' });
+            // createSvg는 cls를 classList.add로 넣어서 공백이 든 문자열을 주면 예외가 난다.
+            const polyline = svg.createSvg('polyline', { cls: 'atoz-budget-chart-line' });
+            polyline.classList.add('is-income');
             polyline.setAttribute('points', points.join(' '));
         }
 
