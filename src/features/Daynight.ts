@@ -13,6 +13,9 @@ const TABLE_HEADER = '| Date | Time | Type |\n| --- | --- | --- |\n';
 const HOUR = 60 * 60 * 1000;
 export const DAY = 24 * HOUR;
 const RELOAD_DELAY = 100;
+// 이보다 긴 깨어 있음·잠은 기록이 끊긴 것으로 본다.
+const WAKE_LIMIT = 20 * HOUR;
+const SLEEP_LIMIT = 18 * HOUR;
 type DaynightType = 'sleep' | 'wake';
 
 interface DaynightRecord {
@@ -56,7 +59,8 @@ function formatRow(date: Date, type: DaynightType): string {
 export interface DaynightSegment {
     from: number;
     to: number;
-    type: DaynightType;
+    // gap은 기록이 끊겨 상태를 모르는 구간이다. 파일에는 없고 읽을 때 가른다.
+    type: DaynightType | 'gap';
 }
 
 // 각 기록에서 다음 기록까지를 그 기록 종류의 구간으로 만든다. 마지막 구간은 지금까지 진행 중이다.
@@ -66,6 +70,44 @@ export function toSegments(records: DaynightRecord[], now: number): DaynightSegm
         to: records[index + 1]?.time ?? now,
         type: record.type,
     }));
+}
+
+/**
+ * 너무 긴 구간은 믿을 수 있는 앞부분만 남기고 나머지를 '기록 없음'(gap)으로 가른다.
+ * 깨어 있음이 20시간을 넘으면 처음 20시간 안의 마지막 다른 기록까지, 잠이 18시간을 넘으면 그 안의 첫 다른 기록까지만 믿는다.
+ * events는 수면 밖의 기록(식사·활동·지출) 시각이다.
+ */
+export function splitGaps(segments: DaynightSegment[], events: number[]): DaynightSegment[] {
+    const out: DaynightSegment[] = [];
+    const push = (segment: DaynightSegment): void => {
+        const last = out[out.length - 1];
+        if (last?.type === 'gap' && segment.type === 'gap') last.to = segment.to;
+        else out.push(segment);
+    };
+    for (const segment of segments) {
+        const { from, to, type } = segment;
+        const limit = type === 'sleep' ? SLEEP_LIMIT : WAKE_LIMIT;
+        if (type === 'gap' || to - from <= limit) {
+            push(segment);
+            continue;
+        }
+        const inside = events.filter((time) => time > from && time < from + limit);
+        const known = inside.length === 0 ? from : type === 'sleep' ? Math.min(...inside) : Math.max(...inside);
+        if (known > from) push({ from, to: known, type });
+        push({ from: known, to, type: 'gap' });
+    }
+    return out;
+}
+
+/** 끊긴 길이. 하루가 넘으면 날 수로 줄인다. */
+export function formatGapLength(ms: number): string {
+    return ms < DAY ? formatDuration(ms) : t('daynight.dashboard.days', { days: Math.floor(ms / DAY) });
+}
+
+function entryTime(entry: BudgetRecord['entry']): number {
+    const [year, month, day] = entry.date.split('-').map(Number);
+    const [hour, minute] = entry.time.split(':').map(Number);
+    return new Date(year!, month! - 1, day, hour, minute).getTime();
 }
 
 const SLEEP_COLOR: MealColor = { light: 'var(--interactive-accent)', dark: 'var(--interactive-accent)' };
@@ -202,6 +244,13 @@ export class DaynightView extends ItemView {
     }
 
     private renderStatus(container: HTMLElement, now: number): void {
+        const segments = this.plugin.daynight.segments(now, this.budgetRecords.map(({ entry }) => entryTime(entry)));
+        const tail = segments[segments.length - 1];
+        if (tail?.type === 'gap') {
+            this.renderGap(container, tail, now);
+            return;
+        }
+
         const hero = container.createDiv({ cls: 'atoz-daynight-hero' });
         const last = this.lastSleep();
         const isAsleep = last?.type === 'sleep';
@@ -248,6 +297,30 @@ export class DaynightView extends ItemView {
         }
         hero.createDiv({ cls: 'atoz-daynight-hero-value', text: since === undefined ? '—' : formatElapsed(now - since) });
         if (sub) hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: sub });
+    }
+
+    // 기록이 끊겨 지금 상태를 모르면 경과 시간 대신 다시 시작할 길을 보인다.
+    private renderGap(container: HTMLElement, gap: DaynightSegment, now: number): void {
+        const hero = container.createDiv({ cls: 'atoz-daynight-hero is-gap' });
+        const head = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
+        setIcon(head.createSpan({ cls: 'atoz-daynight-gap-icon' }), 'alert-triangle');
+        head.createSpan({ cls: 'atoz-record-status', text: t('daynight.gap.title', { length: formatGapLength(now - gap.from) }) });
+
+        const last = this.lastSleep()!;
+        hero.createDiv({
+            cls: 'atoz-daynight-gap-last',
+            text: t('daynight.gap.last', {
+                time: formatShortDateTime(last.time),
+                type: t(last.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake'),
+            }),
+        });
+        hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: t('daynight.gap.desc') });
+
+        const actions = hero.createDiv({ cls: 'atoz-daynight-gap-actions' });
+        const restart = actions.createEl('button', { cls: 'mod-cta', text: t('daynight.gap.restart') });
+        restart.addEventListener('click', () => void this.restart());
+        const fill = actions.createEl('button', { text: t('daynight.gap.fill') });
+        fill.addEventListener('click', () => void this.app.workspace.getLeaf('tab').openFile(last.file));
     }
 
     /** from 이후의 네 가지 기록을 시간순으로 모은다. */
@@ -328,9 +401,7 @@ export class DaynightView extends ItemView {
 
         for (const record of this.budgetRecords) {
             const { entry } = record;
-            const [year, month, day] = entry.date.split('-').map(Number);
-            const [hour, minute] = entry.time.split(':').map(Number);
-            const time = new Date(year!, month! - 1, day, hour, minute).getTime();
+            const time = entryTime(entry);
             if (time < from) continue;
             out.push({
                 key: `budget:${record.kind}:${record.month}:${entry.lineIndex}:${entry.raw}`,
@@ -582,6 +653,12 @@ export class DaynightView extends ItemView {
         await this.plugin.daynight.toggle();
     }
 
+    // 끊긴 구간은 기록 없음으로 두고 지금부터 깨어 있는 것으로 센다. 그동안 켜져 있던 활동도 끝낸다.
+    private async restart(): Promise<void> {
+        if (this.plugin.timeline.current()) await this.plugin.timeline.addLog(Date.now(), END_CATEGORY);
+        await this.plugin.daynight.add('wake');
+    }
+
     private addRecordAction(row: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
         const button = row.createEl('button', { cls: 'atoz-daynight-action', attr: { 'aria-label': label } });
         setIcon(button, icon);
@@ -659,9 +736,22 @@ export class DaynightFeature {
         void this.plugin.app.workspace.revealLeaf(leaf);
     }
 
+    /** 수면 기록을 구간으로 나누고, 너무 긴 구간은 식사·활동 기록(과 extraEvents)을 보고 '기록 없음'을 가른다. */
+    segments(now: number, extraEvents: number[] = []): DaynightSegment[] {
+        const events = [
+            ...this.plugin.meal.records.map((meal) => meal.time),
+            ...this.plugin.timeline.logs.map((log) => log.time),
+            ...extraEvents,
+        ];
+        return splitGaps(toSegments(this.records, now), events);
+    }
+
     async toggle(): Promise<void> {
         const last = this.records[this.records.length - 1];
-        const type: DaynightType = last?.type === 'sleep' ? 'wake' : 'sleep';
+        await this.add(last?.type === 'sleep' ? 'wake' : 'sleep');
+    }
+
+    async add(type: DaynightType): Promise<void> {
         const now = new Date();
         const row = formatRow(now, type);
         const folder = this.getFolder();

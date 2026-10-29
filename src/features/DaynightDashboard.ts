@@ -2,7 +2,7 @@ import { setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import {
-    DAY, DaynightSegment, formatDuration, formatShortDate, formatShortDateTime, formatTime, pad, toSegments,
+    DAY, DaynightSegment, formatDuration, formatGapLength, formatShortDate, formatShortDateTime, formatTime, pad,
 } from './Daynight';
 
 // 집계 기간(일). 0은 전체 기간이다.
@@ -49,6 +49,7 @@ function sleepRatios(segments: DaynightSegment[]): (number | null)[] {
     const total = new Array<number>(SLOT_COUNT).fill(0);
     const asleep = new Array<number>(SLOT_COUNT).fill(0);
     for (const { from, to, type } of segments) {
+        if (type === 'gap') continue;
         let time = from;
         while (time < to) {
             const date = new Date(time);
@@ -96,6 +97,7 @@ function formatWindow({ start, length }: ClockWindow): string {
 
 // 수면 규칙성 지수(SRI). 24시간 간격의 두 시점이 같은 상태일 확률을 -100~100으로 옮긴다.
 // 100은 매일 똑같고 0은 무작위 수준이다. segments는 start부터 end까지 빈틈없이 이어져 있어야 한다.
+// 둘 중 하나라도 기록 없음이면 그 시점은 세지 않는다.
 function regularityIndex(segments: DaynightSegment[], start: number, end: number): number | null {
     let same = 0;
     let count = 0;
@@ -104,10 +106,20 @@ function regularityIndex(segments: DaynightSegment[], start: number, end: number
     for (let time = start; time + DAY < end; time += SAMPLE_STEP) {
         while (segments[a]!.to <= time) a++;
         while (segments[b]!.to <= time + DAY) b++;
+        if (segments[a]!.type === 'gap' || segments[b]!.type === 'gap') continue;
         count++;
         if (segments[a]!.type === segments[b]!.type) same++;
     }
     return count > 0 ? Math.round(200 * same / count - 100) : null;
+}
+
+// 기록 없음 구간을 칠할 빗금. 같은 id를 여러 차트가 정의해도 모양이 같아 상관없다.
+function addHatch(svg: SVGSVGElement): void {
+    const pattern = svg.createSvg('defs').createSvg('pattern', {
+        attr: { id: 'atoz-daynight-hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
+    });
+    pattern.createSvg('rect', { cls: 'atoz-daynight-gap-fill', attr: { width: 6, height: 6 } });
+    pattern.createSvg('line', { cls: 'atoz-daynight-gap-line', attr: { x1: 0, y1: 0, x2: 0, y2: 6 } });
 }
 
 // 집계 기간의 시작. 첫 기록 이전은 상태를 모르므로 집계에서 뺀다.
@@ -128,7 +140,7 @@ export function daynightSummary(plugin: ATOZPlugin): DaynightSummary {
     const first = records[0];
     if (!first) return { lastSleep: null, regularity: null, days };
     const now = Date.now();
-    const segments = toSegments(records, now);
+    const segments = plugin.daynight.segments(now);
     const start = rangeStart(first.time, days, now);
     return {
         lastSleep: segments.slice(0, -1).filter(({ type }) => type === 'sleep').pop() ?? null,
@@ -174,8 +186,21 @@ export class DaynightDashboardPage {
         const now = Date.now();
         const days = settings.daynightDashboardDays;
         const start = rangeStart(first.time, days, now);
-        const segments = toSegments(records, now);
+        const segments = this.plugin.daynight.segments(now);
         const clipped = clipSegments(segments, start, now);
+
+        const gaps = clipped.filter(({ type }) => type === 'gap');
+        if (gaps.length > 0) {
+            const ranges = gaps.map(({ from, to }) => {
+                const dates = formatShortDate(from) === formatShortDate(to)
+                    ? formatShortDate(from)
+                    : `${formatShortDate(from)}–${formatShortDate(to)}`;
+                return `${dates} (${formatGapLength(to - from)})`;
+            });
+            const notice = container.createDiv({ cls: 'atoz-daynight-dashboard-gaps' });
+            setIcon(notice.createSpan(), 'alert-triangle');
+            notice.createSpan({ text: t('daynight.dashboard.gaps', { ranges: ranges.join(', ') }) });
+        }
 
         const grid = container.createDiv({ cls: 'atoz-daynight-dashboard-grid' });
         this.renderDay(this.createCard(grid, t('daynight.dashboard.day'), 'is-wide'), segments, now);
@@ -235,6 +260,12 @@ export class DaynightDashboardPage {
         const isSleep = type === 'sleep';
         const sameDay = formatShortDate(from) === formatShortDate(to);
         const formatEdge = (time: number): string => sameDay ? formatTime(time) : formatShortDateTime(time);
+        if (type === 'gap') {
+            const parts = [t('daynight.gap.name'), formatGapLength(to - from), t('record.since', { time: formatEdge(from) })];
+            if (selected) parts.push(t('daynight.gap.until', { time: formatEdge(to) }));
+            card.createDiv({ cls: 'atoz-daynight-muted', text: parts.join(' · ') });
+            return;
+        }
         const parts = [
             t(isSleep ? 'daynight.sleepOn' : 'daynight.awakeOn', { date: formatShortDate(from) }),
             formatDuration(to - from),
@@ -257,6 +288,7 @@ export class DaynightDashboardPage {
             cls: 'atoz-daynight-chart',
             attr: { viewBox: `0 0 ${DAY_CHART_WIDTH} ${BAR_TOP + BAR_HEIGHT + 16}` },
         });
+        addHatch(svg);
         svg.createSvg('rect', {
             cls: 'atoz-daynight-track',
             attr: { x: 0, y: BAR_TOP, width: DAY_CHART_WIDTH, height: BAR_HEIGHT, rx: 6 },
@@ -309,13 +341,13 @@ export class DaynightDashboardPage {
             }
         }
 
-        // 수면 구간과 깨어 있는 구간을 번갈아 칠한다.
+        // 수면 구간과 깨어 있는 구간을 번갈아 칠하고, 기록 없음은 빗금으로 둔다.
         for (const segment of segments) {
             const clippedFrom = Math.max(segment.from, start);
             const clippedTo = Math.min(segment.to, end);
             if (clippedTo <= clippedFrom) continue;
             const bar = svg.createSvg('rect', {
-                cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-wake',
+                cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : segment.type === 'wake' ? 'atoz-daynight-wake' : 'atoz-daynight-gap',
                 attr: { x: x(clippedFrom), y: BAR_TOP + 4, width: x(clippedTo) - x(clippedFrom), height: BAR_HEIGHT - 8, rx: 3 },
             });
             if (segment.from !== focused.from) bar.addClass('atoz-daynight-dim');
@@ -456,6 +488,7 @@ export class DaynightDashboardPage {
             cls: 'atoz-daynight-actogram',
             attr: { viewBox: `0 0 ${width} ${height}` },
         });
+        addHatch(svg);
 
         for (let hour = 0; hour <= 48; hour += 6) {
             const x = ACTOGRAM_LABEL_WIDTH + hour / 48 * ACTOGRAM_PLOT_WIDTH;
@@ -495,11 +528,11 @@ export class DaynightDashboardPage {
                 });
             }
             for (const segment of segments) {
-                if (segment.type !== 'sleep' || segment.to <= from || segment.from >= to) continue;
+                if (segment.type === 'wake' || segment.to <= from || segment.from >= to) continue;
                 const barFrom = Math.max(segment.from, from);
                 const barTo = Math.min(segment.to, to);
                 svg.createSvg('rect', {
-                    cls: 'atoz-daynight-sleep',
+                    cls: segment.type === 'sleep' ? 'atoz-daynight-sleep' : 'atoz-daynight-gap',
                     attr: { x: x(barFrom), y: y + 1, width: x(barTo) - x(barFrom), height: ACTOGRAM_ROW_HEIGHT - 2 },
                 });
             }

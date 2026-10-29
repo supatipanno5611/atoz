@@ -315,6 +315,29 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     font-variant-numeric: tabular-nums;
 }
 
+/* 기록이 끊겼을 때 상태 대신 보이는 카드 */
+.atoz-daynight-hero.is-gap .atoz-daynight-hero-label {
+    color: var(--text-warning);
+}
+
+.atoz-daynight-gap-icon {
+    display: flex;
+    --icon-size: 14px;
+}
+
+.atoz-daynight-gap-last {
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+    color: var(--text-normal);
+}
+
+.atoz-daynight-gap-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
 .atoz-daynight-empty-title {
     font-size: var(--font-ui-large);
     font-weight: var(--font-semibold);
@@ -391,6 +414,20 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-daynight-sleep {
     fill: var(--interactive-accent);
+}
+
+/* 기록 없음은 빗금 회색. 무늬는 차트마다 넣는 pattern(atoz-daynight-hatch)이다. */
+.atoz-daynight-gap {
+    fill: url(#atoz-daynight-hatch);
+}
+
+.atoz-daynight-gap-fill {
+    fill: var(--background-secondary);
+}
+
+.atoz-daynight-gap-line {
+    stroke: var(--text-faint);
+    stroke-width: 1.5;
 }
 
 /* 깨어 있는 구간은 상태 점과 같은 아침색으로 칠한다. */
@@ -470,7 +507,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-record-empty {
     padding: 6px;
-    color: var(--text-faint);
+    color: var(--text-muted);
 }
 
 .atoz-record-row {
@@ -794,6 +831,16 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 .atoz-daynight-dashboard-header {
     display: flex;
     justify-content: flex-end;
+}
+
+.atoz-daynight-dashboard-gaps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    --icon-size: 14px;
 }
 
 .atoz-daynight-dashboard-ranges {
