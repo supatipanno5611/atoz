@@ -772,60 +772,102 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
 
 .atoz-record-amount {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    padding: 8px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     background: var(--background-primary);
 }
 
-.atoz-record-amount-title {
-    font-size: var(--font-ui-small);
-    white-space: nowrap;
+.atoz-record-amount-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.atoz-daynight .atoz-record-amount-toggle,
-.atoz-daynight .atoz-record-amount-submit {
-    height: 30px;
-    box-shadow: none;
-    white-space: nowrap;
-}
-
-.atoz-daynight .atoz-record-amount-toggle {
-    padding: 0 8px;
-    border: none;
-    border-radius: var(--radius-s);
-    background: color-mix(in srgb, var(--text-normal) 15%, transparent);
-    color: var(--text-normal);
-    font-size: var(--font-ui-smaller);
-}
-
-.atoz-daynight .atoz-record-amount-toggle.is-income {
-    background: color-mix(in srgb, var(--color-green) 15%, transparent);
-    color: var(--color-green);
-}
-
-.atoz-daynight .atoz-record-amount-toggle.is-empty {
+.atoz-record-amount-icon {
+    display: flex;
     color: var(--text-muted);
 }
 
-.atoz-record-amount-toggle svg {
-    width: 15px;
-    height: 15px;
+.atoz-record-amount-title {
+    flex: 1;
+    font-weight: var(--font-semibold);
 }
 
 .atoz-record-amount .atoz-budget-amount-input {
-    flex: 1 1 0;
-    min-width: 48px;
-    height: 30px;
+    width: 100%;
+    height: 44px;
+    font-size: var(--font-ui-large);
+    font-variant-numeric: tabular-nums;
     text-align: right;
 }
 
-.atoz-daynight .atoz-record-amount-submit {
-    padding: 0 10px;
+.atoz-record-amount .atoz-budget-amount-input.is-invalid {
+    border-color: var(--text-error);
+}
+
+.atoz-record-amount-error:empty {
+    display: none;
+}
+
+.atoz-record-amount-error {
+    margin-top: -4px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-error);
+}
+
+.atoz-record-amount-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* 결제 수단 분할 버튼 */
+.atoz-record-amount-payments {
+    display: flex;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    overflow: hidden;
+}
+
+.atoz-daynight .atoz-record-amount-chip,
+.atoz-daynight .atoz-record-amount-payment {
+    height: 36px;
+    box-shadow: none;
     font-size: var(--font-ui-small);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-daynight .atoz-record-amount-payment {
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.atoz-daynight .atoz-record-amount-payment + .atoz-record-amount-payment {
+    border-left: 1px solid var(--background-modifier-border);
+}
+
+.atoz-daynight .atoz-record-amount-payment.is-active {
+    background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+    color: var(--text-normal);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-daynight .atoz-record-amount-submit {
+    height: 44px;
+    box-shadow: none;
+    font-size: var(--font-ui-medium);
+}
+
+body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
+    display: none;
 }
 
 .atoz-record-status {
@@ -893,7 +935,8 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
 .atoz-clickable:focus-visible,
 .atoz-plan-handle:focus-visible,
 .atoz-daynight .atoz-record-pill:focus-visible,
-.atoz-daynight .atoz-record-amount-toggle:focus-visible,
+.atoz-daynight .atoz-record-amount-chip:focus-visible,
+.atoz-daynight .atoz-record-amount-payment:focus-visible,
 .atoz-daynight .atoz-record-amount-submit:focus-visible,
 .atoz-daynight .atoz-daynight-action:focus-visible,
 .atoz-daynight .atoz-record-toast-action:focus-visible,

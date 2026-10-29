@@ -3,7 +3,7 @@ import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import { makeClickable } from '../utils';
 import type { MealColor, MealLegendItem } from '../types';
-import { formatAmount, formatWon, parseAmount, type BudgetRecord, type LedgerKind } from './Budget';
+import { formatAmount, formatWon, parseAmount, type BudgetRecord } from './Budget';
 import type { MealRecord } from './Meal';
 import { END_CATEGORY, type LogRecord } from './Timeline';
 
@@ -184,8 +184,9 @@ export class DaynightView extends ItemView {
     private editing: { record: PanelRecord; time: string; note: string } | null = null;
     private amountTarget: AmountTarget | null = null;
     private amountDraft = '';
-    private amountKind: LedgerKind = 'expense';
     private amountPayment = '';
+    // 금액 칸 바로 아래에 보이는 오류
+    private amountError = '';
     // 방금 한 일과 되돌리기. 다시 그려도 사라지지 않게 여기에 둔다.
     private toast: { text: string; actions: ToastAction[] } | null = null;
     private toastTimer: number | null = null;
@@ -265,6 +266,8 @@ export class DaynightView extends ItemView {
         // 패널 전체가 한 번에 스크롤되고, 알약과 수면 버튼은 아래에 붙어 늘 보인다.
         const dock = container.createDiv({ cls: 'atoz-record-dock' });
         const controls = dock.createDiv({ cls: 'atoz-record-controls' });
+        // 휴대폰에서는 금액 시트가 알약 줄을 대신해 키보드 바로 위에 붙는다.
+        controls.toggleClass('has-sheet', this.amountTarget !== null);
         this.renderSpending(controls);
         this.renderMeals(controls);
         this.renderActivities(controls, now);
@@ -714,55 +717,84 @@ export class DaynightView extends ItemView {
         const isSame = this.amountTarget?.category === target.category && this.amountTarget.meal === target.meal;
         this.amountTarget = isSame ? null : target;
         this.amountDraft = '';
-        this.amountKind = 'expense';
+        this.amountError = '';
         this.amountPayment = this.plugin.settings.budgetLastPayment;
         this.render();
     }
 
+    // 금액 시트: 머리(아이콘·이름·닫기), 큰 금액 칸, 최근 금액, 결제 수단, 내용이 적힌 기록 버튼. 패널에서는 지출만 받는다.
     private renderAmountForm(container: HTMLElement, target: AmountTarget): void {
-        const row = container.createDiv({ cls: 'atoz-record-amount' });
-        // 식사에서 연 금액은 언제나 지출이다.
-        if (target.meal === null) {
-            const kind = row.createEl('button', { cls: 'atoz-record-amount-toggle' });
-            const syncKind = (): void => {
-                kind.setText(t(this.amountKind === 'income' ? 'budget.income' : 'budget.expense'));
-                kind.toggleClass('is-income', this.amountKind === 'income');
-            };
-            syncKind();
-            kind.addEventListener('click', () => {
-                this.amountKind = this.amountKind === 'income' ? 'expense' : 'income';
-                syncKind();
-            });
-        }
-        // 결제 수단은 누를 때마다 다음 것으로 넘어가고, 마지막 다음은 비운다.
-        const payments = this.plugin.settings.budgetPayments;
-        if (payments.length > 0) {
-            const payment = row.createEl('button', {
-                cls: 'atoz-record-amount-toggle',
-                attr: { 'aria-label': t('budget.payment') },
-            });
-            // 고르지 않았으면 좁은 패널에서도 한 줄에 들도록 아이콘만 보인다.
-            const syncPayment = (): void => {
-                payment.empty();
-                if (this.amountPayment) payment.setText(this.amountPayment);
-                else setIcon(payment, 'credit-card');
-                payment.toggleClass('is-empty', !this.amountPayment);
-            };
-            syncPayment();
-            payment.addEventListener('click', () => {
-                this.amountPayment = payments[payments.indexOf(this.amountPayment) + 1] ?? '';
-                syncPayment();
-            });
-        }
-        row.createSpan({ cls: 'atoz-record-amount-title', text: target.category });
+        const settings = this.plugin.settings;
+        const sheet = container.createDiv({ cls: 'atoz-record-amount' });
+        const head = sheet.createDiv({ cls: 'atoz-record-amount-head' });
+        const icon = target.meal ? mealIcon(target.meal.icon) : SPENDING_ICONS[target.category] ?? 'wallet';
+        setIcon(head.createSpan({ cls: 'atoz-record-amount-icon' }), icon);
+        head.createSpan({ cls: 'atoz-record-amount-title', text: target.category });
+        this.addRecordAction(head, 'x', t('record.close'), () => {
+            this.amountTarget = null;
+            this.render();
+        });
 
-        const input = row.createEl('input', { type: 'text', cls: 'atoz-budget-amount-input' });
-        // 'numeric'은 iOS 키패드에 소수점이 없다.
-        input.inputMode = 'decimal';
+        const input = sheet.createEl('input', { type: 'text', cls: 'atoz-budget-amount-input' });
+        // 원은 소수점이 없어 숫자 키패드를 쓴다. 다른 통화는 소수점이 있는 키패드다('numeric'은 iOS에서 소수점이 없다).
+        const isWon = settings.budgetCurrencySuffix.trim() === '원' || settings.budgetCurrencyPrefix.trim() === '₩';
+        input.inputMode = isWon ? 'numeric' : 'decimal';
         input.placeholder = target.meal ? t('record.amountOptional') : t('budget.amount');
         input.setAttr('aria-label', t('budget.amount'));
         input.value = this.amountDraft;
-        input.addEventListener('input', () => { this.amountDraft = input.value; });
+        const error = sheet.createDiv({ cls: 'atoz-record-amount-error', text: this.amountError, attr: { role: 'alert' } });
+        input.toggleClass('is-invalid', this.amountError !== '');
+
+        // 그 카테고리에서 최근에 쓴 금액. 누르면 금액 칸에 들어간다.
+        const recent = this.recentAmounts(target.category);
+        if (recent.length > 0) {
+            const chips = sheet.createDiv({ cls: 'atoz-record-amount-chips', attr: { 'aria-label': t('record.recentAmounts') } });
+            for (const amount of recent) {
+                const chip = chips.createEl('button', { cls: 'atoz-record-amount-chip', text: formatWon(amount) });
+                chip.addEventListener('click', () => {
+                    input.value = String(amount);
+                    sync();
+                    input.focus();
+                });
+            }
+        }
+
+        // 결제 수단은 이름이 보이는 분할 버튼이다. 기본은 지난번에 쓴 것이다.
+        const payments = settings.budgetPayments;
+        if (payments.length > 0) {
+            const group = sheet.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group', 'aria-label': t('budget.payment') } });
+            for (const name of payments) {
+                const button = group.createEl('button', { cls: 'atoz-record-amount-payment', text: name });
+                const isSelected = this.amountPayment === name;
+                button.toggleClass('is-active', isSelected);
+                button.setAttr('aria-pressed', String(isSelected));
+                button.addEventListener('click', () => {
+                    this.amountPayment = this.amountPayment === name ? '' : name;
+                    group.querySelectorAll('button').forEach((el) => {
+                        el.toggleClass('is-active', el.textContent === this.amountPayment);
+                        el.setAttr('aria-pressed', String(el.textContent === this.amountPayment));
+                    });
+                });
+            }
+        }
+
+        const submit = sheet.createEl('button', { cls: 'mod-cta atoz-record-amount-submit' });
+        submit.addEventListener('click', () => void this.submitAmount());
+        // 기록 버튼에 무엇이 남는지 적는다.
+        const sync = (): void => {
+            this.amountDraft = input.value;
+            const amount = parseAmount(input.value.trim());
+            submit.setText(amount !== null
+                ? t('record.submitAmount', { category: target.category, amount: formatWon(amount) })
+                : target.meal && input.value.trim() === '' ? t('record.mealOnly') : t('record.submit'));
+        };
+        sync();
+        input.addEventListener('input', () => {
+            this.amountError = '';
+            error.setText('');
+            input.removeClass('is-invalid');
+            sync();
+        });
         input.addEventListener('keydown', (event) => {
             if (event.isComposing) return;
             if (event.key === 'Enter') {
@@ -773,12 +805,19 @@ export class DaynightView extends ItemView {
                 this.render();
             }
         });
-        const submit = row.createEl('button', { cls: 'mod-cta atoz-record-amount-submit', text: t('record.submit') });
-        submit.addEventListener('click', () => void this.submitAmount());
         window.setTimeout(() => {
             input.focus();
-            row.scrollIntoView({ block: 'nearest' });
+            sheet.scrollIntoView({ block: 'nearest' });
         }, 0);
+    }
+
+    /** 그 카테고리의 최근 지출 금액. 같은 금액은 한 번만, 최대 세 개. */
+    private recentAmounts(category: string): number[] {
+        const amounts = this.budgetRecords
+            .filter(({ kind, entry }) => kind === 'expense' && entry.category === category)
+            .sort((a, b) => entryTime(b.entry) - entryTime(a.entry))
+            .map(({ entry }) => entry.amount);
+        return [...new Set(amounts)].slice(0, 3);
     }
 
     // 식사에서 연 금액 칸은 비워도 된다(얻어먹었을 때). 그때는 식사만 남긴다.
@@ -788,7 +827,8 @@ export class DaynightView extends ItemView {
         const raw = this.amountDraft.trim();
         const amount = raw.length === 0 ? null : parseAmount(raw);
         if ((raw.length > 0 && amount === null) || (amount === null && target.meal === null)) {
-            new Notice(t('budget.notice.amountRequired'));
+            this.amountError = t('budget.notice.amountRequired');
+            this.render();
             return;
         }
         this.amountTarget = null;
@@ -797,11 +837,10 @@ export class DaynightView extends ItemView {
             await this.recordMeal(target.meal, amount);
             return;
         }
-        const kind = this.amountKind;
-        const spent = await this.plugin.budget.recordNow(kind, target.category, amount!, this.amountPayment);
+        const spent = await this.plugin.budget.recordNow('expense', target.category, amount!, this.amountPayment);
         if (!spent) return;
         this.showToast(
-            t('record.toast.spent', { category: target.category, amount: (kind === 'income' ? '+' : '') + formatWon(amount!) }),
+            t('record.toast.spent', { category: target.category, amount: formatWon(amount!) }),
             [this.undo(() => this.plugin.budget.deleteRecord(spent))],
         );
     }
