@@ -1,6 +1,7 @@
 import { Menu, TAbstractFile, TFile, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { isKorean, t } from '../locales';
+import { makeClickable } from '../utils';
 import type { MealColor } from '../types';
 import { formatDuration, pad } from './Daynight';
 
@@ -301,7 +302,7 @@ export class TimelinePage {
             el.style.top = `${y(block.from)}px`;
             el.style.height = `${Math.max(2, height - 1)}px`;
             if (height >= LABEL_MIN_HEIGHT) el.setText(`${block.category} ${formatClock(original.from)}`);
-            el.addEventListener('click', (event) => {
+            makeClickable(el, (event) => {
                 const menu = new Menu();
                 const items = [
                     block.category,
@@ -309,7 +310,9 @@ export class TimelinePage {
                 ];
                 if (original.memo) items.push(original.memo);
                 for (const text of items) menu.addItem((item) => item.setTitle(text).setDisabled(true));
-                menu.showAtMouseEvent(event);
+                // 키보드로 열면 블록 아래에 띄운다.
+                if (event instanceof MouseEvent) menu.showAtMouseEvent(event);
+                else menu.showAtPosition({ x: el.getBoundingClientRect().left, y: el.getBoundingClientRect().bottom });
             });
         };
         for (const block of plans) draw(planLane, block);

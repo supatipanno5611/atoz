@@ -324,7 +324,7 @@ export class PlanPage {
             const row = wrap.createDiv({ cls: 'atoz-plan-row' });
             row.toggleClass('is-overlap', overlap > 0);
 
-            const handle = row.createDiv({ cls: 'atoz-plan-handle', attr: { 'aria-label': t('plan.drag') } });
+            const handle = row.createDiv({ cls: 'atoz-plan-handle', attr: { 'aria-label': t('plan.drag'), tabindex: 0 } });
             setIcon(handle, 'grip-vertical');
             this.makeDraggable(handle, rows, draft, index);
 
@@ -388,7 +388,19 @@ export class PlanPage {
     }
 
     // 손잡이를 끌면 놓을 자리 위에 선을 긋고, 놓으면 그 자리로 옮긴다. 터치에서도 되도록 포인터 이벤트를 쓴다.
+    // 키보드는 손잡이에 초점을 두고 Alt+↑/↓로 한 칸씩 옮긴다.
     private makeDraggable(handle: HTMLElement, rows: HTMLElement, draft: Draft, index: number): void {
+        handle.addEventListener('keydown', (event) => {
+            if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+            const to = index + (event.key === 'ArrowUp' ? -1 : 1);
+            if (to < 0 || to >= draft.items.length) return;
+            event.preventDefault();
+            this.change(draft, () => {
+                const [moved] = draft.items.splice(index, 1);
+                draft.items.splice(to, 0, moved!);
+            });
+            this.container.querySelectorAll<HTMLElement>('.atoz-plan-handle')[to]?.focus();
+        });
         handle.addEventListener('pointerdown', (event) => {
             event.preventDefault();
             handle.setPointerCapture(event.pointerId);

@@ -169,6 +169,7 @@ export class DaynightDashboardPage {
                 text: days === 0 ? t('daynight.dashboard.all') : t('daynight.dashboard.days', { days }),
             });
             if (days === settings.daynightDashboardDays) button.addClass('is-active');
+            button.setAttr('aria-pressed', String(days === settings.daynightDashboardDays));
             button.addEventListener('click', () => {
                 settings.daynightDashboardDays = days;
                 void this.plugin.saveSettings();

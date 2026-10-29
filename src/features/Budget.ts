@@ -15,6 +15,7 @@ import {
 import type ATOZPlugin from '../main';
 import type { BudgetFixedExpense } from '../types';
 import { t } from '../locales';
+import { makeClickable } from '../utils';
 
 const DEFAULT_FOLDER = 'budget';
 
@@ -2242,7 +2243,8 @@ export class BudgetPage {
             const row = section.createDiv({ cls: 'atoz-budget-category' });
             const selected = this.categoryFilter?.kind === kind && this.categoryFilter.category === stat.category;
             row.toggleClass('is-selected', selected);
-            row.addEventListener('click', () => {
+            row.setAttr('aria-pressed', String(selected));
+            makeClickable(row, () => {
                 this.categoryFilter = selected ? null : { kind, category: stat.category };
                 this.render();
             });
@@ -2369,6 +2371,7 @@ export class BudgetPage {
                 text: range === 'all' ? t('budget.all') : t('budget.months', { count: range }),
             });
             button.toggleClass('is-active', this.trendRange === range);
+            button.setAttr('aria-pressed', String(this.trendRange === range));
             button.addEventListener('click', () => {
                 this.trendRange = range;
                 this.app.workspace.requestSaveLayout();
@@ -2526,6 +2529,7 @@ export class BudgetPage {
                 text: mode.label,
             });
             button.toggleClass('is-active', this.dailyMode === mode.key);
+            button.setAttr('aria-pressed', String(this.dailyMode === mode.key));
             button.addEventListener('click', () => {
                 this.dailyMode = mode.key;
                 this.app.workspace.requestSaveLayout();
@@ -2797,6 +2801,7 @@ export class BudgetPage {
                 text: kind === 'all' ? t('budget.all') : kindLabel(kind),
             });
             button.toggleClass('is-active', this.kindFilter === kind);
+            button.setAttr('aria-pressed', String(this.kindFilter === kind));
             button.addEventListener('click', () => {
                 this.kindFilter = kind;
                 this.app.workspace.requestSaveLayout();
@@ -2874,14 +2879,14 @@ export class BudgetPage {
 
         const dateHead = headRow.createEl('th', { text: t('budget.date') });
         dateHead.addClass('is-sortable');
-        dateHead.addEventListener('click', () => this.toggleSort('date'));
+        makeClickable(dateHead, () => this.toggleSort('date'));
 
         headRow.createEl('th', { text: t('budget.item') });
         headRow.createEl('th', { text: t('budget.category') });
 
         const amountHead = headRow.createEl('th', { text: t('budget.amount'), cls: 'is-numeric' });
         amountHead.addClass('is-sortable');
-        amountHead.addEventListener('click', () => this.toggleSort('amount'));
+        makeClickable(amountHead, () => this.toggleSort('amount'));
 
         const body = table.createEl('tbody');
         for (const row of rows) {
@@ -2901,7 +2906,7 @@ export class BudgetPage {
                 text: (row.kind === KIND_INCOME ? '+' : '-') + formatAmount(Math.abs(row.entry.amount)),
             });
 
-            tr.addEventListener('click', () => {
+            makeClickable(tr, () => {
                 new EntryModal(this.plugin, {
                     kind: row.kind,
                     entry: row.entry,

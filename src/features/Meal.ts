@@ -1,6 +1,7 @@
 import { Modal, Setting, TAbstractFile, TFile, getIcon, getIconIds, normalizePath, setIcon, setTooltip } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
+import { makeClickable } from '../utils';
 import type { MealLegendItem, MealPick } from '../types';
 import { pad } from './Daynight';
 
@@ -334,12 +335,12 @@ export class MealBoardPage {
             const chip = legend.createDiv({ cls: 'atoz-meal-chip' });
             createMealMarker(chip, plugin, item);
             chip.createSpan({ text: item.label });
-            chip.addEventListener('click', () => new LegendModal(plugin, item).open());
+            makeClickable(chip, () => new LegendModal(plugin, item).open());
         }
-        const addChip = legend.createDiv({ cls: 'atoz-meal-chip' });
+        const addChip = legend.createDiv({ cls: 'atoz-meal-chip', attr: { 'aria-label': t('meal.legend.addTitle') } });
         setIcon(addChip, 'plus');
         setTooltip(addChip, t('meal.legend.addTitle'));
-        addChip.addEventListener('click', () => new LegendModal(plugin).open());
+        makeClickable(addChip, () => new LegendModal(plugin).open());
 
         // 하루 시작 시각 전의 기록은 전날 줄에 그린다.
         const byDay = new Map<string, MealRecord[]>();

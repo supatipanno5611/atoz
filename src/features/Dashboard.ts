@@ -1,7 +1,7 @@
 import { ItemView, ViewStateResult, WorkspaceLeaf, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
-import { isRecord } from '../utils';
+import { isRecord, makeClickable } from '../utils';
 import { BudgetPage, formatWon } from './Budget';
 import { formatDuration, formatShortDate, formatTime as formatClock } from './Daynight';
 import { DaynightDashboardPage, daynightSummary } from './DaynightDashboard';
@@ -211,7 +211,7 @@ class DashboardView extends ItemView {
         const header = card.createDiv({ cls: 'atoz-dashboard-card-title' });
         setIcon(header.createSpan(), icon);
         header.createSpan({ text: title });
-        card.addEventListener('click', () => void this.leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, state: { page } }));
+        makeClickable(card, () => void this.leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, state: { page } }));
         return card.createDiv({ cls: 'atoz-dashboard-card-body' });
     }
 }

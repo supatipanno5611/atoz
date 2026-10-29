@@ -1,6 +1,7 @@
 import { ItemView, Notice, TAbstractFile, TFile, WorkspaceLeaf, getIcon, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
+import { makeClickable } from '../utils';
 import type { MealColor, MealLegendItem } from '../types';
 import { formatAmount, formatWon, parseAmount, type BudgetRecord, type LedgerKind } from './Budget';
 import type { MealRecord } from './Meal';
@@ -238,12 +239,13 @@ export class DaynightView extends ItemView {
         const yesterday = records.filter((record) => record.time < todayStart);
         const today = records.filter((record) => record.time >= todayStart);
         if (yesterday.length > 0) {
-            const fold = list.createDiv({ cls: 'atoz-record-fold' });
+            const fold = list.createDiv({ cls: 'atoz-record-fold', attr: { 'aria-expanded': String(this.isYesterdayShown) } });
             setIcon(fold.createSpan(), this.isYesterdayShown ? 'chevron-down' : 'chevron-right');
             fold.createSpan({ text: t('record.yesterday', { count: yesterday.length }) });
-            fold.addEventListener('click', () => {
+            makeClickable(fold, () => {
                 this.isYesterdayShown = !this.isYesterdayShown;
                 this.render();
+                this.containerEl.querySelector<HTMLElement>('.atoz-record-fold')?.focus();
             });
             if (this.isYesterdayShown) {
                 yesterday.forEach((record) => this.renderRecord(list, record));
@@ -494,7 +496,8 @@ export class DaynightView extends ItemView {
 
         row.addClass('is-editable');
         const editing = this.editing?.record.key === record.key ? this.editing : null;
-        head.addEventListener('click', () => {
+        head.setAttr('aria-expanded', String(editing !== null));
+        makeClickable(head, () => {
             this.commitEdit();
             if (!editing) this.editing = { record, time: formatTime(record.time), note: record.note ?? '' };
             this.render();

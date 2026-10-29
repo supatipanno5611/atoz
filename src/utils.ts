@@ -21,6 +21,19 @@ export function pickMostRecentLeaf(
     return leaves[0] ?? null;
 }
 
+/** 누를 수 있는 div 등을 키보드로도 쓰게 한다. 초점을 받고 Enter·Space로 누른다. */
+export function makeClickable(el: HTMLElement, onClick: (event: MouseEvent | KeyboardEvent) => void): void {
+    el.addClass('atoz-clickable');
+    el.setAttr('role', 'button');
+    el.tabIndex = 0;
+    el.addEventListener('click', onClick);
+    el.addEventListener('keydown', (event) => {
+        if (event.target !== el || event.isComposing || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        onClick(event);
+    });
+}
+
 export function escapeRegex(s: string): string {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -859,6 +859,24 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
     cursor: progress;
 }
 
+/* box-shadow를 지운 버튼과 누를 수 있는 div도 키보드 초점은 보이게 한다. */
+.atoz-clickable:focus-visible,
+.atoz-plan-handle:focus-visible,
+.atoz-daynight .atoz-record-pill:focus-visible,
+.atoz-daynight .atoz-record-amount-toggle:focus-visible,
+.atoz-daynight .atoz-record-amount-submit:focus-visible,
+.atoz-daynight .atoz-daynight-action:focus-visible,
+.atoz-daynight .atoz-record-toast-action:focus-visible,
+.atoz-daynight .atoz-daynight-toggle:focus-visible,
+.atoz-daynight-dashboard-ranges button:focus-visible,
+.atoz-budget-month-label:focus-visible,
+.atoz-budget-icon-button:focus-visible,
+.atoz-budget-segment-button:focus-visible,
+.atoz-plan .atoz-plan-pill:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
 /* ── 되돌리기 토스트 ── */
 .atoz-record-toast {
     flex-shrink: 0;
