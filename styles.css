@@ -264,7 +264,9 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 0;
 }
 
 /* 활동·식사 색. 색이 정해지지 않았으면 회색이다. */
@@ -313,6 +315,24 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+}
+
+/* 패널이 낮으면 상태를 한 줄로 줄여 기록에 자리를 준다. */
+@media (max-height: 640px) {
+    .atoz-daynight-hero:not(.is-gap) {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 8px;
+    }
+
+    .atoz-daynight-hero:not(.is-gap) .atoz-daynight-hero-value {
+        font-size: var(--font-ui-large);
+    }
+
+    .atoz-daynight-hero:not(.is-gap) .atoz-daynight-hero-sub {
+        display: none;
+    }
 }
 
 /* 기록이 끊겼을 때 상태 대신 보이는 카드 */
@@ -450,20 +470,13 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     color: var(--text-muted);
 }
 
-/* 기록은 아래에서부터 쌓여 최신 기록이 버튼 바로 위에 온다. */
+/* 기록은 아래에서부터 쌓여 최신 기록이 버튼 바로 위에 온다. 스크롤은 패널 전체가 한다. */
 .atoz-record-feed {
-    flex: 1;
-    min-height: 60px;
-    overflow: auto;
-    scrollbar-width: none;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     padding-top: 8px;
     border-top: 1px solid var(--background-modifier-border);
-}
-
-.atoz-record-feed::-webkit-scrollbar {
-    display: none;
 }
 
 .atoz-record-list {
@@ -596,40 +609,73 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 /* ── 알약 ── */
-.atoz-record-controls {
+/* 알약과 수면 버튼은 패널 아래에 붙는다. 사이드바는 보조 배경, 메인 탭은 기본 배경이다. */
+.atoz-record-dock {
+    position: sticky;
+    bottom: 0;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--background-secondary);
+}
+
+.mod-root .atoz-record-dock {
+    background: var(--background-primary);
+}
+
+/* PC에서는 오른쪽 아래 상태 표시줄에 가리지 않게 더 띄운다. */
+body:not(.is-mobile) .atoz-record-dock {
+    padding-bottom: 32px;
+}
+
+.atoz-record-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding-top: 10px;
     border-top: 1px solid var(--background-modifier-border);
 }
 
+/* 묶음마다 한 줄. 넘치는 알약은 가로로 밀어 보고, 오른쪽 끝을 흐려 더 있음을 보인다. */
 .atoz-record-section {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
 }
 
 .atoz-record-section-title {
+    flex-shrink: 0;
+    min-width: 30px;
     font-size: var(--font-ui-smaller);
     color: var(--text-muted);
 }
 
 .atoz-record-pills {
+    flex: 1;
+    min-width: 0;
     display: flex;
-    flex-wrap: wrap;
     gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-right: 24px;
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+
+.atoz-record-pills::-webkit-scrollbar {
+    display: none;
 }
 
 .atoz-daynight .atoz-record-pill {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 32px;
-    padding: 0 12px;
+    height: 40px;
+    padding: 0 14px;
     border: 1px solid var(--background-modifier-border);
-    border-radius: 16px;
+    border-radius: 20px;
     background: var(--atoz-record-fill);
     box-shadow: none;
     color: var(--text-normal);
@@ -638,6 +684,11 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 
 .atoz-daynight .atoz-record-pill:hover {
     background: var(--background-modifier-hover);
+}
+
+body.is-mobile .atoz-daynight .atoz-record-pill {
+    height: 44px;
+    border-radius: 22px;
 }
 
 /* 지금 하는 활동은 그 활동 색 테두리 */

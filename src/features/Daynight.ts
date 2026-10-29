@@ -239,15 +239,17 @@ export class DaynightView extends ItemView {
         if (today.length === 0) list.createDiv({ cls: 'atoz-record-empty', text: t('record.empty') });
         today.forEach((record) => this.renderRecord(list, record));
 
-        const controls = container.createDiv({ cls: 'atoz-record-controls' });
+        // 패널 전체가 한 번에 스크롤되고, 알약과 수면 버튼은 아래에 붙어 늘 보인다.
+        const dock = container.createDiv({ cls: 'atoz-record-dock' });
+        const controls = dock.createDiv({ cls: 'atoz-record-controls' });
         this.renderSpending(controls);
         this.renderMeals(controls);
         this.renderActivities(controls, now);
 
-        if (this.toast) this.renderToast(container, this.toast);
+        if (this.toast) this.renderToast(dock, this.toast);
 
         const isAsleep = this.lastSleep()?.type === 'sleep';
-        const toggleButton = container.createEl('button', {
+        const toggleButton = dock.createEl('button', {
             cls: `atoz-daynight-toggle ${isAsleep ? 'is-asleep' : 'is-awake'}`,
             attr: { 'data-lock': 'sleep' },
         });
@@ -258,9 +260,9 @@ export class DaynightView extends ItemView {
 
         // 펼친 기록이 있으면 그 줄이 보이게 하고, 없으면 맨 아래 최신 기록을 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
-        feed.scrollTop = open
-            ? open.getBoundingClientRect().top - feed.getBoundingClientRect().top
-            : feed.scrollHeight;
+        container.scrollTop = open
+            ? open.getBoundingClientRect().top - container.getBoundingClientRect().top
+            : container.scrollHeight;
     }
 
     private lastSleep(): DaynightRecord | undefined {
@@ -546,7 +548,7 @@ export class DaynightView extends ItemView {
         return button;
     }
 
-    // 금액 칸은 그 칸을 연 알약 묶음 바로 아래에 연다.
+    // 금액 칸은 그 칸을 연 알약 줄 바로 아래에 연다.
     private renderSpending(container: HTMLElement): void {
         const categories = this.plugin.settings.budgetPanelCategories;
         if (categories.length === 0) return;
@@ -555,7 +557,7 @@ export class DaynightView extends ItemView {
             const button = this.pill(pills, category, null, () => this.openAmount({ category, meal: null }));
             button.toggleClass('is-open', this.amountTarget?.category === category && this.amountTarget.meal === null);
         }
-        if (this.amountTarget?.meal === null) this.renderAmountForm(pills.parentElement!, this.amountTarget);
+        if (this.amountTarget?.meal === null) this.renderAmountForm(container, this.amountTarget);
     }
 
     // 첫 범례(집밥)는 바로 기록하고, 나머지(배달·외식·간식)는 금액 칸을 함께 연다.
@@ -573,7 +575,7 @@ export class DaynightView extends ItemView {
             if (!hasAmount) button.dataset.lock = key;
             button.toggleClass('is-open', this.amountTarget?.meal === item);
         }
-        if (this.amountTarget?.meal) this.renderAmountForm(pills.parentElement!, this.amountTarget);
+        if (this.amountTarget?.meal) this.renderAmountForm(container, this.amountTarget);
     }
 
     // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 메인 탭에 계획 페이지를 연다.
@@ -662,7 +664,10 @@ export class DaynightView extends ItemView {
         });
         const submit = row.createEl('button', { cls: 'mod-cta atoz-record-amount-submit', text: t('record.submit') });
         submit.addEventListener('click', () => void this.submitAmount());
-        window.setTimeout(() => input.focus(), 0);
+        window.setTimeout(() => {
+            input.focus();
+            row.scrollIntoView({ block: 'nearest' });
+        }, 0);
     }
 
     // 식사에서 연 금액 칸은 비워도 된다(얻어먹었을 때). 그때는 식사만 남긴다.
