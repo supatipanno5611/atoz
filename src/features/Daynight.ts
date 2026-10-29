@@ -1,4 +1,4 @@
-import { ItemView, Notice, TAbstractFile, TFile, WorkspaceLeaf, getIcon, normalizePath, setIcon } from 'obsidian';
+import { ItemView, Menu, Notice, TAbstractFile, TFile, WorkspaceLeaf, getIcon, normalizePath, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import { makeClickable } from '../utils';
@@ -19,6 +19,8 @@ const RELOAD_DELAY = 100;
 const TOAST_DURATION = 6000;
 // 알약을 누른 뒤 쓰기가 끝나도 이만큼은 다시 눌러도 무시한다.
 const PILL_LOCK = 600;
+// 식사와 지출이 이만큼 가까우면 같은 끼니로 보고 한 줄로 합친다.
+const MEAL_SPENDING_GAP = 60 * 1000;
 // 이보다 긴 깨어 있음·잠은 기록이 끊긴 것으로 본다.
 const WAKE_LIMIT = 20 * HOUR;
 const SLEEP_LIMIT = 18 * HOUR;
@@ -155,6 +157,8 @@ interface PanelRecord {
     // null이면 메모 칸이 없다.
     note: string | null;
     noteLabel: string;
+    // 메모가 비었을 때 줄 끝에 보이는 쓰기 안내. 줄을 누르면 편집이 열린다.
+    notePrompt?: string;
     editable: boolean;
     save: (time: number, note: string) => Promise<void>;
     remove: () => Promise<void>;
@@ -187,6 +191,8 @@ export class DaynightView extends ItemView {
     private toastTimer: number | null = null;
     // 쓰는 중인 버튼(data-lock 값). 그동안 같은 버튼을 다시 눌러도 무시한다.
     private pending = new Set<string>();
+    // 처음 열 때와 방금 기록했을 때만 맨 아래(최신 기록)로 스크롤한다. 그 밖에는 보던 자리를 지킨다.
+    private scrollToEnd = true;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -216,6 +222,7 @@ export class DaynightView extends ItemView {
 
     render(): void {
         const container = this.containerEl.children[1] as HTMLElement;
+        const previousScroll = container.scrollTop;
         container.empty();
         container.addClass('atoz-daynight');
 
@@ -274,11 +281,16 @@ export class DaynightView extends ItemView {
         toggleButton.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
         this.syncPending();
 
-        // 펼친 기록이 있으면 그 줄이 보이게 하고, 없으면 맨 아래 최신 기록을 보인다.
+        // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
-        container.scrollTop = open
-            ? open.getBoundingClientRect().top - container.getBoundingClientRect().top
-            : container.scrollHeight;
+        if (open) {
+            container.scrollTop = open.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        } else if (this.scrollToEnd) {
+            container.scrollTop = container.scrollHeight;
+            this.scrollToEnd = false;
+        } else {
+            container.scrollTop = previousScroll;
+        }
     }
 
     private lastSleep(): DaynightRecord | undefined {
@@ -387,7 +399,9 @@ export class DaynightView extends ItemView {
                 mark: { icon: record.type === 'sleep' ? 'moon' : 'sun' },
                 color: record.type === 'sleep' ? SLEEP_COLOR : WAKE_COLOR,
                 text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake'),
-                value: '',
+                value: record.type === 'wake' && previous?.type === 'sleep'
+                    ? t('record.slept', { duration: formatDuration(record.time - previous.time) })
+                    : '',
                 isIncome: false,
                 note: null,
                 noteLabel: '',
@@ -408,10 +422,12 @@ export class DaynightView extends ItemView {
             });
         });
 
+        // 지출과 합칠 식사 줄
+        const meals: { meal: MealRecord; record: PanelRecord }[] = [];
         for (const meal of plugin.meal.records) {
             if (meal.time < from) continue;
             const legend = plugin.settings.mealLegend.find((item) => item.icon === meal.icon && item.color === meal.color);
-            out.push({
+            const record: PanelRecord = {
                 key: `meal:${meal.file.path}:${meal.line}`,
                 time: meal.time,
                 mark: { icon: mealIcon(meal.icon) },
@@ -421,11 +437,14 @@ export class DaynightView extends ItemView {
                 isIncome: false,
                 note: meal.food,
                 noteLabel: t('record.food'),
+                notePrompt: t('record.toast.writeMenu'),
                 editable: true,
                 save: (time, note) => plugin.meal.replace(meal, time, note),
                 remove: () => plugin.meal.replace(meal, null, ''),
                 restore: () => plugin.meal.add(meal.time, meal.food, meal),
-            });
+            };
+            out.push(record);
+            meals.push({ meal, record });
         }
 
         const logs = plugin.timeline.logs;
@@ -433,6 +452,7 @@ export class DaynightView extends ItemView {
             if (log.time < from) return;
             const isEnd = log.category === END_CATEGORY;
             const previous = logs[index - 1];
+            const next = logs[index + 1];
             const ended = previous && previous.category !== END_CATEGORY ? previous.category : null;
             out.push({
                 key: `log:${log.file.path}:${log.line}`,
@@ -440,7 +460,8 @@ export class DaynightView extends ItemView {
                 mark: isEnd ? 'ring' : 'dot',
                 color: plugin.timeline.colorOf(isEnd ? ended ?? '' : log.category),
                 text: !isEnd ? log.category : t('record.ended', { activity: ended ?? t('record.activity') }),
-                value: '',
+                // 활동 줄에는 다음 기록까지의 길이를 붙여 빼기를 대신한다.
+                value: isEnd ? '' : next ? formatDuration(next.time - log.time) : t('record.ongoing'),
                 isIncome: false,
                 note: isEnd ? null : log.memo,
                 noteLabel: t('record.memo'),
@@ -455,6 +476,29 @@ export class DaynightView extends ItemView {
             const { entry } = record;
             const time = entryTime(entry);
             if (time < from) continue;
+            const amount = (record.kind === 'income' ? '+' : '−') + formatAmount(entry.amount);
+            // 식사 알약에서 금액과 함께 남긴 지출은 그 식사 줄에 금액만 붙인다. 고치고 지울 때도 함께한다.
+            const pair = record.kind === 'expense'
+                ? meals.find(({ record: mealRecord }) => !mealRecord.value
+                    && mealRecord.text === entry.category && Math.abs(mealRecord.time - time) <= MEAL_SPENDING_GAP)
+                : undefined;
+            if (pair) {
+                const { record: mealRecord, meal } = pair;
+                mealRecord.value = amount;
+                mealRecord.save = async (newTime, note) => {
+                    await plugin.meal.replace(meal, newTime, note);
+                    await plugin.budget.editRecord(record, formatTime(newTime), entry.title);
+                };
+                mealRecord.remove = async () => {
+                    await plugin.meal.replace(meal, null, '');
+                    await plugin.budget.deleteRecord(record);
+                };
+                mealRecord.restore = async () => {
+                    await plugin.meal.add(meal.time, meal.food, meal);
+                    await plugin.budget.restoreRecord(record);
+                };
+                continue;
+            }
             out.push({
                 key: `budget:${record.kind}:${record.month}:${entry.lineIndex}:${entry.raw}`,
                 time,
@@ -462,7 +506,7 @@ export class DaynightView extends ItemView {
                 // 가계부 카테고리에는 색이 없다.
                 color: null,
                 text: entry.category || t('budget.uncategorized'),
-                value: (record.kind === 'income' ? '+' : '−') + formatAmount(entry.amount),
+                value: amount,
                 isIncome: record.kind === 'income',
                 note: entry.title,
                 noteLabel: t('budget.item'),
@@ -488,11 +532,16 @@ export class DaynightView extends ItemView {
         else setIcon(mark, record.mark.icon);
         const text = head.createSpan({ cls: 'atoz-record-text', text: record.text });
         if (record.note) text.createSpan({ cls: 'atoz-record-note', text: ` · ${record.note}` });
+        else if (record.notePrompt && record.editable) head.createSpan({ cls: 'atoz-record-prompt', text: record.notePrompt });
         if (record.value) {
             const value = head.createSpan({ cls: 'atoz-record-value', text: record.value });
             value.toggleClass('is-income', record.isIncome);
         }
-        if (!record.editable) return;
+        // 고칠 수 없는 줄은 시각을 흐리게 하고 누를 수 없다.
+        if (!record.editable) {
+            row.addClass('is-locked');
+            return;
+        }
 
         row.addClass('is-editable');
         const editing = this.editing?.record.key === record.key ? this.editing : null;
@@ -531,14 +580,32 @@ export class DaynightView extends ItemView {
                 this.render();
             });
         }
-        const remove = this.addRecordAction(editor, 'trash-2', t('record.delete'), () => {
-            this.editing = null;
-            void this.lock('delete', async () => {
-                await record.remove();
-                this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())]);
-            });
+        const done = editor.createEl('button', { cls: 'atoz-record-done', text: t('record.done') });
+        done.addEventListener('click', () => {
+            this.commitEdit();
+            this.render();
         });
-        remove.dataset.lock = 'delete';
+        // 지우기는 메모 칸에서 먼 ⋯ 메뉴에 두고, 지운 뒤에는 되돌리기 토스트를 띄운다.
+        this.addRecordAction(editor, 'more-horizontal', t('record.more'), (event) => {
+            const menu = new Menu();
+            menu.addItem((item) => item.setTitle(t('record.delete')).setIcon('trash-2').setWarning(true).onClick(() => {
+                this.editing = null;
+                void this.lock('delete', async () => {
+                    await record.remove();
+                    this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())]);
+                });
+            }));
+            menu.showAtMouseEvent(event);
+        });
+        // 서랍을 닫거나 다른 곳을 누르면 고친 값을 저장한다. 다른 줄을 누른 경우는 그 줄이 저장한다.
+        editor.addEventListener('focusout', (event) => {
+            const next = event.relatedTarget;
+            if (next instanceof HTMLElement && (row.contains(next) || next.closest('.atoz-record-head, .menu'))) return;
+            if (this.editing?.record.key !== record.key) return;
+            this.commitEdit();
+            // 패널 안의 버튼으로 옮겨 갔으면 그 클릭이 사라지지 않게 지금 다시 그리지 않는다. 다음에 그릴 때 닫힌다.
+            if (!(next instanceof Node && this.containerEl.contains(next))) this.render();
+        });
     }
 
     /** 고친 값이 있으면 저장하고 펼친 기록을 닫는다. */
@@ -821,6 +888,7 @@ export class DaynightView extends ItemView {
 
     private showToast(text: string, actions: ToastAction[]): void {
         if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+        this.scrollToEnd = true;
         this.toast = { text, actions };
         this.toastTimer = window.setTimeout(() => {
             this.toastTimer = null;
@@ -869,12 +937,12 @@ export class DaynightView extends ItemView {
         });
     }
 
-    private addRecordAction(row: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
+    private addRecordAction(row: HTMLElement, icon: string, label: string, onClick: (event: MouseEvent) => void): HTMLButtonElement {
         const button = row.createEl('button', { cls: 'atoz-daynight-action', attr: { 'aria-label': label } });
         setIcon(button, icon);
         button.addEventListener('click', (evt) => {
             evt.stopPropagation();
-            onClick();
+            onClick(evt);
         });
         return button;
     }
