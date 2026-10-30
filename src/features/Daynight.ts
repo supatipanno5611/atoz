@@ -206,11 +206,13 @@ export class DaynightView extends ItemView {
     getIcon(): string { return 'clock'; }
 
     async onOpen(): Promise<void> {
-        // 고치거나 금액을 넣는 중에는 다시 그리면 입력이 닫히고, 키보드로 초점을 옮기는 중에는 초점이 사라지므로 건너뛴다.
+        // 고치거나 금액을 넣는 중에는 다시 그리면 입력이 닫히고, 키보드로 초점을 옮기는 중에는 초점이 사라지므로
+        // 상태 카드만 새로 그려 경과 시간이 멈추지 않게 한다.
         this.registerInterval(window.setInterval(() => {
             const focused = activeDocument.activeElement;
-            if (focused instanceof HTMLElement && this.containerEl.contains(focused) && focused.matches(':focus-visible')) return;
-            if (this.editing === null && this.amountTarget === null) this.render();
+            const isKeyboard = focused instanceof HTMLElement && this.containerEl.contains(focused) && focused.matches(':focus-visible');
+            if (isKeyboard || this.editing !== null || this.amountTarget !== null) this.refreshStatus();
+            else this.render();
         }, 60 * 1000));
         this.render();
         await this.reloadBudget();
@@ -308,6 +310,16 @@ export class DaynightView extends ItemView {
         } else {
             container.scrollTop = previousScroll;
         }
+    }
+
+    private refreshStatus(): void {
+        const container = this.containerEl.children[1] as HTMLElement;
+        const hero = container.querySelector('.atoz-daynight-hero');
+        // 상태 카드 안의 버튼에 초점이 있으면 바꿔 끼울 때 초점이 사라지므로 이번에는 건너뛴다.
+        if (!hero || hero.contains(activeDocument.activeElement)) return;
+        const fresh = createDiv();
+        this.renderStatus(fresh, Date.now());
+        hero.replaceWith(...Array.from(fresh.childNodes));
     }
 
     private lastSleep(): DaynightRecord | undefined {
