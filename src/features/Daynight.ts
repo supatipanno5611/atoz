@@ -40,6 +40,11 @@ interface DaynightRecord {
 
 export const pad = (value: number): string => String(value).padStart(2, '0');
 
+function isoDate(time: number): string {
+    const date = new Date(time);
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /** 1시간이 안 되면 '0시간 25분' 대신 '25분'처럼 분만 보인다. */
 export function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
@@ -183,7 +188,7 @@ export class DaynightView extends ItemView {
     private budgetRecords: BudgetRecord[] = [];
     private isYesterdayShown = false;
     // 펼친 기록과 고치는 중인 값. 줄을 다시 누르거나 다른 줄을 펼치면 저장한다.
-    private editing: { record: PanelRecord; time: string; note: string } | null = null;
+    private editing: { record: PanelRecord; time: string; note: string; error?: string } | null = null;
     private amountTarget: AmountTarget | null = null;
     private amountDraft = '';
     private amountPayment = '';
@@ -441,11 +446,9 @@ export class DaynightView extends ItemView {
                 // 마지막 기록만 고치거나 지울 수 있어서 기록은 항상 취침과 기상이 번갈아 나온다.
                 editable: index === sleeps.length - 1,
                 save: async (time) => {
-                    // 앞 기록보다 뒤, 지금보다 앞이어야 순서가 유지된다.
+                    // 앞 기록보다 뒤여야 순서가 유지된다. 지금보다 뒤인지는 commitEdit에서 본다.
                     if (previous && time <= previous.time) {
                         new Notice(t('daynight.editTooEarly', { time: formatShortDateTime(previous.time) }));
-                    } else if (time > Date.now()) {
-                        new Notice(t('daynight.editFuture'));
                     } else {
                         await plugin.daynight.editLast(time);
                     }
@@ -519,8 +522,9 @@ export class DaynightView extends ItemView {
                 const { record: mealRecord, meal } = pair;
                 mealRecord.value = amount;
                 mealRecord.save = async (newTime, note) => {
+                    if (!this.isSameMonth(record, newTime)) return;
                     await plugin.meal.replace(meal, newTime, note);
-                    await plugin.budget.editRecord(record, formatTime(newTime), entry.title);
+                    await plugin.budget.editRecord(record, formatTime(newTime), entry.title, { date: isoDate(newTime) });
                 };
                 mealRecord.remove = async () => {
                     await plugin.meal.replace(meal, null, '');
@@ -544,7 +548,9 @@ export class DaynightView extends ItemView {
                 note: entry.title,
                 noteLabel: t('budget.item'),
                 editable: true,
-                save: (time, note) => plugin.budget.editRecord(record, formatTime(time), note),
+                save: async (time, note) => {
+                    if (this.isSameMonth(record, time)) await plugin.budget.editRecord(record, formatTime(time), note, { date: isoDate(time) });
+                },
                 remove: () => plugin.budget.deleteRecord(record),
                 restore: () => plugin.budget.restoreRecord(record),
             });
@@ -552,6 +558,13 @@ export class DaynightView extends ItemView {
 
         // 같은 시각이면 모은 순서(수면, 식사, 활동, 지출)를 지킨다.
         return out.sort((a, b) => a.time - b.time);
+    }
+
+    // 가계부는 달마다 파일이 따로라, 고친 시각이 다른 달로 넘어가면 옮기지 않고 알린다.
+    private isSameMonth(record: BudgetRecord, time: number): boolean {
+        if (isoDate(time).slice(0, 7) === record.month) return true;
+        new Notice(t('record.editOtherMonth'));
+        return false;
     }
 
     private renderRecord(list: HTMLElement, record: PanelRecord): void {
@@ -580,18 +593,26 @@ export class DaynightView extends ItemView {
         const editing = this.editing?.record.key === record.key ? this.editing : null;
         head.setAttr('aria-expanded', String(editing !== null));
         makeClickable(head, () => {
-            this.commitEdit();
+            // 고친 시각이 틀렸으면 그 줄을 펼친 채 오류를 보인다.
+            if (!this.commitEdit()) {
+                this.render();
+                return;
+            }
             if (!editing) this.editing = { record, time: formatTime(record.time), note: record.note ?? '' };
             this.render();
         });
         if (!editing) return;
 
-        // 날짜는 그대로 두고 시각과 메모만 고친다.
+        // 날짜는 고르지 않고 시각과 메모만 고친다. 시각은 그 기록이 속한 하루 안에서 읽는다.
         row.addClass('is-open');
         const editor = row.createDiv({ cls: 'atoz-record-editor' });
         const timeInput = editor.createEl('input', { cls: 'atoz-daynight-time-input', type: 'time' });
         timeInput.value = editing.time;
-        timeInput.addEventListener('input', () => { editing.time = timeInput.value; });
+        timeInput.addEventListener('input', () => {
+            editing.time = timeInput.value;
+            editing.error = undefined;
+            error.setText('');
+        });
         const inputs = [timeInput];
         if (record.note !== null) {
             const noteInput = editor.createEl('input', {
@@ -630,6 +651,8 @@ export class DaynightView extends ItemView {
             }));
             menu.showAtMouseEvent(event);
         });
+        // 지금보다 뒤로 고치려 하면 칸 아래에 알린다.
+        const error = editor.createDiv({ cls: 'atoz-record-edit-error', text: editing.error ?? '', attr: { role: 'alert' } });
         // 서랍을 닫거나 다른 곳을 누르면 고친 값을 저장한다. 다른 줄을 누른 경우는 그 줄이 저장한다.
         editor.addEventListener('focusout', (event) => {
             const next = event.relatedTarget;
@@ -641,19 +664,29 @@ export class DaynightView extends ItemView {
         });
     }
 
-    /** 고친 값이 있으면 저장하고 펼친 기록을 닫는다. */
-    private commitEdit(): void {
+    /** 고친 값이 있으면 저장하고 펼친 기록을 닫는다. 지금보다 뒤면 저장하지 않고 펼친 채 오류를 남기고 false를 돌려준다. */
+    private commitEdit(): boolean {
         const editing = this.editing;
-        this.editing = null;
-        if (!editing) return;
+        if (!editing) return true;
         const { record } = editing;
         const match = /^(\d{2}):(\d{2})$/.exec(editing.time);
-        if (!match) return;
-        const date = new Date(record.time);
-        date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+        const time = match ? this.timeInDay(record.time, Number(match[1]), Number(match[2])) : record.time;
         const note = editing.note.trim();
-        if (date.getTime() === record.time && note === (record.note ?? '')) return;
-        void record.save(date.getTime(), note).then(() => this.render());
+        if (time > Date.now()) {
+            editing.error = t('daynight.editFuture');
+            return false;
+        }
+        this.editing = null;
+        if (time === record.time && note === (record.note ?? '')) return true;
+        void record.save(time, note).then(() => this.render());
+        return true;
+    }
+
+    // 하루가 05시에 시작하면 00:30 기록을 23:50으로 고칠 때 그 전날 23:50이다. 하루 시작 시각보다 이르면 다음 날로 읽는다.
+    private timeInDay(recordTime: number, hour: number, minute: number): number {
+        const startHour = this.plugin.settings.timelineDayStartHour;
+        const day = new Date(recordTime - startHour * HOUR);
+        return new Date(day.getFullYear(), day.getMonth(), day.getDate() + (hour < startHour ? 1 : 0), hour, minute).getTime();
     }
 
     private pills(container: HTMLElement, title: string): HTMLElement {

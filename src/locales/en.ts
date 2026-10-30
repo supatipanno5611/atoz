@@ -398,6 +398,7 @@ export const en = {
     'daynight.noRecords': 'No records yet',
     'daynight.editTooEarly': 'Must be later than {{time}}',
     'daynight.editFuture': 'Cannot be later than now',
+    'record.editOtherMonth': 'Ledger entries cannot move to another month. Edit it in the ledger',
     'daynight.gap.name': 'No records',
     'daynight.gap.title': 'Records stopped {{length}} ago',
     'daynight.gap.last': 'Last: {{type}} at {{time}}',

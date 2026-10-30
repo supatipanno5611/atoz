@@ -879,6 +879,13 @@ body.is-mobile .atoz-daynight .atoz-record-pill {
     border-color: var(--text-error);
 }
 
+.atoz-record-edit-error {
+    flex-basis: 100%;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-error);
+}
+
+.atoz-record-edit-error:empty,
 .atoz-record-amount-error:empty {
     display: none;
 }

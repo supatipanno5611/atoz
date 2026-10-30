@@ -3136,11 +3136,11 @@ export class BudgetFeature {
         await this.store.addEntry(record.kind, record.month, { date, time, title, category, amount, payment, tags, extra });
     }
 
-    /** 날짜는 그대로 두고 시각과 항목만 고친다. */
-    async editRecord(record: BudgetRecord, time: string, title: string): Promise<void> {
+    /** 시각과 항목을 고친다. 날짜를 주면 같은 달 안에서 날짜도 바꾼다. */
+    async editRecord(record: BudgetRecord, time: string, title: string, changes: { date?: string } = {}): Promise<void> {
         const { entry } = record;
         await this.store.updateEntry(record.kind, record.month, entry, {
-            date: entry.date,
+            date: changes.date ?? entry.date,
             time,
             title,
             category: entry.category,
