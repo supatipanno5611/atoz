@@ -2064,6 +2064,37 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     font-variant-numeric: tabular-nums;
 }
 
+/* 띠 아래 범례. 띠와 같은 클래스를 작은 견본으로 쓴다. */
+.atoz-home-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-home-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.atoz-home-legend .atoz-home-sleep,
+.atoz-home-legend .atoz-home-activity {
+    width: 12px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.atoz-home-legend .atoz-home-meal,
+.atoz-home-legend .atoz-home-now {
+    margin-left: 0;
+}
+
+.atoz-home-legend .atoz-home-now {
+    height: 10px;
+}
+
 .atoz-home-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -2099,6 +2130,11 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 .atoz-home-later-label {
     flex-shrink: 0;
+}
+
+.atoz-dashboard .atoz-home-later-more {
+    align-self: flex-start;
+    font-size: var(--font-ui-small);
 }
 
 /* 기능 목록 */

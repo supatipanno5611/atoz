@@ -11,6 +11,8 @@ import { TimelinePage, applyColor as applyTimelineColor, formatMatch, summarizeD
 
 const VIEW_TYPE_DASHBOARD = 'atoz-dashboard';
 const HOUR = 60 * 60 * 1000;
+// '나중에 채울 것'을 접었을 때 보이는 개수
+const LATER_SHOWN = 5;
 // 예전에 따로 열리던 대시보드. 남아 있는 탭은 열 때 닫는다.
 const LEGACY_VIEW_TYPES = ['atoz-daynight-dashboard', 'atoz-budget-view'];
 
@@ -35,6 +37,8 @@ class DashboardView extends ItemView {
     // Obsidian은 navigation이 켜진 뷰만 탐색 기록에 남긴다. 켜 두어야 뒤로/앞으로로 페이지를 오갈 수 있다.
     navigation = true;
     private page: DashboardPageId = 'home';
+    // '나중에 채울 것'을 모두 펼쳤는가. 접혀 있으면 앞의 몇 개만 보인다.
+    private isLaterExpanded = false;
     private tabsEl: HTMLElement;
     private homeEl: HTMLElement;
     private daynightEl: HTMLElement;
@@ -219,6 +223,19 @@ class DashboardView extends ItemView {
         if (now < dayEnd) place(band.createSpan({ cls: 'atoz-home-now' }), now, now);
         const axis = card.createDiv({ cls: 'atoz-home-axis' });
         for (let hour = 0; hour <= 24; hour += 6) axis.createSpan({ text: String((plugin.settings.timelineDayStartHour + hour) % 24) });
+        // 띠의 모양마다 뜻을 적는다.
+        const legend = card.createDiv({ cls: 'atoz-home-legend', attr: { 'aria-hidden': 'true' } });
+        for (const [cls, label] of [
+            ['atoz-home-sleep', t('dashboard.sleep')],
+            ['atoz-home-activity', t('record.activity')],
+            ['atoz-home-meal', t('record.meal')],
+            ['atoz-home-spend', t('record.spending')],
+            ['atoz-home-now', t('dashboard.now')],
+        ] as const) {
+            const item = legend.createSpan();
+            item.createSpan({ cls });
+            item.createSpan({ text: label });
+        }
 
         // 숫자 셋. 숫자마다 비교를 붙인다.
         const stats = card.createDiv({ cls: 'atoz-dashboard-card-body atoz-home-stats' });
@@ -291,7 +308,9 @@ class DashboardView extends ItemView {
         title.createSpan({ text: t('dashboard.later') });
         title.createSpan({ cls: 'atoz-home-badge', text: String(items.length) });
         const list = card.createDiv({ cls: 'atoz-home-later-list' });
-        for (const item of items) {
+        // 많으면 앞의 몇 개만 보여 아래 기능 목록을 밀어내지 않게 한다.
+        const shown = this.isLaterExpanded ? items : items.slice(0, LATER_SHOWN);
+        for (const item of shown) {
             const row = list.createDiv({ cls: 'atoz-home-later-row' });
             row.createSpan({ cls: 'atoz-dashboard-muted', text: `${formatShortDate(item.time)} ${formatClock(item.time)}` });
             row.createSpan({ cls: 'atoz-home-later-label', text: item.label });
@@ -307,6 +326,17 @@ class DashboardView extends ItemView {
                 input.blur();
             });
             input.addEventListener('blur', save);
+        }
+        if (items.length > LATER_SHOWN) {
+            const more = card.createEl('button', {
+                cls: 'atoz-home-later-more',
+                text: this.isLaterExpanded ? t('dashboard.laterLess') : t('dashboard.laterMore', { count: items.length - LATER_SHOWN }),
+                attr: { 'aria-expanded': String(this.isLaterExpanded) },
+            });
+            more.addEventListener('click', () => {
+                this.isLaterExpanded = !this.isLaterExpanded;
+                void this.renderHome();
+            });
         }
     }
 
