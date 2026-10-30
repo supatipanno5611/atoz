@@ -2157,7 +2157,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     height: 10px;
 }
 
-.atoz-home-stats {
+.atoz-dashboard-card-body.atoz-home-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 

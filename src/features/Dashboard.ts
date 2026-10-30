@@ -239,15 +239,22 @@ class DashboardView extends ItemView {
 
         // 숫자 셋. 숫자마다 비교를 붙인다.
         const stats = card.createDiv({ cls: 'atoz-dashboard-card-body atoz-home-stats' });
-        const finished = segments.slice(0, -1).filter(({ type }) => type === 'sleep');
-        const lastSleep = finished[finished.length - 1];
-        const week = finished.slice(0, -1).filter(({ to }) => to > now - 7 * DAY).map(({ from, to }) => to - from);
-        let sleepSub: string | undefined;
-        if (lastSleep && week.length > 0) {
-            const diff = (lastSleep.to - lastSleep.from) - week.reduce((sum, value) => sum + value, 0) / week.length;
-            sleepSub = t('dashboard.vsUsual', { diff: (diff < 0 ? '−' : '+') + formatDuration(Math.abs(diff)) });
+        // 지난밤 잠은 이 하루에 끝난 가장 최근 주된 잠이다. 낮잠은 따로 적는다.
+        const inDay = ({ to }: { to: number }): boolean => to > dayStart && to <= dayEnd;
+        const { main, naps } = plugin.daynight.finishedSleeps(now);
+        const lastSleep = main.filter(inDay).pop();
+        const usual = plugin.daynight.usualSleep(dayStart, now);
+        const subs: string[] = [];
+        if (lastSleep && usual !== null) {
+            const diff = (lastSleep.to - lastSleep.from) - usual;
+            subs.push(t(diff < 0 ? 'dashboard.vsUsualShort' : 'dashboard.vsUsualLong', {
+                usual: formatDuration(usual),
+                diff: formatDuration(Math.abs(diff)),
+            }));
         }
-        addStat(stats, t('dashboard.sleep'), lastSleep ? formatDuration(lastSleep.to - lastSleep.from) : '—', sleepSub);
+        const napTime = naps.filter(inDay).reduce((sum, { from, to }) => sum + to - from, 0);
+        if (napTime > 0) subs.push(t('dashboard.napApart', { duration: formatDuration(napTime) }));
+        addStat(stats, t('dashboard.lastNight'), lastSleep ? formatDuration(lastSleep.to - lastSleep.from) : '—', subs.join(' · ') || undefined);
 
         const today = summarizeDay(plugin, timelineToday(plugin), now);
         addStat(
@@ -257,16 +264,19 @@ class DashboardView extends ItemView {
             today.elapsedPlan > 0 ? t('dashboard.ofPlan', { plan: formatDuration(today.elapsedPlan) }) : undefined,
         );
 
-        // 예산이 있으면 이번 달 지출이 날짜만큼의 예산(페이스) 안인지 본다.
+        // 이번 달 지출을 예산과 날짜만큼 지난 비율로 같은 범위끼리 비교한다. 오늘 지출은 보조 줄이다.
         const spent = todaySpending.reduce((sum, { entry }) => sum + entry.amount, 0);
-        const date = new Date(now);
+        const date = new Date(dayStart);
         const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-        const pace = budget.budget * date.getDate() / daysInMonth;
+        const todayLine = t('dashboard.todaySpentLine', { amount: formatWon(spent) });
         addStat(
             stats,
-            t('dashboard.todaySpent'),
-            formatWon(spent),
-            budget.budget > 0 ? t(budget.total <= pace ? 'dashboard.paceIn' : 'dashboard.paceOver') : undefined,
+            t('dashboard.monthSpent'),
+            formatWon(budget.total),
+            budget.budget > 0 ? `${t('dashboard.budgetPace', {
+                percent: Math.round(budget.total / budget.budget * 100),
+                date: Math.round(date.getDate() / daysInMonth * 100),
+            })} · ${todayLine}` : todayLine,
         );
     }
 
@@ -346,10 +356,8 @@ class DashboardView extends ItemView {
         const list = grid.createDiv({ cls: 'atoz-dashboard-card atoz-home-pages' });
 
         const summary = daynightSummary(plugin);
-        const week = plugin.daynight.segments(now).slice(0, -1)
-            .filter(({ type, to }) => type === 'sleep' && to > now - 7 * DAY)
-            .map(({ from, to }) => to - from);
-        const average = week.length > 0 ? formatDuration(week.reduce((sum, value) => sum + value, 0) / week.length) : '—';
+        const usual = plugin.daynight.usualSleep(dayStart, now);
+        const average = usual !== null ? formatDuration(usual) : '—';
         this.addPageRow(list, 'moon', t('daynight.viewName'), 'daynight', summary.regularity === null
             ? t('dashboard.sleepRowNoScore', { average })
             : t('dashboard.sleepRow', { average, score: summary.regularity }));

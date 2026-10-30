@@ -1188,6 +1188,23 @@ export class DaynightFeature {
         return splitGaps(toSegments(this.records, now), events);
     }
 
+    /** 끝난 잠을 주된 잠(3시간 넘음)과 낮잠으로 나눈다. 평소 잘 시각과 같은 기준이다. */
+    finishedSleeps(now: number): { main: DaynightSegment[]; naps: DaynightSegment[] } {
+        const sleeps = this.segments(now).slice(0, -1).filter(({ type }) => type === 'sleep');
+        return {
+            main: sleeps.filter(({ from, to }) => to - from > MAIN_SLEEP),
+            naps: sleeps.filter(({ from, to }) => to - from <= MAIN_SLEEP),
+        };
+    }
+
+    /** dayStart 전 7일 동안 끝난 주된 잠의 평균 길이. 홈 숫자와 수면 줄이 같이 쓴다. 없으면 null이다. */
+    usualSleep(dayStart: number, now: number): number | null {
+        const week = this.finishedSleeps(now).main
+            .filter(({ to }) => to <= dayStart && to > dayStart - BEDTIME_DAYS * DAY)
+            .map(({ from, to }) => to - from);
+        return week.length > 0 ? week.reduce((sum, value) => sum + value, 0) / week.length : null;
+    }
+
     /** 지난 7일 잠든 시각의 평균(자정부터 ms). 자정 앞뒤의 시각을 함께 평균내려고 시계를 원으로 보고 더한다. */
     usualBedtime(now: number): number | null {
         let x = 0;
