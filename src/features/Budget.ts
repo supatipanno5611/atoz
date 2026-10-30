@@ -16,7 +16,7 @@ import type ATOZPlugin from '../main';
 import type { BudgetFixedExpense } from '../types';
 import { t } from '../locales';
 import { makeClickable } from '../utils';
-import { formatMonthLabel, renderPageHeader } from './PageHeader';
+import { formatMonthLabel, formatShortMonthLabel, renderPageHeader } from './PageHeader';
 
 const DEFAULT_FOLDER = 'budget';
 
@@ -2019,9 +2019,17 @@ export class BudgetPage {
     private renderHeader(root: HTMLElement): void {
         renderPageHeader(root, {
             label: formatMonthLabel(this.month),
+            // 다른 페이지와 같은 굵은 글자로 보이고, 누르면 숨겨 둔 달 고르기를 연다.
             renderLabel: (parent) => {
-                const picker = parent.createEl('input', { cls: 'atoz-budget-month-label', type: 'month' });
+                const holder = parent.createSpan({ cls: 'atoz-budget-month-holder' });
+                const label = holder.createEl('button', {
+                    cls: 'atoz-page-header-label atoz-budget-month-label',
+                    text: formatMonthLabel(this.month),
+                    attr: { 'aria-label': t('budget.pickMonth') },
+                });
+                const picker = holder.createEl('input', { cls: 'atoz-budget-month-picker', type: 'month', attr: { tabindex: '-1', 'aria-hidden': 'true' } });
                 picker.value = this.month;
+                label.addEventListener('click', () => picker.showPicker());
                 picker.addEventListener('change', () => {
                     if (isValidMonth(picker.value)) this.setMonth(picker.value);
                 });
@@ -2313,7 +2321,7 @@ export class BudgetPage {
                 const holder = row.createDiv({ cls: 'atoz-budget-category-trend' });
                 holder.addEventListener('click', (event) => event.stopPropagation());
                 this.renderMonthBars(holder, months, values, null, months.map((month, i) =>
-                    month + ' · ' + formatWon(values[i] ?? 0)));
+                    formatShortMonthLabel(month, true) + ' · ' + formatWon(values[i] ?? 0)));
             }
         }
     }
@@ -2386,7 +2394,7 @@ export class BudgetPage {
         const rateText = (value: number, base: number): string =>
             base > 0 ? (((base - value) / base) * 100).toFixed(1) + '%' : '—';
         this.renderMonthBars(section, months, expense, income, months.map((month, i) => t('budget.trendTooltip', {
-            month,
+            month: formatShortMonthLabel(month, true),
             expense: formatWon(expense[i] ?? 0),
             income: formatWon(income[i] ?? 0),
             rate: rateText(expense[i] ?? 0, income[i] ?? 0),
@@ -2431,6 +2439,8 @@ export class BudgetPage {
         const scaleY = (value: number): number =>
             PLOT_TOP + ((top - value) / span) * (PLOT_BOTTOM - PLOT_TOP);
         const zeroY = scaleY(0);
+        // 세로 눈금 대신 맨 위가 얼마인지 적는다.
+        parent.createDiv({ cls: 'atoz-budget-chart-scale', text: t('budget.chartTop', { amount: formatWon(top) }) });
         const svg = this.chartFrame(parent);
         const slot = CHART_W / months.length;
         const barWidth = Math.max(1, slot * 0.6);
@@ -2474,7 +2484,8 @@ export class BudgetPage {
         for (let i = 0; i < marks.length; i++) {
             const index = marks[i] ?? 0;
             if (i > 0 && index === marks[i - 1]) continue;
-            const mark = axis.createSpan({ text: months[index] ?? '' });
+            // 첫 달에만 해를 붙인다('2026년 8월', '9월', '10월').
+            const mark = axis.createSpan({ text: months[index] ? formatShortMonthLabel(months[index], i === 0) : '' });
             if (i === 0) mark.addClass('is-first');
             else if (i === marks.length - 1) mark.addClass('is-last');
             else {
@@ -2895,7 +2906,9 @@ export class BudgetPage {
         const body = table.createEl('tbody');
         for (const row of rows) {
             const tr = body.createEl('tr', { cls: 'atoz-budget-row atoz-budget-row-' + (row.kind === KIND_INCOME ? 'income' : 'expense') });
-            tr.createEl('td', { text: (row.entry.date.slice(5) + ' ' + row.entry.time).trim() });
+            // 날짜는 다른 화면처럼 '10/22'로 쓴다.
+            const [, month, day] = row.entry.date.split('-').map(Number);
+            tr.createEl('td', { text: (`${month}/${day} ` + row.entry.time).trim() });
 
             const titleCell = tr.createEl('td');
             titleCell.createSpan({ text: row.entry.title });

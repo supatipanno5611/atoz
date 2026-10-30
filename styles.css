@@ -1373,9 +1373,12 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     margin-right: auto;
 }
 
-.atoz-budget-month-label {
-    font-size: var(--font-ui-medium);
-    font-weight: 600;
+.atoz-budget-month-holder {
+    position: relative;
+}
+
+.atoz-page-header button.atoz-budget-month-label {
+    font-size: inherit;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -1383,7 +1386,26 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     cursor: pointer;
 }
 
-.atoz-budget-month-label:hover {
+/* 달 고르기는 보이지 않게 두고 글자 버튼이 연다(showPicker는 화면에 있는 입력에만 된다). */
+.atoz-budget-month-picker {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 0;
+    padding: 0;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.atoz-budget-chart-scale {
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-page-header button.atoz-budget-month-label:hover {
     background: var(--background-modifier-hover);
 }
 

@@ -573,6 +573,8 @@ export const en = {
     'budget.trend': 'Monthly trend',
     'budget.months': '{{count}} months',
     'budget.trendTooltip': '{{month}} · expenses {{expense}} · income {{income}} · saving rate {{rate}}',
+    'budget.chartTop': 'Top {{amount}}',
+    'budget.pickMonth': 'Pick a month',
     'budget.trendCaption': 'Average monthly expenses {{average}} · saving rate for the period {{rate}}',
     'budget.noPayment': 'No payment method',
     'budget.count': '×{{count}}',

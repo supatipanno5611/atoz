@@ -35,6 +35,12 @@ export function formatMonthLabel(key: string): string {
     return new Date(year!, month! - 1, 1).toLocaleDateString(LOCALE, { year: 'numeric', month: 'long' });
 }
 
+/** 'YYYY-MM'을 '10월'처럼. withYear면 '2026년 10월' */
+export function formatShortMonthLabel(key: string, withYear: boolean): string {
+    const [year, month] = key.split('-').map(Number);
+    return new Date(year!, month! - 1, 1).toLocaleDateString(LOCALE, withYear ? { year: 'numeric', month: 'short' } : { month: 'short' });
+}
+
 /** 'YYYY-MM-DD' 둘을 '10월 26일 – 11월 1일'처럼 */
 export function formatWeekLabel(start: string, end: string): string {
     const format = (key: string): string => {
