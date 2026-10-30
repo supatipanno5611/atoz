@@ -2308,70 +2308,176 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     border-radius: var(--radius-m);
 }
 
-/* 오늘 하루 띠 */
-.atoz-home-band {
+/* 하루 리본: 계획 / 기록 / 식사 칸, 위 18px은 '지금' 라벨 자리 */
+.atoz-home-ribbon {
     position: relative;
-    height: 32px;
+    padding-top: 18px;
     border-radius: var(--radius-s);
-    background: var(--background-secondary);
-    overflow: hidden;
 }
 
-.atoz-home-band > span {
+.atoz-home-lanes {
+    display: grid;
+    grid-template-columns: 0 minmax(0, 1fr);
+    row-gap: 4px;
+    align-items: center;
+}
+
+.atoz-home-lane-label {
+    overflow: hidden;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* 넓으면 왼쪽에 칸 이름 */
+@container (min-width: 640px) {
+    .atoz-home-lanes {
+        grid-template-columns: 44px minmax(0, 1fr);
+    }
+
+    .atoz-home-axis {
+        margin-left: 44px;
+    }
+}
+
+.atoz-home-lane {
+    position: relative;
+    height: 22px;
+}
+
+.atoz-home-lane.is-plan {
+    height: 8px;
+}
+
+.atoz-home-lane.is-record {
+    height: 24px;
+}
+
+.atoz-home-past {
     position: absolute;
     top: 0;
     bottom: 0;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--text-normal) 5%, transparent);
 }
 
-.atoz-home-sleep {
+.atoz-home-seg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding-left: 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: var(--font-semibold);
+    white-space: nowrap;
+    --atoz-timeline-color: var(--atoz-timeline-light, var(--text-faint));
+}
+
+.theme-dark .atoz-home-seg {
+    --atoz-timeline-color: var(--atoz-timeline-dark, var(--text-faint));
+}
+
+.atoz-home-lane.is-plan .atoz-home-seg {
+    background: color-mix(in srgb, var(--atoz-timeline-color) 24%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--atoz-timeline-color) 55%, transparent);
+}
+
+.atoz-home-seg.is-activity {
+    background: var(--atoz-timeline-color);
+    color: #fff;
+}
+
+.atoz-home-seg.is-sleep {
     background: var(--interactive-accent);
-    opacity: 0.8;
+    color: var(--text-on-accent);
 }
 
-.atoz-home-activity {
-    top: 25% !important;
-    bottom: 25% !important;
-    border-radius: 2px;
-    background: var(--atoz-timeline-light, var(--text-faint));
+.atoz-home-seg.is-nap {
+    background: color-mix(in srgb, var(--interactive-accent) 70%, var(--background-primary));
 }
 
-.theme-dark .atoz-home-activity {
-    background: var(--atoz-timeline-dark, var(--text-faint));
+/* 기록 없음은 빗금 */
+.atoz-home-seg.is-gap {
+    background: repeating-linear-gradient(45deg, var(--text-faint) 0 1.5px, transparent 1.5px 5px);
 }
 
+/* 식사: 범례 아이콘 18px 원과 범례 색 테두리. 가까우면 묶고 개수 */
 .atoz-home-meal {
-    top: 3px !important;
-    bottom: auto !important;
-    width: 7px !important;
-    height: 7px;
-    margin-left: -3px;
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
     border-radius: 50%;
+    background: var(--background-primary);
+    box-shadow: 0 0 0 1.5px var(--atoz-record-color);
+    color: var(--atoz-record-color);
+}
+
+.atoz-home-meal svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 2.4;
+}
+
+.atoz-home-meal-count {
+    position: absolute;
+    top: -9px;
+    right: -10px;
+    display: grid;
+    place-items: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
     background: var(--text-normal);
-}
-
-.atoz-home-spend {
-    top: auto !important;
-    width: 2px !important;
-    height: 7px;
-    background: var(--text-muted);
-}
-
-.atoz-home-now {
-    width: 2px !important;
-    margin-left: -1px;
-    background: var(--color-red);
+    color: var(--background-primary);
+    font-size: 11px;
 }
 
 .atoz-home-axis {
-    display: flex;
-    justify-content: space-between;
-    margin-top: -8px;
-    font-size: var(--font-ui-smaller);
+    position: relative;
+    height: 16px;
+    font-size: 11px;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
 
-/* 띠 아래 범례. 띠와 같은 클래스를 작은 견본으로 쓴다. */
+.atoz-home-axis > span {
+    position: absolute;
+    top: 1px;
+    transform: translateX(-50%);
+}
+
+/* 지금: 칸 전체를 지나는 글자색 선 */
+.atoz-home-now {
+    position: absolute;
+    top: 2px;
+    bottom: 16px;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: 1px;
+    background: var(--text-normal);
+}
+
+.atoz-home-now > span {
+    position: absolute;
+    top: -3px;
+    right: 5px;
+    padding: 0 3px;
+    background: var(--background-primary);
+    font-size: 11px;
+    font-weight: var(--font-semibold);
+    line-height: 14px;
+    white-space: nowrap;
+}
+
+/* 범례가 곧 요약 */
 .atoz-home-legend {
     display: flex;
     flex-wrap: wrap;
@@ -2383,23 +2489,37 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 .atoz-home-legend > span {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
 }
 
-.atoz-home-legend .atoz-home-sleep,
-.atoz-home-legend .atoz-home-activity {
-    width: 12px;
-    height: 8px;
-    border-radius: 2px;
+.atoz-home-legend b {
+    font-weight: var(--font-medium);
+    color: var(--text-normal);
+    font-variant-numeric: tabular-nums;
 }
 
-.atoz-home-legend .atoz-home-meal,
-.atoz-home-legend .atoz-home-now {
-    margin-left: 0;
-}
-
-.atoz-home-legend .atoz-home-now {
+.atoz-home-swatch {
+    display: inline-block;
+    width: 10px;
     height: 10px;
+    border-radius: 3px;
+    --atoz-timeline-color: var(--atoz-timeline-light, var(--text-faint));
+}
+
+.theme-dark .atoz-home-swatch {
+    --atoz-timeline-color: var(--atoz-timeline-dark, var(--text-faint));
+}
+
+.atoz-home-swatch.is-sleep {
+    background: var(--interactive-accent);
+}
+
+.atoz-home-swatch.is-activity {
+    background: var(--atoz-timeline-color);
+}
+
+.atoz-home-swatch.is-plan {
+    box-shadow: inset 0 0 0 1.5px var(--text-muted);
 }
 
 .atoz-dashboard-card-body.atoz-home-stats {

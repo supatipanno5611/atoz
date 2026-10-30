@@ -1,4 +1,4 @@
-import { ItemView, ViewStateResult, WorkspaceLeaf, setIcon } from 'obsidian';
+import { ItemView, ViewStateResult, WorkspaceLeaf, getIcon, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { isKorean, t } from '../locales';
 import { isRecord, makeClickable } from '../utils';
@@ -26,6 +26,19 @@ function isPageId(value: unknown): value is DashboardPageId {
     return value === 'home' || value === 'daynight' || value === 'budget' || value === 'meal' || value === 'timeline' || value === 'plan';
 }
 
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+/** 범례처럼 좁은 자리의 '7:13' 꼴 길이 */
+function formatShort(ms: number): string {
+    const minutes = Math.round(ms / 60000);
+    return `${Math.floor(minutes / 60)}:${pad2(minutes % 60)}`;
+}
+
+function dateKey(time: number): string {
+    const date = new Date(time);
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
 function addStat(parent: HTMLElement, label: string, value: string, sub?: string): void {
     const stat = parent.createDiv({ cls: 'atoz-dashboard-stat' });
     stat.createDiv({ cls: 'atoz-dashboard-muted', text: label });
@@ -39,6 +52,8 @@ class DashboardView extends ItemView {
     private page: DashboardPageId = 'home';
     // '나중에 채울 것'을 모두 펼쳤는가. 접혀 있으면 앞의 몇 개만 보인다.
     private isLaterExpanded = false;
+    // 하루 리본의 폭이 바뀌면 이름 라벨과 식사 묶음을 다시 맞춘다.
+    private ribbonObserver: ResizeObserver | null = null;
     private tabsEl: HTMLElement;
     private homeEl: HTMLElement;
     private daynightEl: HTMLElement;
@@ -197,45 +212,8 @@ class DashboardView extends ItemView {
             text: t('dashboard.today', { date: new Date(dayStart).toLocaleDateString(isKorean ? 'ko-KR' : 'en-US', { month: 'long', day: 'numeric', weekday: 'short' }) }),
         });
 
-        // 하루 시작 시각부터 24시간: 잠, 활동, 식사(점), 지출(눈금), 지금 선
-        const band = card.createDiv({ cls: 'atoz-home-band', attr: { 'aria-hidden': 'true' } });
-        const place = (el: HTMLElement, from: number, to: number): void => {
-            const left = Math.max(0, (from - dayStart) / DAY);
-            const right = Math.min(1, (to - dayStart) / DAY);
-            el.style.left = `${left * 100}%`;
-            el.style.width = `${Math.max(0, right - left) * 100}%`;
-        };
-        const segments = plugin.daynight.segments(now);
-        for (const segment of segments) {
-            if (segment.type !== 'sleep' || segment.to <= dayStart || segment.from >= dayEnd) continue;
-            place(band.createSpan({ cls: 'atoz-home-sleep' }), segment.from, segment.to);
-        }
-        for (const block of plugin.timeline.segments(now)) {
-            if (block.to <= dayStart || block.from >= dayEnd) continue;
-            const bar = band.createSpan({ cls: 'atoz-home-activity' });
-            applyTimelineColor(bar, plugin, block.category);
-            place(bar, block.from, block.to);
-        }
-        const meals = plugin.meal.records.filter((meal) => meal.time >= dayStart && meal.time < dayEnd);
-        for (const meal of meals) place(band.createSpan({ cls: 'atoz-home-meal' }), meal.time, meal.time);
+        this.renderRibbon(card, dayStart, now);
         const todaySpending = spending.filter(({ kind, entry }) => kind === 'expense' && entryTimeOf(entry) >= dayStart && entryTimeOf(entry) < dayEnd);
-        for (const { entry } of todaySpending) place(band.createSpan({ cls: 'atoz-home-spend' }), entryTimeOf(entry), entryTimeOf(entry));
-        if (now < dayEnd) place(band.createSpan({ cls: 'atoz-home-now' }), now, now);
-        const axis = card.createDiv({ cls: 'atoz-home-axis' });
-        for (let hour = 0; hour <= 24; hour += 6) axis.createSpan({ text: String((plugin.settings.timelineDayStartHour + hour) % 24) });
-        // 띠의 모양마다 뜻을 적는다.
-        const legend = card.createDiv({ cls: 'atoz-home-legend', attr: { 'aria-hidden': 'true' } });
-        for (const [cls, label] of [
-            ['atoz-home-sleep', t('dashboard.sleep')],
-            ['atoz-home-activity', t('record.activity')],
-            ['atoz-home-meal', t('record.meal')],
-            ['atoz-home-spend', t('record.spending')],
-            ['atoz-home-now', t('dashboard.now')],
-        ] as const) {
-            const item = legend.createSpan();
-            item.createSpan({ cls });
-            item.createSpan({ text: label });
-        }
 
         // 숫자 셋. 숫자마다 비교를 붙인다.
         const stats = card.createDiv({ cls: 'atoz-dashboard-card-body atoz-home-stats' });
@@ -278,6 +256,150 @@ class DashboardView extends ItemView {
                 date: Math.round(date.getDate() / daysInMonth * 100),
             })} · ${todayLine}` : todayLine,
         );
+    }
+
+    // 하루 리본: '시간을 어디에 썼나' 하나만 말한다. 칸은 계획 / 기록(잠·활동) / 식사이고, 이름은 칸 안에 직접 적는다.
+    // 지출은 그리지 않고 아래 숫자로 본다. 누르면 그날 타임라인 페이지로 간다.
+    private renderRibbon(card: HTMLElement, dayStart: number, now: number): void {
+        const plugin = this.plugin;
+        const dayEnd = dayStart + DAY;
+        const end = Math.min(now, dayEnd);
+        const clip = (time: number): number => Math.min(dayEnd, Math.max(dayStart, time));
+        const pct = (time: number): string => `${(clip(time) - dayStart) / DAY * 100}%`;
+        const place = (el: HTMLElement, from: number, to: number): void => {
+            el.style.left = pct(from);
+            el.style.width = `calc(${(clip(to) - clip(from)) / DAY * 100}% - 2px)`;
+        };
+
+        const ribbon = card.createDiv({ cls: 'atoz-home-ribbon' });
+        const lanes = ribbon.createDiv({ cls: 'atoz-home-lanes' });
+        const lane = (label: string, cls: string): HTMLElement => {
+            lanes.createSpan({ cls: 'atoz-home-lane-label', text: label });
+            return lanes.createDiv({ cls: `atoz-home-lane ${cls}` });
+        };
+
+        // 계획: 그 활동 색의 옅은 칸과 테두리
+        const planLane = lane(t('plan.viewName'), 'is-plan');
+        const plans = plugin.timeline.plans.filter((block) => block.to > dayStart && block.from < dayEnd);
+        for (const block of plans) {
+            const seg = planLane.createSpan({ cls: 'atoz-home-seg' });
+            applyTimelineColor(seg, plugin, block.category);
+            place(seg, block.from, block.to);
+        }
+
+        // 기록: 지금까지만 바탕 띠를 깔고, 그 위에 잠·활동, 기록 없음은 빗금
+        const recordLane = lane(t('dashboard.record'), 'is-record');
+        if (end > dayStart) place(recordLane.createSpan({ cls: 'atoz-home-past' }), dayStart, end + 2 * 60 * 1000);
+        // 이름 칸: 긴 이름이 안 들어가면 짧은 이름, 그것도 안 들어가면 비운다.
+        const labeled: { el: HTMLElement; full: string; short: string; length: number }[] = [];
+        const totals = new Map<string, number>();
+        let sleepTotal = 0;
+        let napTotal = 0;
+        for (const segment of plugin.daynight.segments(now)) {
+            if (segment.type === 'wake' || segment.to <= dayStart || segment.from >= dayEnd) continue;
+            const seg = recordLane.createSpan({ cls: `atoz-home-seg ${segment.type === 'gap' ? 'is-gap' : 'is-sleep'}` });
+            place(seg, segment.from, segment.to);
+            if (segment.type === 'gap') continue;
+            const length = clip(segment.to) - clip(segment.from);
+            const isNap = segment.to - segment.from <= 3 * HOUR;
+            if (isNap) napTotal += length;
+            else sleepTotal += length;
+            seg.toggleClass('is-nap', isNap);
+            const name = isNap ? t('dashboard.nap') : t('dashboard.sleepShort');
+            // 하루 시작 전에 잠들었으면 언제부터인지 적는다.
+            const full = segment.from < dayStart ? t('dashboard.sleepFrom', { time: formatClock(segment.from) }) : name;
+            labeled.push({ el: seg, full, short: name, length });
+        }
+        for (const block of plugin.timeline.segments(now)) {
+            if (block.to <= dayStart || block.from >= dayEnd) continue;
+            const seg = recordLane.createSpan({ cls: 'atoz-home-seg is-activity' });
+            applyTimelineColor(seg, plugin, block.category);
+            place(seg, block.from, block.to);
+            const length = clip(block.to) - clip(block.from);
+            totals.set(block.category, (totals.get(block.category) ?? 0) + length);
+            labeled.push({ el: seg, full: block.category, short: block.category.split(' ')[0] ?? block.category, length });
+        }
+
+        const mealLane = lane(t('record.meal'), 'is-meal');
+        const meals = plugin.meal.records.filter((meal) => meal.time >= dayStart && meal.time < dayEnd);
+
+        // 축: 시계 그대로 06 · 09 … 03, 자리는 절대값
+        const axis = ribbon.createDiv({ cls: 'atoz-home-axis' });
+        for (const clock of [6, 9, 12, 15, 18, 21, 0, 3]) {
+            const at = dayStart + ((clock - plugin.settings.timelineDayStartHour + 24) % 24) * HOUR;
+            axis.createSpan({ text: pad2(clock) }).style.left = pct(at);
+        }
+
+        // 지금: 칸 전체를 지나는 선과 위의 '지금 04:42'
+        let nowLine: HTMLElement | null = null;
+        if (now < dayEnd) {
+            nowLine = ribbon.createSpan({ cls: 'atoz-home-now' });
+            nowLine.createSpan({ text: `${t('dashboard.now')} ${formatClock(now)}` });
+        }
+
+        // 폭을 알아야 하는 것: 칸 안 이름, 가까운 식사 묶기, 지금 선 자리
+        const layout = (): void => {
+            const width = recordLane.clientWidth;
+            if (width === 0) return;
+            const fits = (text: string, length: number): boolean => length / DAY * width > text.length * 11 + 12;
+            for (const { el, full, short, length } of labeled) {
+                el.setText(fits(full, length) ? full : fits(short, length) ? short : '');
+            }
+            mealLane.empty();
+            let last: { x: number; el: HTMLElement; count: number } | null = null;
+            for (const meal of meals) {
+                const x = (meal.time - dayStart) / DAY * width;
+                if (last && x - last.x < 20) {
+                    last.count += 1;
+                    last.el.querySelector('.atoz-home-meal-count')?.remove();
+                    last.el.createSpan({ cls: 'atoz-home-meal-count', text: String(last.count) });
+                    continue;
+                }
+                const mark = mealLane.createSpan({ cls: 'atoz-home-meal atoz-record-colored' });
+                const color = plugin.meal.colorOf(meal.color);
+                if (color) {
+                    mark.style.setProperty('--atoz-record-light', color.light);
+                    mark.style.setProperty('--atoz-record-dark', color.dark);
+                }
+                mark.style.left = pct(meal.time);
+                setIcon(mark, getIcon(meal.icon) ? meal.icon : 'utensils');
+                last = { x, el: mark, count: 1 };
+            }
+            if (nowLine) nowLine.style.left = `${recordLane.offsetLeft + (now - dayStart) / DAY * width}px`;
+        };
+        window.requestAnimationFrame(layout);
+        this.ribbonObserver?.disconnect();
+        this.ribbonObserver = new ResizeObserver(layout);
+        this.ribbonObserver.observe(ribbon);
+
+        // 범례가 곧 요약: 잠·낮잠과 활동별 합계, 계획은 테두리 견본
+        const legend = card.createDiv({ cls: 'atoz-home-legend' });
+        const key = (cls: string, label: string, value: string, category?: string): void => {
+            const item = legend.createSpan();
+            const swatch = item.createSpan({ cls: `atoz-home-swatch ${cls}` });
+            if (category) applyTimelineColor(swatch, plugin, category);
+            item.createSpan({ text: label });
+            if (value) item.createEl('b', { text: value });
+        };
+        const sleepText = [sleepTotal > 0 ? formatShort(sleepTotal) : '', napTotal > 0 ? `${t('dashboard.nap')} ${formatShort(napTotal)}` : '']
+            .filter(Boolean).join(' · ');
+        if (sleepText) key('is-sleep', t('dashboard.sleepShort'), sleepText);
+        const sorted = [...totals].sort((a, b) => b[1] - a[1]);
+        for (const [name, length] of sorted) key('is-activity', name, formatShort(length), name);
+        if (plans.length > 0) key('is-plan', t('plan.viewName'), '', plans[0]!.category);
+
+        // 화면 낭독기는 그래프 대신 한 줄 요약을 읽는다.
+        const parts = [
+            sleepTotal > 0 ? `${t('dashboard.sleepShort')} ${formatDuration(sleepTotal)}` : '',
+            napTotal > 0 ? `${t('dashboard.nap')} ${formatDuration(napTotal)}` : '',
+            ...sorted.map(([name, length]) => `${name} ${formatDuration(length)}`),
+            meals.length > 0 ? t('dashboard.mealCount', { count: meals.length }) : '',
+        ].filter(Boolean);
+        makeClickable(ribbon, () => void this.leaf.setViewState({
+            type: VIEW_TYPE_DASHBOARD,
+            state: { page: 'timeline', timeline: { date: dateKey(dayStart) } },
+        }));
+        ribbon.setAttr('aria-label', parts.join(', ') || t('record.empty'));
     }
 
     // 메뉴가 빈 식사와 항목이 빈 지출(최근 7일)을 모아 그 자리에서 채운다. 없으면 카드를 숨긴다.
