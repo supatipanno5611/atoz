@@ -410,7 +410,6 @@ export const en = {
     'daynight.gap.fill': 'Add missing records',
     'daynight.gap.until': 'until {{time}}',
     'command.openDaynightDashboard': 'Dashboard: Open sleep',
-    'record.doing': 'Doing {{activity}}',
     'record.idle': 'No activity',
     'record.since': 'Since {{time}}',
     'record.minutes': '{{minutes}}m',

@@ -400,7 +400,6 @@ export const ko: Record<TranslationKey, string> = {
     'daynight.gap.fill': '빠진 기록 넣기',
     'daynight.gap.until': '{{time}}까지',
     'command.openDaynightDashboard': '대시보드: 수면 열기',
-    'record.doing': '{{activity}} 중',
     'record.idle': '기록 중인 활동 없음',
     'record.since': '{{time}}부터',
     'record.minutes': '{{minutes}}분',

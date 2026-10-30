@@ -236,9 +236,11 @@ export class DaynightView extends ItemView {
 
     render(): void {
         const container = this.containerEl.children[1] as HTMLElement;
-        const previousScroll = container.scrollTop;
+        // 패널은 [지금 줄] / [오늘 목록] / [아래 묶음]이고 오늘 목록만 스크롤한다.
+        const oldFeed = container.querySelector<HTMLElement>('.atoz-record-feed');
+        const previousScroll = oldFeed?.scrollTop ?? 0;
         // 처음 그릴 때와 맨 아래(최신 기록)를 보고 있었을 때는 다시 그린 뒤에도 맨 아래를 보인다.
-        const wasAtEnd = !container.hasClass('atoz-daynight') || previousScroll + container.clientHeight >= container.scrollHeight - 4;
+        const wasAtEnd = !oldFeed || previousScroll + oldFeed.clientHeight >= oldFeed.scrollHeight - 4;
         container.empty();
         container.addClass('atoz-daynight');
 
@@ -256,7 +258,7 @@ export class DaynightView extends ItemView {
 
         this.renderStatus(container, now);
 
-        // 기록은 아래에서부터 쌓아 최신 기록이 버튼 바로 위에 온다.
+        // 기록은 아래에서부터 쌓아 최신 기록이 아래 묶음 바로 위에 온다.
         const feed = container.createDiv({ cls: 'atoz-record-feed' });
         const list = feed.createDiv({ cls: 'atoz-record-list' });
         const yesterday = records.filter((record) => record.time < todayStart);
@@ -278,7 +280,7 @@ export class DaynightView extends ItemView {
         if (today.length === 0) list.createDiv({ cls: 'atoz-record-empty', text: t('record.empty') });
         today.forEach((record) => this.renderRecord(list, record));
 
-        // 패널 전체가 한 번에 스크롤되고, 알약과 수면 버튼은 아래에 붙어 늘 보인다.
+        // 알약과 수면 버튼은 아래에 고정되어 늘 보인다.
         const dock = container.createDiv({ cls: 'atoz-record-dock' });
         const controls = dock.createDiv({ cls: 'atoz-record-controls' });
         // 휴대폰에서는 금액 시트가 알약 줄을 대신해 키보드 바로 위에 붙는다.
@@ -305,18 +307,18 @@ export class DaynightView extends ItemView {
         // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했거나 맨 아래를 보고 있었으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
         if (open) {
-            // 위에 붙은 어제 접기 줄과 아래에 붙은 버튼 묶음 사이에 보이게 한다.
-            container.scrollTop = previousScroll;
-            const viewTop = container.getBoundingClientRect().top + (list.querySelector<HTMLElement>('.atoz-record-fold')?.offsetHeight ?? 0);
-            const viewBottom = dock.getBoundingClientRect().top;
+            // 위에 붙은 어제 접기 줄 아래, 목록 칸 안에 보이게 한다.
+            feed.scrollTop = previousScroll;
+            const view = feed.getBoundingClientRect();
+            const viewTop = view.top + (list.querySelector<HTMLElement>('.atoz-record-fold')?.offsetHeight ?? 0);
             const { top, bottom } = open.getBoundingClientRect();
-            if (top < viewTop) container.scrollTop -= viewTop - top;
-            else if (bottom > viewBottom) container.scrollTop += bottom - viewBottom;
+            if (top < viewTop) feed.scrollTop -= viewTop - top;
+            else if (bottom > view.bottom) feed.scrollTop += bottom - view.bottom;
         } else if (this.scrollToEnd || wasAtEnd) {
-            container.scrollTop = container.scrollHeight;
+            feed.scrollTop = feed.scrollHeight;
             this.scrollToEnd = false;
         } else {
-            container.scrollTop = previousScroll;
+            feed.scrollTop = previousScroll;
         }
     }
 
@@ -355,14 +357,15 @@ export class DaynightView extends ItemView {
         );
         const status = head.createSpan({
             cls: 'atoz-record-status',
-            text: isAsleep ? t('daynight.asleep')
-                : current ? t('record.doing', { activity: current.category })
-                    : t('record.idle'),
+            text: isAsleep ? t('daynight.asleep') : current ? current.category : t('record.idle'),
         });
-        // '다시 누르면 끝'을 외우지 않아도 되게 끝내기 버튼을 둔다.
+        // 오른쪽 버튼 칸. '다시 누르면 끝'을 외우지 않아도 되게 끝내기 버튼을 둔다.
+        const actions = hero.createDiv({ cls: 'atoz-daynight-hero-actions' });
         if (current) {
             const key = `activity:${current.category}`;
-            const end = head.createEl('button', { cls: 'atoz-daynight-hero-end', text: t('record.end'), attr: { 'data-lock': key } });
+            const end = actions.createEl('button', { cls: 'atoz-daynight-hero-end', attr: { 'data-lock': key } });
+            setIcon(end, 'square');
+            end.createSpan({ text: t('record.end') });
             end.addEventListener('click', () => void this.lock(key, () => this.toggleActivity(current.category)));
         }
 
@@ -376,7 +379,7 @@ export class DaynightView extends ItemView {
         } else if (current) {
             since = current.time;
             sub = t('record.since', { time: at(current.time) });
-            if (last) sub += ` · ${t('daynight.wokeAt', { time: at(last.time) })}`;
+            if (current.memo) sub += ` · ${current.memo}`;
         } else {
             // 일어난 뒤에 끝낸 활동이 있으면 그때부터, 없으면 일어난 때부터 센다.
             const logs = this.plugin.timeline.logs.filter((log) => log.time <= now);
