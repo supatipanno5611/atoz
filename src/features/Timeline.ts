@@ -442,14 +442,14 @@ export class TimelineFeature {
         return this.logs.filter((log) => log.file.path === path && log.line === row).pop();
     }
 
-    /** 기록의 시각·메모를 고친다. 날짜와 카테고리는 그대로다. time이 null이면 지운다. */
-    async replaceLog(log: LogRecord, time: number | null, memo: string): Promise<void> {
+    /** 기록의 시각·메모를 고친다. category를 주면 활동도 바꾼다. time이 null이면 지운다. */
+    async replaceLog(log: LogRecord, time: number | null, memo: string, category = log.category): Promise<void> {
         await this.plugin.app.vault.process(log.file, (data) => {
             const lines = data.split('\n');
             const index = lines.map((line) => line.trim()).lastIndexOf(log.line);
             if (index === -1) return data;
             if (time === null) lines.splice(index, 1);
-            else lines[index] = formatLogRow(time, log.category, memo);
+            else lines[index] = formatLogRow(time, category, memo);
             return lines.join('\n');
         });
         await this.enqueue(() => this.loadFiles([log.file.path]));

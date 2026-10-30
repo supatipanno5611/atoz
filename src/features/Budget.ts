@@ -3136,16 +3136,21 @@ export class BudgetFeature {
         await this.store.addEntry(record.kind, record.month, { date, time, title, category, amount, payment, tags, extra });
     }
 
-    /** 시각과 항목을 고친다. 날짜를 주면 같은 달 안에서 날짜도 바꾼다. */
-    async editRecord(record: BudgetRecord, time: string, title: string, changes: { date?: string } = {}): Promise<void> {
+    /** 시각과 항목을 고친다. 날짜(같은 달 안)·카테고리·금액·결제 수단도 주면 함께 바꾼다. */
+    async editRecord(
+        record: BudgetRecord,
+        time: string,
+        title: string,
+        changes: { date?: string; category?: string; amount?: number; payment?: string } = {},
+    ): Promise<void> {
         const { entry } = record;
         await this.store.updateEntry(record.kind, record.month, entry, {
             date: changes.date ?? entry.date,
             time,
             title,
-            category: entry.category,
-            amount: entry.amount,
-            payment: entry.payment,
+            category: changes.category ?? entry.category,
+            amount: changes.amount ?? entry.amount,
+            payment: changes.payment ?? entry.payment,
             tags: entry.tags,
         });
     }

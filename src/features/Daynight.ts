@@ -172,13 +172,62 @@ interface PanelRecord {
     // null이면 메모 칸이 없다.
     note: string | null;
     noteLabel: string;
-    // 메모가 비었을 때 줄 끝에 보이는 쓰기 안내. 줄을 누르면 편집이 열린다.
+    // 메모가 비었을 때 줄 끝에 보이는 쓰기 안내. 줄을 누르면 고치기가 열린다.
     notePrompt?: string;
-    editable: boolean;
-    save: (time: number, note: string) => Promise<void>;
+    // 고치기에서 바꿀 수 있는 종류(식사 종류·지출 카테고리·활동 블록)
+    choices?: { label: string; value: string; options: EditChoice[] };
+    // 고른 종류에서 최근에 쓴 메모(메뉴·항목). 누르면 키보드 없이 들어간다.
+    recentNotes?: (choice: string) => string[];
+    // 금액·결제 수단을 고칠 수 있는 줄(지출, 지출과 짝인 식사)
+    amount?: { value: number; payment: string };
+    // 끝 시각을 고칠 수 있는 줄(다음 기록이 있는 활동)
+    end?: number;
+    deletable: boolean;
+    save: (values: EditValues) => Promise<void>;
     remove: () => Promise<void>;
     // 지운 기록을 다시 넣는다(되돌리기).
     restore: () => Promise<unknown>;
+}
+
+interface EditChoice {
+    label: string;
+    // null이면 색 점
+    icon: string | null;
+    color: MealColor | null | undefined;
+}
+
+interface EditValues {
+    time: number;
+    note: string;
+    choice: string;
+    amount: number | null;
+    payment: string;
+    end: number | null;
+}
+
+// 고치는 중인 값. 입력 칸의 글자 그대로 둔다.
+interface Editing {
+    record: PanelRecord;
+    time: string;
+    note: string;
+    choice: string;
+    amount: string;
+    payment: string;
+    end: string;
+    error?: string;
+}
+
+const sleepKey = (record: DaynightRecord): string => `sleep:${record.time}`;
+const mealKey = (meal: MealRecord): string => `meal:${meal.file.path}:${meal.line}`;
+const logKey = (log: LogRecord): string => `log:${log.file.path}:${log.line}`;
+const budgetKey = ({ kind, month, entry }: BudgetRecord): string => `budget:${kind}:${month}:${entry.lineIndex}:${entry.raw}`;
+
+/** 'HH:MM'을 분만큼 옮긴다. 자정을 넘으면 돌아간다. */
+function shiftClock(value: string, minutes: number): string {
+    const match = /^(\d{2}):(\d{2})$/.exec(value);
+    if (!match) return value;
+    const total = ((Number(match[1]) * 60 + Number(match[2]) + minutes) % (24 * 60) + 24 * 60) % (24 * 60);
+    return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
 
 interface ToastAction {
@@ -196,7 +245,7 @@ export class DaynightView extends ItemView {
     private budgetRecords: BudgetRecord[] = [];
     private isYesterdayShown = false;
     // 펼친 기록과 고치는 중인 값. 줄을 다시 누르거나 다른 줄을 펼치면 저장한다.
-    private editing: { record: PanelRecord; time: string; note: string; error?: string } | null = null;
+    private editing: Editing | null = null;
     private amountTarget: AmountTarget | null = null;
     private amountDraft = '';
     private amountPayment = '';
@@ -209,6 +258,7 @@ export class DaynightView extends ItemView {
     private pending = new Set<string>();
     // 처음 열 때와 방금 기록했을 때만 맨 아래(최신 기록)로 스크롤한다. 그 밖에는 보던 자리를 지킨다.
     private scrollToEnd = true;
+    private isRendering = false;
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -247,7 +297,10 @@ export class DaynightView extends ItemView {
         const previousScroll = oldFeed?.scrollTop ?? 0;
         // 처음 그릴 때와 맨 아래(최신 기록)를 보고 있었을 때는 다시 그린 뒤에도 맨 아래를 보인다.
         const wasAtEnd = !oldFeed || previousScroll + oldFeed.clientHeight >= oldFeed.scrollHeight - 4;
+        // 초점이 있던 칸을 지울 때 나는 focusout은 고치기를 닫는 뜻이 아니다.
+        this.isRendering = true;
         container.empty();
+        this.isRendering = false;
         container.addClass('atoz-daynight');
 
         const now = Date.now();
@@ -438,14 +491,16 @@ export class DaynightView extends ItemView {
     /** from 이후의 네 가지 기록을 시간순으로 모은다. */
     private collect(from: number): PanelRecord[] {
         const plugin = this.plugin;
+        const settings = plugin.settings;
         const out: PanelRecord[] = [];
 
         const sleeps = plugin.daynight.records;
         sleeps.forEach((record, index) => {
             if (record.time < from) return;
             const previous = sleeps[index - 1];
+            const next = sleeps[index + 1];
             out.push({
-                key: `sleep:${record.time}`,
+                key: sleepKey(record),
                 time: record.time,
                 mark: { icon: record.type === 'sleep' ? 'moon' : 'sun' },
                 color: record.type === 'sleep' ? SLEEP_COLOR : WAKE_COLOR,
@@ -456,14 +511,16 @@ export class DaynightView extends ItemView {
                 isIncome: false,
                 note: null,
                 noteLabel: '',
-                // 마지막 기록만 고치거나 지울 수 있어서 기록은 항상 취침과 기상이 번갈아 나온다.
-                editable: index === sleeps.length - 1,
-                save: async (time) => {
-                    // 앞 기록보다 뒤여야 순서가 유지된다. 지금보다 뒤인지는 commitEdit에서 본다.
+                // 지우기는 마지막 기록만 해서 기록은 항상 취침과 기상이 번갈아 나온다.
+                deletable: index === sleeps.length - 1,
+                save: async ({ time }) => {
+                    // 앞뒤 기록 사이여야 순서가 유지된다. 지금보다 뒤인지는 commitEdit에서 본다.
                     if (previous && time <= previous.time) {
                         new Notice(t('daynight.editTooEarly', { time: formatShortDateTime(previous.time) }));
+                    } else if (next && time >= next.time) {
+                        new Notice(t('daynight.editTooLate', { time: formatShortDateTime(next.time) }));
                     } else {
-                        await plugin.daynight.editLast(time);
+                        await plugin.daynight.editRecord(record, time);
                     }
                 },
                 remove: () => plugin.daynight.deleteLast(),
@@ -473,11 +530,13 @@ export class DaynightView extends ItemView {
 
         // 지출과 합칠 식사 줄
         const meals: { meal: MealRecord; record: PanelRecord }[] = [];
+        const legendOf = (label: string): MealLegendItem | undefined => settings.mealLegend.find((item) => item.label === label);
+        const mealChoices = settings.mealLegend.map((item) => ({ label: item.label, icon: mealIcon(item.icon), color: plugin.meal.colorOf(item.color) }));
         for (const meal of plugin.meal.records) {
             if (meal.time < from) continue;
-            const legend = plugin.settings.mealLegend.find((item) => item.icon === meal.icon && item.color === meal.color);
+            const legend = settings.mealLegend.find((item) => item.icon === meal.icon && item.color === meal.color);
             const record: PanelRecord = {
-                key: `meal:${meal.file.path}:${meal.line}`,
+                key: mealKey(meal),
                 time: meal.time,
                 mark: { icon: mealIcon(meal.icon) },
                 color: plugin.meal.colorOf(meal.color),
@@ -487,8 +546,18 @@ export class DaynightView extends ItemView {
                 note: meal.food,
                 noteLabel: t('record.food'),
                 notePrompt: t('record.toast.writeMenu'),
-                editable: true,
-                save: (time, note) => plugin.meal.replace(meal, time, note),
+                choices: { label: t('record.kind'), value: legend?.label ?? '', options: mealChoices },
+                recentNotes: (choice) => {
+                    const pick = legendOf(choice);
+                    if (!pick) return [];
+                    const foods = plugin.meal.records
+                        .filter((item) => item.food && item.icon === pick.icon && item.color === pick.color)
+                        .sort((a, b) => b.time - a.time)
+                        .map((item) => item.food);
+                    return [...new Set(foods)].slice(0, 4);
+                },
+                deletable: true,
+                save: ({ time, note, choice }) => plugin.meal.replace(meal, time, note, legendOf(choice) ?? meal),
                 remove: () => plugin.meal.replace(meal, null, ''),
                 restore: () => plugin.meal.add(meal.time, meal.food, meal),
             };
@@ -497,6 +566,8 @@ export class DaynightView extends ItemView {
         }
 
         const logs = plugin.timeline.logs;
+        const blockChoices = (current: string): EditChoice[] => [...new Set([...plugin.timeline.blocks, current])]
+            .map((name) => ({ label: name, icon: null, color: plugin.timeline.colorOf(name) }));
         logs.forEach((log, index) => {
             if (log.time < from) return;
             const isEnd = log.category === END_CATEGORY;
@@ -504,7 +575,7 @@ export class DaynightView extends ItemView {
             const next = logs[index + 1];
             const ended = previous && previous.category !== END_CATEGORY ? previous.category : null;
             out.push({
-                key: `log:${log.file.path}:${log.line}`,
+                key: logKey(log),
                 time: log.time,
                 mark: isEnd ? 'ring' : 'dot',
                 color: plugin.timeline.colorOf(isEnd ? ended ?? '' : log.category),
@@ -514,13 +585,27 @@ export class DaynightView extends ItemView {
                 isIncome: false,
                 note: isEnd ? null : log.memo,
                 noteLabel: t('record.memo'),
-                editable: true,
-                save: (time, note) => plugin.timeline.replaceLog(log, time, note),
+                choices: isEnd ? undefined : { label: t('record.blockLabel'), value: log.category, options: blockChoices(log.category) },
+                // 끝 시각은 다음 기록(끝 줄이나 다음 활동)의 시각이다.
+                end: !isEnd && next ? next.time : undefined,
+                deletable: true,
+                save: async ({ time, note, choice, end }) => {
+                    await plugin.timeline.replaceLog(log, time, note, choice || log.category);
+                    if (next && end !== null && end !== next.time) await plugin.timeline.replaceLog(next, end, next.memo);
+                },
                 remove: () => plugin.timeline.replaceLog(log, null, ''),
                 restore: () => plugin.timeline.addLog(log.time, log.category, log.memo),
             });
         });
 
+        // 그 카테고리에서 최근에 쓴 항목
+        const recentTitles = (category: string): string[] => {
+            const titles = this.budgetRecords
+                .filter(({ kind, entry }) => kind === 'expense' && entry.category === category && entry.title)
+                .sort((a, b) => entryTime(b.entry) - entryTime(a.entry))
+                .map(({ entry }) => entry.title);
+            return [...new Set(titles)].slice(0, 4);
+        };
         for (const record of this.budgetRecords) {
             const { entry } = record;
             const time = entryTime(entry);
@@ -534,10 +619,17 @@ export class DaynightView extends ItemView {
             if (pair) {
                 const { record: mealRecord, meal } = pair;
                 mealRecord.value = amount;
-                mealRecord.save = async (newTime, note) => {
+                mealRecord.amount = { value: entry.amount, payment: entry.payment };
+                // 식사 종류를 바꾸면 지출 카테고리도 그 이름으로 바꾼다.
+                mealRecord.save = async ({ time: newTime, note, choice, amount: newAmount, payment }) => {
                     if (!this.isSameMonth(record, newTime)) return;
-                    await plugin.meal.replace(meal, newTime, note);
-                    await plugin.budget.editRecord(record, formatTime(newTime), entry.title, { date: isoDate(newTime) });
+                    await plugin.meal.replace(meal, newTime, note, legendOf(choice) ?? meal);
+                    await plugin.budget.editRecord(record, formatTime(newTime), entry.title, {
+                        date: isoDate(newTime),
+                        category: choice || entry.category,
+                        amount: newAmount ?? entry.amount,
+                        payment,
+                    });
                 };
                 mealRecord.remove = async () => {
                     await plugin.meal.replace(meal, null, '');
@@ -549,10 +641,11 @@ export class DaynightView extends ItemView {
                 };
                 continue;
             }
+            const categories = [...new Set([...settings.budgetPanelCategories, entry.category])].filter(Boolean);
             out.push({
-                key: `budget:${record.kind}:${record.month}:${entry.lineIndex}:${entry.raw}`,
+                key: budgetKey(record),
                 time,
-                mark: { icon: record.kind === 'income' ? 'piggy-bank' : 'wallet' },
+                mark: { icon: record.kind === 'income' ? 'piggy-bank' : SPENDING_ICONS[entry.category] ?? 'wallet' },
                 // 가계부 카테고리에는 색이 없다.
                 color: null,
                 text: entry.category || t('budget.uncategorized'),
@@ -560,9 +653,22 @@ export class DaynightView extends ItemView {
                 isIncome: record.kind === 'income',
                 note: entry.title,
                 noteLabel: t('budget.item'),
-                editable: true,
-                save: async (time, note) => {
-                    if (this.isSameMonth(record, time)) await plugin.budget.editRecord(record, formatTime(time), note, { date: isoDate(time) });
+                choices: record.kind === 'expense' ? {
+                    label: t('record.categoryLabel'),
+                    value: entry.category,
+                    options: categories.map((category) => ({ label: category, icon: SPENDING_ICONS[category] ?? 'wallet', color: null })),
+                } : undefined,
+                recentNotes: record.kind === 'expense' ? recentTitles : undefined,
+                amount: { value: entry.amount, payment: entry.payment },
+                deletable: true,
+                save: async ({ time: newTime, note, choice, amount: newAmount, payment }) => {
+                    if (!this.isSameMonth(record, newTime)) return;
+                    await plugin.budget.editRecord(record, formatTime(newTime), note, {
+                        date: isoDate(newTime),
+                        category: choice || entry.category,
+                        amount: newAmount ?? entry.amount,
+                        payment,
+                    });
                 },
                 remove: () => plugin.budget.deleteRecord(record),
                 restore: () => plugin.budget.restoreRecord(record),
@@ -580,55 +686,137 @@ export class DaynightView extends ItemView {
         return false;
     }
 
+    private startEdit(record: PanelRecord): Editing {
+        return {
+            record,
+            time: formatTime(record.time),
+            note: record.note ?? '',
+            choice: record.choices?.value ?? '',
+            amount: record.amount ? String(record.amount.value) : '',
+            payment: record.amount?.payment ?? '',
+            end: record.end === undefined ? '' : formatTime(record.end),
+        };
+    }
+
+    /** 방금 남긴 기록의 고치기를 연다(토스트의 [고치기]). */
+    private openEditor(key: string, time: number): void {
+        const record = this.collect(time).find((item) => item.key === key);
+        if (!record) return;
+        this.commitEdit();
+        this.editing = this.startEdit(record);
+        this.render();
+    }
+
+    private editAction(key: string, time: number): ToastAction {
+        return { label: t('record.toast.edit'), run: () => this.openEditor(key, time) };
+    }
+
+    // 가계부는 다시 읽은 내역에서 같은 날짜·시각·카테고리·금액인 줄을 찾아 연다.
+    private editSpending(spent: BudgetRecord): ToastAction {
+        const { entry } = spent;
+        return {
+            label: t('record.toast.edit'),
+            run: () => {
+                const found = this.budgetRecords.find((record) => record.kind === spent.kind && record.entry.date === entry.date
+                    && record.entry.time === entry.time && record.entry.category === entry.category && record.entry.amount === entry.amount);
+                if (found) this.openEditor(budgetKey(found), entryTime(found.entry));
+            },
+        };
+    }
+
     private renderRecord(list: HTMLElement, record: PanelRecord): void {
-        const row = list.createDiv({ cls: 'atoz-record-row' });
+        const row = list.createDiv({ cls: 'atoz-record-row is-editable' });
         row.toggleClass('is-end', record.mark === 'ring');
         const head = row.createDiv({ cls: 'atoz-record-head' });
         head.createSpan({ cls: 'atoz-record-time', text: formatTime(record.time) });
-        const mark = head.createSpan({ cls: 'atoz-record-mark' });
-        applyColor(mark, record.color);
-        if (typeof record.mark === 'string') mark.createSpan({ cls: `atoz-record-${record.mark}` });
-        else setIcon(mark, record.mark.icon);
+        this.renderMark(head, record);
         const text = head.createSpan({ cls: 'atoz-record-text', text: record.text });
         if (record.note) text.createSpan({ cls: 'atoz-record-note', text: ` · ${record.note}` });
-        else if (record.notePrompt && record.editable) head.createSpan({ cls: 'atoz-record-prompt', text: record.notePrompt });
+        else if (record.notePrompt) head.createSpan({ cls: 'atoz-record-prompt', text: record.notePrompt });
         if (record.value) {
             const value = head.createSpan({ cls: 'atoz-record-value', text: record.value });
             value.toggleClass('is-income', record.isIncome);
         }
-        // 고칠 수 없는 줄은 시각을 흐리게 하고 누를 수 없다.
-        if (!record.editable) {
-            row.addClass('is-locked');
-            return;
-        }
 
-        row.addClass('is-editable');
         const editing = this.editing?.record.key === record.key ? this.editing : null;
         head.setAttr('aria-expanded', String(editing !== null));
         makeClickable(head, () => {
-            // 고친 시각이 틀렸으면 그 줄을 펼친 채 오류를 보인다.
+            // 고친 값이 틀렸으면 그 줄을 펼친 채 오류를 보인다.
             if (!this.commitEdit()) {
                 this.render();
                 return;
             }
-            if (!editing) this.editing = { record, time: formatTime(record.time), note: record.note ?? '' };
+            if (!editing) this.editing = this.startEdit(record);
             this.render();
         });
         if (!editing) return;
 
-        // 날짜는 고르지 않고 시각과 메모만 고친다. 시각은 그 기록이 속한 하루 안에서 읽는다.
+        // 휴대폰은 바텀 시트, PC는 줄 아래 펼침. 내용은 같다.
         row.addClass('is-open');
-        const editor = row.createDiv({ cls: 'atoz-record-editor' });
-        const timeInput = editor.createEl('input', { cls: 'atoz-daynight-time-input', type: 'time' });
-        timeInput.value = editing.time;
-        timeInput.addEventListener('input', () => {
-            editing.time = timeInput.value;
-            editing.error = undefined;
-            error.setText('');
+        if (activeDocument.body.hasClass('is-mobile')) {
+            const container = this.containerEl.children[1] as HTMLElement;
+            const scrim = container.createDiv({ cls: 'atoz-record-scrim' });
+            scrim.addEventListener('click', () => {
+                this.commitEdit();
+                this.render();
+            });
+            this.renderEditor(container.createDiv({ cls: 'atoz-record-editor is-sheet', attr: { role: 'dialog' } }), record, editing);
+        } else {
+            this.renderEditor(row.createDiv({ cls: 'atoz-record-editor' }), record, editing);
+        }
+    }
+
+    private renderMark(parent: HTMLElement, record: PanelRecord): void {
+        const mark = parent.createSpan({ cls: 'atoz-record-mark' });
+        applyColor(mark, record.color);
+        if (typeof record.mark === 'string') mark.createSpan({ cls: `atoz-record-${record.mark}` });
+        else setIcon(mark, record.mark.icon);
+    }
+
+    // 고치기: 머리, 종류 칩, 메모와 최근 칩, 금액·결제, 시각(±5분), 아래 [지우기] [완료].
+    // 시각은 그 기록이 속한 하루 안에서 읽는다. 날짜는 고르지 않는다.
+    private renderEditor(editor: HTMLElement, record: PanelRecord, editing: Editing): void {
+        const field = (label: string): HTMLElement => {
+            const el = editor.createDiv({ cls: 'atoz-record-field' });
+            el.createDiv({ cls: 'atoz-record-field-label', text: label });
+            return el;
+        };
+        const inputs: HTMLInputElement[] = [];
+
+        const head = editor.createDiv({ cls: 'atoz-record-editor-head' });
+        this.renderMark(head, record);
+        head.createSpan({ cls: 'atoz-record-editor-title', text: record.text });
+        head.createSpan({
+            cls: 'atoz-record-editor-sub',
+            text: [formatShortDateTime(record.time), record.value].filter(Boolean).join(' · '),
         });
-        const inputs = [timeInput];
+        this.addRecordAction(head, 'x', t('record.close'), () => {
+            this.editing = null;
+            this.render();
+        });
+
+        if (record.choices) {
+            const chips = field(record.choices.label).createDiv({ cls: 'atoz-record-chips', attr: { role: 'group', 'aria-label': record.choices.label } });
+            for (const option of record.choices.options) {
+                const chip = chips.createEl('button', { cls: 'atoz-record-chip' });
+                applyColor(chip, option.color);
+                if (option.icon) setIcon(chip.createSpan({ cls: 'atoz-record-chip-icon' }), option.icon);
+                else chip.createSpan({ cls: 'atoz-record-dot' });
+                chip.createSpan({ text: option.label });
+                const isActive = editing.choice === option.label;
+                chip.toggleClass('is-active', isActive);
+                chip.setAttr('aria-pressed', String(isActive));
+                // 최근 메뉴·항목이 종류에 따라 바뀌므로 다시 그린다.
+                chip.addEventListener('click', () => {
+                    editing.choice = option.label;
+                    this.render();
+                });
+            }
+        }
+
         if (record.note !== null) {
-            const noteInput = editor.createEl('input', {
+            const box = field(record.noteLabel);
+            const noteInput = box.createEl('input', {
                 cls: 'atoz-record-note-input',
                 type: 'text',
                 attr: { placeholder: record.noteLabel, 'aria-label': record.noteLabel },
@@ -636,40 +824,110 @@ export class DaynightView extends ItemView {
             noteInput.value = editing.note;
             noteInput.addEventListener('input', () => { editing.note = noteInput.value; });
             inputs.push(noteInput);
+            const recent = record.recentNotes?.(editing.choice) ?? [];
+            if (recent.length > 0) {
+                const chips = box.createDiv({ cls: 'atoz-record-chips' });
+                for (const value of recent) {
+                    const chip = chips.createEl('button', { cls: 'atoz-record-chip', text: value });
+                    chip.toggleClass('is-active', editing.note === value);
+                    // 키보드를 띄우지 않고 값만 넣는다.
+                    chip.addEventListener('click', () => {
+                        editing.note = value;
+                        noteInput.value = value;
+                        chips.querySelectorAll('.atoz-record-chip').forEach((el) => el.toggleClass('is-active', el === chip));
+                    });
+                }
+            }
         }
-        // Enter는 저장하고 닫고, Esc는 고친 값을 버리고 닫는다.
-        for (const input of inputs) {
-            input.addEventListener('keydown', (event) => {
-                if (event.isComposing || (event.key !== 'Enter' && event.key !== 'Escape')) return;
-                event.preventDefault();
-                if (event.key === 'Enter') this.commitEdit();
-                else this.editing = null;
-                this.render();
-            });
+
+        if (record.amount) {
+            const box = field(t('record.amountPayment'));
+            const amountInput = box.createEl('input', { cls: 'atoz-record-amount-input', type: 'text', attr: { 'aria-label': t('budget.amount') } });
+            amountInput.inputMode = 'numeric';
+            amountInput.value = editing.amount;
+            amountInput.addEventListener('input', () => { editing.amount = amountInput.value; });
+            inputs.push(amountInput);
+            const payments = this.plugin.settings.budgetPayments;
+            if (payments.length > 0) {
+                const group = box.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group', 'aria-label': t('budget.payment') } });
+                for (const name of payments) {
+                    const button = group.createEl('button', { cls: 'atoz-record-amount-payment', text: name });
+                    const sync = (): void => {
+                        group.querySelectorAll('button').forEach((el) => {
+                            el.toggleClass('is-active', el.textContent === editing.payment);
+                            el.setAttr('aria-pressed', String(el.textContent === editing.payment));
+                        });
+                    };
+                    button.addEventListener('click', () => {
+                        editing.payment = name;
+                        sync();
+                    });
+                    button.toggleClass('is-active', editing.payment === name);
+                    button.setAttr('aria-pressed', String(editing.payment === name));
+                }
+            }
         }
-        const done = editor.createEl('button', { cls: 'atoz-record-done', text: t('record.done') });
-        done.addEventListener('click', () => {
-            this.commitEdit();
-            this.render();
-        });
-        // 지우기는 메모 칸에서 먼 ⋯ 메뉴에 두고, 지운 뒤에는 되돌리기 토스트를 띄운다.
-        this.addRecordAction(editor, 'more-horizontal', t('record.more'), (event) => {
-            const menu = new Menu();
-            menu.addItem((item) => item.setTitle(t('record.delete')).setIcon('trash-2').setWarning(true).onClick(() => {
+
+        const stepper = (label: string, get: () => string, set: (value: string) => void): void => {
+            const box = field(label).createDiv({ cls: 'atoz-record-stepper' });
+            const minus = box.createEl('button', { text: t('record.minus5') });
+            const input = box.createEl('input', { cls: 'atoz-daynight-time-input', type: 'time', attr: { 'aria-label': label } });
+            const plus = box.createEl('button', { text: t('record.plus5') });
+            input.value = get();
+            const change = (value: string): void => {
+                set(value);
+                input.value = value;
+                editing.error = undefined;
+                error.setText('');
+            };
+            input.addEventListener('input', () => change(input.value));
+            minus.addEventListener('click', () => change(shiftClock(get(), -5)));
+            plus.addEventListener('click', () => change(shiftClock(get(), 5)));
+            inputs.push(input);
+        };
+        const hasEnd = record.end !== undefined;
+        stepper(hasEnd ? t('record.startLabel') : t('record.timeLabel'), () => editing.time, (value) => { editing.time = value; });
+        if (hasEnd) stepper(t('record.endLabel'), () => editing.end, (value) => { editing.end = value; });
+
+        // 지금보다 뒤로 고치거나 값이 틀리면 아래에 알린다.
+        const error = editor.createDiv({ cls: 'atoz-record-edit-error', text: editing.error ?? '', attr: { role: 'alert' } });
+        const foot = editor.createDiv({ cls: 'atoz-record-editor-foot' });
+        if (record.deletable) {
+            const remove = foot.createEl('button', { cls: 'atoz-record-delete', text: t('record.delete') });
+            remove.addEventListener('click', () => {
                 this.editing = null;
                 void this.lock('delete', async () => {
                     await record.remove();
                     this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())]);
                 });
-            }));
-            menu.showAtMouseEvent(event);
+            });
+        }
+        const done = foot.createEl('button', { cls: 'mod-cta atoz-record-done', text: t('record.done') });
+        done.addEventListener('click', () => {
+            this.commitEdit();
+            this.render();
         });
-        // 지금보다 뒤로 고치려 하면 칸 아래에 알린다.
-        const error = editor.createDiv({ cls: 'atoz-record-edit-error', text: editing.error ?? '', attr: { role: 'alert' } });
+
+        // Enter는 저장하고 닫고, Esc는 고친 값을 버리고 닫는다.
+        for (const input of inputs) {
+            input.addEventListener('keydown', (event) => {
+                if (event.isComposing || event.key !== 'Enter') return;
+                event.preventDefault();
+                this.commitEdit();
+                this.render();
+            });
+        }
+        editor.addEventListener('keydown', (event) => {
+            if (event.isComposing || event.key !== 'Escape') return;
+            event.preventDefault();
+            this.editing = null;
+            this.render();
+        });
         // 서랍을 닫거나 다른 곳을 누르면 고친 값을 저장한다. 다른 줄을 누른 경우는 그 줄이 저장한다.
         editor.addEventListener('focusout', (event) => {
+            if (this.isRendering) return;
             const next = event.relatedTarget;
-            if (next instanceof HTMLElement && (row.contains(next) || next.closest('.atoz-record-head, .menu'))) return;
+            if (next instanceof HTMLElement && (editor.contains(next) || next.closest('.atoz-record-head, .menu'))) return;
             if (this.editing?.record.key !== record.key) return;
             this.commitEdit();
             // 패널 안의 버튼으로 옮겨 갔으면 그 클릭이 사라지지 않게 지금 다시 그리지 않는다. 다음에 그릴 때 닫힌다.
@@ -677,22 +935,40 @@ export class DaynightView extends ItemView {
         });
     }
 
-    /** 고친 값이 있으면 저장하고 펼친 기록을 닫는다. 지금보다 뒤면 저장하지 않고 펼친 채 오류를 남기고 false를 돌려준다. */
+    /** 고친 값이 있으면 저장하고 고치기를 닫는다. 값이 틀리면 저장하지 않고 연 채 오류를 남기고 false를 돌려준다. */
     private commitEdit(): boolean {
         const editing = this.editing;
         if (!editing) return true;
         const { record } = editing;
-        const match = /^(\d{2}):(\d{2})$/.exec(editing.time);
-        const time = match ? this.timeInDay(record.time, Number(match[1]), Number(match[2])) : record.time;
+        const time = this.readClock(record.time, editing.time);
+        const end = record.end === undefined ? null : this.readClock(record.end, editing.end);
         const note = editing.note.trim();
-        if (time > Date.now()) {
+        const amount = record.amount ? parseAmount(editing.amount.trim()) : null;
+        if (record.amount && amount === null) {
+            editing.error = t('budget.notice.amountRequired');
+            return false;
+        }
+        if (time > Date.now() || (end !== null && end > Date.now())) {
             editing.error = t('daynight.editFuture');
             return false;
         }
+        if (end !== null && end <= time) {
+            editing.error = t('record.editEndBeforeStart');
+            return false;
+        }
         this.editing = null;
-        if (time === record.time && note === (record.note ?? '')) return true;
-        void record.save(time, note).then(() => this.render());
+        const isSame = time === record.time && note === (record.note ?? '') && editing.choice === (record.choices?.value ?? '')
+            && end === (record.end ?? null)
+            && (!record.amount || (amount === record.amount.value && editing.payment === record.amount.payment));
+        if (isSame) return true;
+        void record.save({ time, note, choice: editing.choice, amount, payment: editing.payment, end }).then(() => this.render());
         return true;
+    }
+
+    // 'HH:MM'을 base가 속한 하루 안의 시각으로 읽는다. 읽을 수 없으면 base 그대로다.
+    private readClock(base: number, value: string): number {
+        const match = /^(\d{2}):(\d{2})$/.exec(value);
+        return match ? this.timeInDay(base, Number(match[1]), Number(match[2])) : base;
     }
 
     // 하루가 05시에 시작하면 00:30 기록을 23:50으로 고칠 때 그 전날 23:50이다. 하루 시작 시각보다 이르면 다음 날로 읽는다.
@@ -991,7 +1267,7 @@ export class DaynightView extends ItemView {
         if (!spent) return;
         this.showToast(
             t('record.toast.spent', { category: target.category, amount: formatWon(amount!) }),
-            [this.undo(() => this.plugin.budget.deleteRecord(spent))],
+            [this.editSpending(spent), this.undo(() => this.plugin.budget.deleteRecord(spent))],
         );
     }
 
@@ -1004,21 +1280,12 @@ export class DaynightView extends ItemView {
         let text = t('record.toast.meal', { meal: item.label, time: formatTime(now) });
         if (spent) text += ` · ${formatWon(amount!)}`;
         this.showToast(text, [
-            { label: t('record.toast.writeMenu'), run: () => this.editMeal(meal) },
+            this.editAction(mealKey(meal), meal.time),
             this.undo(async () => {
                 await this.plugin.meal.replace(meal, null, '');
                 if (spent) await this.plugin.budget.deleteRecord(spent);
             }),
         ]);
-    }
-
-    /** 방금 남긴 식사 줄을 펼쳐 먹은 것을 쓰게 한다. */
-    private editMeal(meal: MealRecord): void {
-        const record = this.collect(meal.time).find(({ key }) => key === `meal:${meal.file.path}:${meal.line}`);
-        if (!record) return;
-        this.commitEdit();
-        this.editing = { record, time: formatTime(record.time), note: record.note ?? '' };
-        this.render();
     }
 
     // 누른 순간의 상태로 시작과 끝을 고른다. 그린 뒤 상태가 바뀌었어도 두 번 시작하지 않는다.
@@ -1032,7 +1299,7 @@ export class DaynightView extends ItemView {
             isEnd
                 ? t('record.toast.ended', { activity: name, duration: formatDuration(now - current.time) })
                 : t('record.toast.started', { activity: name, time: formatTime(now) }),
-            [this.undoLogs([log])],
+            [this.editAction(logKey(log), log.time), this.undoLogs([log])],
         );
     }
 
@@ -1060,7 +1327,8 @@ export class DaynightView extends ItemView {
         const text = isAsleep ? t('record.toast.woke', { time: formatTime(now) })
             : current ? t('record.toast.sleptEnded', { activity: current.category })
                 : t('record.toast.slept', { time: formatTime(now) });
-        this.showToast(text, [this.undoSleep(ended)]);
+        const record = this.lastSleep();
+        this.showToast(text, record ? [this.editAction(sleepKey(record), record.time), this.undoSleep(ended)] : [this.undoSleep(ended)]);
     }
 
     // 끊긴 구간은 기록 없음으로 두고 지금부터 깨어 있는 것으로 센다. 그동안 켜져 있던 활동도 끝낸다.
@@ -1324,9 +1592,15 @@ export class DaynightFeature {
             (data === '' || data.endsWith('\n') ? data : data + '\n') + record.line + '\n'));
     }
 
-    // 날짜와 종류는 그대로 두고 시각만 바꾼다.
-    async editLast(time: number): Promise<void> {
-        await this.replaceLast((last) => formatRow(new Date(time), last.type));
+    /** 한 기록의 시각을 바꾼다. 종류는 그대로다. 앞뒤 기록 사이인지는 부르는 쪽이 본다. */
+    async editRecord(record: DaynightRecord, time: number): Promise<void> {
+        await this.write(record.file.path, () => this.plugin.app.vault.process(record.file, (data) => {
+            const lines = data.split('\n');
+            const index = lines.map((line) => line.trim()).lastIndexOf(record.line);
+            if (index === -1) return data;
+            lines[index] = formatRow(new Date(time), record.type);
+            return lines.join('\n');
+        }));
     }
 
     // 마지막 기록의 줄을 새 줄로 바꾸고, null이면 지운다.

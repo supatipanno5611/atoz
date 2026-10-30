@@ -685,14 +685,14 @@ export class MealFeature {
         return this.records.filter((record) => record.file.path === path && record.line === row).pop();
     }
 
-    /** 기록의 시각·음식을 고친다. 날짜와 표시는 그대로다. time이 null이면 지운다. */
-    async replace(record: MealRecord, time: number | null, food: string): Promise<void> {
+    /** 기록의 시각·음식을 고친다. pick을 주면 종류(아이콘·색)도 바꾼다. time이 null이면 지운다. */
+    async replace(record: MealRecord, time: number | null, food: string, pick: MealPick = record): Promise<void> {
         await this.plugin.app.vault.process(record.file, (data) => {
             const lines = data.split('\n');
             const index = lines.map((line) => line.trim()).lastIndexOf(record.line);
             if (index === -1) return data;
             if (time === null) lines.splice(index, 1);
-            else lines[index] = formatRow(time, food, record);
+            else lines[index] = formatRow(time, food, pick);
             return lines.join('\n');
         });
         await this.enqueue(() => this.loadFiles([record.file.path]));
