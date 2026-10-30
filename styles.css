@@ -619,6 +619,17 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     color: var(--text-muted);
 }
 
+/* 활동 길이는 시작 줄에 있으니 끝 줄은 낮고 작게 둔다. 끝 시각을 고칠 수 있게 누를 곳(24px)은 남긴다. */
+.atoz-record-row.is-end .atoz-record-head {
+    min-height: 24px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.atoz-record-row.is-end .atoz-record-text {
+    font-size: var(--font-ui-smaller);
+}
+
 .atoz-record-value {
     flex-shrink: 0;
     font-size: var(--font-ui-smaller);
@@ -720,6 +731,10 @@ body:not(.is-mobile) .atoz-record-dock {
     scrollbar-width: none;
     padding-right: 24px;
     mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+
+.atoz-record-pills.is-scrolled {
+    mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 
 .atoz-record-pills::-webkit-scrollbar {

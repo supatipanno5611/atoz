@@ -196,6 +196,8 @@ export class DaynightView extends ItemView {
     private pending = new Set<string>();
     // 처음 열 때와 방금 기록했을 때만 맨 아래(최신 기록)로 스크롤한다. 그 밖에는 보던 자리를 지킨다.
     private scrollToEnd = true;
+    // 알약 줄마다 가로로 밀어 둔 자리(줄 이름 → scrollLeft)
+    private pillScroll = new Map<string, number>();
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -279,6 +281,7 @@ export class DaynightView extends ItemView {
         this.renderSpending(controls);
         this.renderMeals(controls);
         this.renderActivities(controls, now);
+        this.restorePills(controls);
 
         if (this.toast) this.renderToast(dock, this.toast);
 
@@ -656,7 +659,37 @@ export class DaynightView extends ItemView {
     private pills(container: HTMLElement, title: string): HTMLElement {
         const section = container.createDiv({ cls: 'atoz-record-section' });
         section.createDiv({ cls: 'atoz-record-section-title', text: title });
-        return section.createDiv({ cls: 'atoz-record-pills' });
+        const pills = section.createDiv({ cls: 'atoz-record-pills', attr: { 'data-row': title } });
+        // 마우스 휠은 세로로만 돌아 가로 줄이 밀리지 않으므로, 넘칠 때만 가로로 바꾼다.
+        pills.addEventListener('wheel', (event) => {
+            if (event.deltaX !== 0 || pills.scrollWidth <= pills.clientWidth) return;
+            event.preventDefault();
+            pills.scrollLeft += event.deltaY;
+        }, { passive: false });
+        pills.addEventListener('scroll', () => {
+            this.pillScroll.set(title, pills.scrollLeft);
+            // 앞쪽이 밀려 가려졌으면 왼쪽 끝도 흐려 더 있음을 보인다.
+            pills.toggleClass('is-scrolled', pills.scrollLeft > 0);
+        });
+        return pills;
+    }
+
+    // 다시 그려도 줄마다 밀어 둔 자리를 지킨다. 처음에는 진행 중 활동 알약이 보이게 민다.
+    private restorePills(controls: HTMLElement): void {
+        controls.querySelectorAll<HTMLElement>('.atoz-record-pills').forEach((pills) => {
+            const saved = this.pillScroll.get(pills.dataset.row ?? '');
+            if (saved !== undefined) {
+                pills.scrollLeft = saved;
+                return;
+            }
+            const active = pills.querySelector<HTMLElement>('.atoz-record-pill.is-active');
+            if (!active) return;
+            const row = pills.getBoundingClientRect();
+            const { left, right } = active.getBoundingClientRect();
+            // 오른쪽 끝 흐림(24px)에 걸리지 않게 조금 더 민다.
+            if (right > row.right - 24) pills.scrollLeft += right - row.right + 24 + 8;
+            else if (left < row.left) pills.scrollLeft -= row.left - left;
+        });
     }
 
     // icon이 없으면 이름 앞에 색 점을 둔다.
