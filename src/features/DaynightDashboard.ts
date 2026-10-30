@@ -1,6 +1,7 @@
 import { setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
+import { formatWeekLabel } from './PageHeader';
 import {
     DAY, DaynightSegment, formatDuration, formatGapLength, formatShortDate, formatShortDateTime, formatTime, pad,
 } from './Daynight';
@@ -168,7 +169,20 @@ export class DaynightDashboardPage {
         container.empty();
 
         const settings = this.plugin.settings;
-        const header = container.createDiv({ cls: 'atoz-daynight-dashboard-header' });
+        const records = this.plugin.daynight.records;
+        const first = records[0];
+        const now = Date.now();
+        const days = settings.daynightDashboardDays;
+        // 다른 페이지 머리말과 같은 자리·모양. 수면은 늘 지금까지를 모아 보므로 ‹ › 대신 기간 버튼을 둔다.
+        const header = container.createDiv({ cls: 'atoz-page-header atoz-daynight-dashboard-header' });
+        if (first) {
+            const toKey = (time: number): string => {
+                const date = new Date(time);
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+            };
+            header.createSpan({ cls: 'atoz-page-header-label', text: formatWeekLabel(toKey(rangeStart(first.time, days, now)), toKey(now)) });
+        }
+        header.createDiv({ cls: 'atoz-page-header-spacer' });
         const ranges = header.createDiv({ cls: 'atoz-daynight-dashboard-ranges' });
         for (const days of DASHBOARD_RANGES) {
             const button = ranges.createEl('button', {
@@ -183,15 +197,11 @@ export class DaynightDashboardPage {
             });
         }
 
-        const records = this.plugin.daynight.records;
-        const first = records[0];
         if (!first) {
             container.createDiv({ cls: 'atoz-daynight-dashboard-empty', text: t('daynight.noRecords') });
             return;
         }
 
-        const now = Date.now();
-        const days = settings.daynightDashboardDays;
         const start = rangeStart(first.time, days, now);
         const segments = this.plugin.daynight.segments(now);
         const clipped = clipSegments(segments, start, now);
@@ -255,12 +265,28 @@ export class DaynightDashboardPage {
         };
         const currentIndex = selected ? selectedIndex : finished.length;
         addNavButton('chevron-left', t('daynight.previous'), currentIndex === 0, currentIndex - 1);
-        addNavButton('rotate-ccw', t('daynight.now'), !selected, -1);
         addNavButton('chevron-right', t('daynight.next'), !selected, currentIndex + 1);
+        // 다른 페이지의 [오늘]처럼 글자 버튼으로 지금에 돌아간다.
+        const nowButton = controls.createEl('button', { cls: 'atoz-page-header-today', text: t('daynight.backToNow') });
+        nowButton.disabled = !selected;
+        nowButton.addEventListener('click', () => {
+            this.selectedStart = null;
+            this.render();
+        });
 
         // 고른 구간이 없으면 진행 중인 마지막 구간을 진하게 둔다.
         const focused = selected ?? segments[segments.length - 1]!;
         this.renderDayChart(card, segments, start, end, end === now ? now : null, focused);
+        const legend = card.createDiv({ cls: 'atoz-daynight-legend', attr: { 'aria-hidden': 'true' } });
+        for (const [type, label] of [
+            ['sleep', t('daynight.dashboard.sleepWindow')],
+            ['wake', t('daynight.dashboard.activeWindow')],
+            ['gap', t('daynight.gap.name')],
+        ] as const) {
+            const item = legend.createSpan();
+            item.createSpan({ cls: `atoz-daynight-swatch is-${type}` });
+            item.createSpan({ text: label });
+        }
 
         // 진하게 칠한 구간을 한 줄로 풀어 쓴다. 진행 중인 구간은 끝 시각을 적지 않는다.
         const { from, to, type } = focused;
@@ -427,7 +453,7 @@ export class DaynightDashboardPage {
 
     private renderRegularity(card: HTMLElement, segments: DaynightSegment[], start: number, end: number): void {
         const index = regularityIndex(segments, start, end);
-        card.createDiv({ cls: 'atoz-daynight-card-value', text: index === null ? '—' : String(index) });
+        card.createDiv({ cls: 'atoz-daynight-card-value', text: index === null ? '—' : t('daynight.dashboard.score', { score: index }) });
         card.createDiv({
             cls: 'atoz-daynight-muted',
             text: index === null ? t('daynight.dashboard.notEnough') : t('daynight.dashboard.regularityHint'),

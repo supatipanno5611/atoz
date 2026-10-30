@@ -482,6 +482,39 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     fill: var(--atoz-daynight-morning);
 }
 
+/* 24시간 차트 아래 범례 */
+.atoz-daynight-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-daynight-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.atoz-daynight-swatch {
+    width: 12px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.atoz-daynight-swatch.is-sleep {
+    background: var(--interactive-accent);
+}
+
+.atoz-daynight-swatch.is-wake {
+    background: var(--atoz-daynight-morning);
+}
+
+.atoz-daynight-swatch.is-gap {
+    background: repeating-linear-gradient(45deg, var(--text-faint) 0 1.5px, var(--background-secondary) 1.5px 4px);
+}
+
 /* 선택한 구간이나 진행 중인 구간이 아닌 막대는 흐리게 한다. */
 .atoz-daynight-dim {
     opacity: 0.35;
@@ -1154,9 +1187,8 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     margin: 0 auto 16px;
 }
 
-.atoz-daynight-dashboard-header {
-    display: flex;
-    justify-content: flex-end;
+.atoz-daynight-dashboard-header .atoz-page-header-label {
+    text-align: left;
 }
 
 .atoz-daynight-dashboard-gaps {
@@ -1246,7 +1278,8 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 }
 
 .atoz-daynight-window-row > :first-child {
-    width: 3em;
+    width: 4.5em;
+    white-space: nowrap;
 }
 
 .atoz-daynight-window-main {
