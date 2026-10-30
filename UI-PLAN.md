@@ -2,6 +2,8 @@
 
 2026-10-29 진단. 이 세션에서는 고치지 않았다. 새 세션은 이 문서를 위에서부터 적용한다.
 
+2026-10-30 U1–U12 모두 적용했다. U1–U5, U10–U12는 테스트 보관함에서 확인했고, U6–U9는 빌드로만 확인했다(그때 Obsidian에 입력이 닿지 않았다).
+
 - 발표 자료(목업 포함): https://claude.ai/artifact/4gsCoKGNVupvMmqp5fEDgW
 - 대상: 사이드바 기록 패널(`src/features/Daynight.ts`의 `DaynightView`), 통합 대시보드(`Dashboard.ts` 홈과 `DaynightDashboard.ts`, `Budget.ts`, `Meal.ts`, `Timeline.ts`, `Plan.ts` 페이지), 스타일 `styles.css`
 - 휴대폰이 먼저, PC 사이드바·메인 탭에서도 깨지지 않아야 한다.
