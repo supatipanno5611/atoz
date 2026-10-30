@@ -691,7 +691,7 @@ export class DaynightView extends ItemView {
 
     // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 메인 탭에 계획 페이지를 연다.
     private renderActivities(container: HTMLElement, now: number): void {
-        const pills = this.pills(container, t('record.activity'));
+        const pills = this.pills(container, t('timeline.viewName'));
         const current = this.plugin.timeline.current();
         for (const name of this.plugin.timeline.blocks) {
             const isCurrent = current?.category === name;

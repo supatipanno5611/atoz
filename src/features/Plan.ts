@@ -1,7 +1,8 @@
 import { Notice, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
-import { isKorean, t } from '../locales';
+import { t } from '../locales';
 import { formatDuration, pad } from './Daynight';
+import { formatDayLabel, renderPageHeader } from './PageHeader';
 import { applyColor, dayRange, shiftDate, timelineToday, type BlockItem, type LaterItem } from './Timeline';
 
 const MINUTE = 60 * 1000;
@@ -87,26 +88,21 @@ export class PlanPage {
         const container = this.container;
         container.empty();
 
-        const header = container.createDiv({ cls: 'atoz-timeline-header' });
-        const addButton = (icon: string, label: string, onClick: () => void): void => {
-            const button = header.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
-            setIcon(button, icon);
-            button.addEventListener('click', onClick);
-        };
         const moveTo = (date: string): void => {
             this.date = date;
             this.notice = '';
             plugin.app.workspace.requestSaveLayout();
             this.draw();
         };
-        addButton('chevron-left', t('timeline.previousDay'), () => moveTo(shiftDate(this.date, -1)));
-        const [year, month, day] = this.date.split('-').map(Number);
-        const weekday = new Date(year!, month! - 1, day).toLocaleDateString(isKorean ? 'ko' : 'en', { weekday: 'short' });
-        header.createSpan({ cls: 'atoz-timeline-date', text: `${this.date} (${weekday})` });
-        addButton('chevron-right', t('timeline.nextDay'), () => moveTo(shiftDate(this.date, 1)));
-        addButton('rotate-ccw', t('timeline.today'), () => moveTo(today));
-        header.createDiv({ cls: 'atoz-plan-spacer' });
-        addButton('file-text', t('plan.openBlocks'), () => void plugin.timeline.openBlocks());
+        renderPageHeader(container, {
+            label: formatDayLabel(this.date),
+            previousLabel: t('timeline.previousDay'),
+            nextLabel: t('timeline.nextDay'),
+            onMove: (delta) => moveTo(shiftDate(this.date, delta)),
+            isToday: this.date === today,
+            onToday: () => moveTo(today),
+            menu: [{ title: t('plan.openBlocks'), icon: 'file-text', onClick: () => void plugin.timeline.openBlocks() }],
+        });
 
         if (this.date < today) this.renderPast(container);
         else this.renderEditor(container);

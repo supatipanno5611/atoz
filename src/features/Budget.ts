@@ -16,6 +16,7 @@ import type ATOZPlugin from '../main';
 import type { BudgetFixedExpense } from '../types';
 import { t } from '../locales';
 import { makeClickable } from '../utils';
+import { formatMonthLabel, renderPageHeader } from './PageHeader';
 
 const DEFAULT_FOLDER = 'budget';
 
@@ -93,7 +94,9 @@ let currencyPrefix = '';
 let currencySuffix = '';
 
 export function formatWon(value: number): string {
-    return currencyPrefix + formatAmount(value) + currencySuffix;
+    // 원은 소수점 아래가 없다.
+    const isWon = currencySuffix.trim() === '원' || currencyPrefix.trim() === '₩';
+    return currencyPrefix + formatAmount(isWon ? Math.round(value) : value).replace(/\.00$/, '') + currencySuffix;
 }
 
 function pad2(value: number): string {
@@ -2010,62 +2013,55 @@ export class BudgetPage {
 
     /* -------------------------------------------------- 헤더 */
 
+    // 공통 머리말. 달 글자는 눌러서 다른 달로 바로 갈 수 있게 달 고르기로 둔다. 파일이 바뀌면 저절로 다시 읽어 새로고침은 두지 않는다.
     private renderHeader(root: HTMLElement): void {
-        const header = root.createDiv({ cls: 'atoz-budget-header' });
-
-        const nav = header.createDiv({ cls: 'atoz-budget-month-nav' });
-        this.iconButton(nav, 'chevron-left', t('budget.previousMonth'), () => {
-            this.setMonth(shiftMonth(this.month, -1));
+        renderPageHeader(root, {
+            label: formatMonthLabel(this.month),
+            renderLabel: (parent) => {
+                const picker = parent.createEl('input', { cls: 'atoz-budget-month-label', type: 'month' });
+                picker.value = this.month;
+                picker.addEventListener('change', () => {
+                    if (isValidMonth(picker.value)) this.setMonth(picker.value);
+                });
+            },
+            previousLabel: t('budget.previousMonth'),
+            nextLabel: t('budget.nextMonth'),
+            onMove: (delta) => this.setMonth(shiftMonth(this.month, delta)),
+            isToday: this.month === currentMonth(),
+            onToday: () => this.setMonth(currentMonth()),
+            menu: [
+                {
+                    title: t('budget.record'),
+                    icon: 'plus',
+                    onClick: () => new EntryModal(this.plugin, {
+                        kind: KIND_EXPENSE,
+                        defaultDate: this.defaultDateForMonth(),
+                        onDone: () => void this.refresh(),
+                    }).open(),
+                },
+                {
+                    title: t('budget.editLimits'),
+                    icon: 'target',
+                    onClick: () => {
+                        const used: string[] = [];
+                        for (const entry of this.expense?.entries ?? []) used.push(entry.category.trim());
+                        new BudgetEditModal(
+                            this.plugin,
+                            this.month,
+                            this.expense?.budgets ?? {},
+                            this.expense?.totalBudget ?? null,
+                            used,
+                            () => void this.refresh(),
+                        ).open();
+                    },
+                },
+            ],
         });
-        const picker = nav.createEl('input', { cls: 'atoz-budget-month-label', type: 'month' });
-        picker.value = this.month;
-        picker.addEventListener('change', () => {
-            if (isValidMonth(picker.value)) this.setMonth(picker.value);
-        });
-        this.iconButton(nav, 'chevron-right', t('budget.nextMonth'), () => {
-            this.setMonth(shiftMonth(this.month, 1));
-        });
-
-        const actions = header.createDiv({ cls: 'atoz-budget-header-actions' });
-        this.iconButton(actions, 'plus', t('budget.record'), () => {
-            new EntryModal(this.plugin, {
-                kind: KIND_EXPENSE,
-                defaultDate: this.defaultDateForMonth(),
-                onDone: () => void this.refresh(),
-            }).open();
-        });
-        this.iconButton(actions, 'target', t('budget.editLimits'), () => {
-            const used: string[] = [];
-            for (const entry of this.expense?.entries ?? []) used.push(entry.category.trim());
-            new BudgetEditModal(
-                this.plugin,
-                this.month,
-                this.expense?.budgets ?? {},
-                this.expense?.totalBudget ?? null,
-                used,
-                () => void this.refresh(),
-            ).open();
-        });
-        this.iconButton(actions, 'refresh-cw', t('budget.refresh'), () => void this.refresh());
     }
 
     /** 이번 달을 보고 있으면 오늘, 아니면 그 달 1일. */
     private defaultDateForMonth(): string {
         return this.month === currentMonth() ? todayISO() : this.month + '-01';
-    }
-
-    private iconButton(
-        parent: HTMLElement,
-        icon: string,
-        tooltip: string,
-        onClick: () => void,
-    ): HTMLElement {
-        const button = parent.createEl('button', { cls: 'atoz-budget-icon-button' });
-        setIcon(button, icon);
-        button.setAttribute('aria-label', tooltip);
-        button.title = tooltip;
-        button.addEventListener('click', onClick);
-        return button;
     }
 
     /* -------------------------------------------------- 경고 */
@@ -2162,7 +2158,8 @@ export class BudgetPage {
         this.statCard(
             grid,
             t('budget.savingRate'),
-            stats.savingRate === null ? '—' : (stats.savingRate * 100).toFixed(1) + '%',
+            // 지출이 수입의 두 배를 넘으면 비율이 뜻이 없어 '수입 적음'으로 쓴다.
+            stats.savingRate === null ? '—' : stats.savingRate < -1 ? t('budget.lowIncome') : (stats.savingRate * 100).toFixed(1) + '%',
             stats.savingRate !== null && stats.savingRate < 0 ? 'expense' : 'income',
             null,
         );

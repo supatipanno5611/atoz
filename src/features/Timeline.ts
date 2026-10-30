@@ -1,7 +1,8 @@
-import { Menu, TAbstractFile, TFile, normalizePath, setIcon } from 'obsidian';
+import { Menu, TAbstractFile, TFile, normalizePath } from 'obsidian';
 import type ATOZPlugin from '../main';
 import { isKorean, t } from '../locales';
 import { makeClickable } from '../utils';
+import { formatDayLabel, renderPageHeader } from './PageHeader';
 import type { MealColor } from '../types';
 import { formatDuration, pad } from './Daynight';
 
@@ -240,23 +241,19 @@ export class TimelinePage {
         const scrollTop = scroller?.scrollTop ?? 0;
         container.empty();
 
-        const header = container.createDiv({ cls: 'atoz-timeline-header' });
-        const addButton = (icon: string, label: string, onClick: () => void): void => {
-            const button = header.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
-            setIcon(button, icon);
-            button.addEventListener('click', onClick);
-        };
         const moveTo = (date: string): void => {
             this.date = date;
             plugin.app.workspace.requestSaveLayout();
             this.render(true);
         };
-        addButton('chevron-left', t('timeline.previousDay'), () => moveTo(shiftDate(this.date, -1)));
-        const [year, month, day] = this.date.split('-').map(Number);
-        const weekday = new Date(year!, month! - 1, day).toLocaleDateString(isKorean ? 'ko' : 'en', { weekday: 'short' });
-        header.createSpan({ cls: 'atoz-timeline-date', text: `${this.date} (${weekday})` });
-        addButton('chevron-right', t('timeline.nextDay'), () => moveTo(shiftDate(this.date, 1)));
-        addButton('rotate-ccw', t('timeline.today'), () => moveTo(today));
+        renderPageHeader(container, {
+            label: formatDayLabel(this.date),
+            previousLabel: t('timeline.previousDay'),
+            nextLabel: t('timeline.nextDay'),
+            onMove: (delta) => moveTo(shiftDate(this.date, delta)),
+            isToday: this.date === today,
+            onToday: () => moveTo(today),
+        });
 
         const summary = summarizeDay(plugin, this.date, now);
         const { plans, logs } = summary.blocks;

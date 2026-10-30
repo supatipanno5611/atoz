@@ -2,6 +2,7 @@ import { Modal, Setting, TAbstractFile, TFile, getIcon, getIconIds, normalizePat
 import type ATOZPlugin from '../main';
 import { t } from '../locales';
 import { makeClickable } from '../utils';
+import { formatMonthLabel, renderPageHeader } from './PageHeader';
 import type { MealLegendItem, MealPick } from '../types';
 import { pad } from './Daynight';
 
@@ -311,24 +312,20 @@ export class MealBoardPage {
         const container = this.container;
         container.empty();
 
-        const header = container.createDiv({ cls: 'atoz-meal-header' });
-        const nav = header.createDiv({ cls: 'atoz-meal-nav' });
-        const addButton = (parent: HTMLElement, icon: string, label: string, onClick: () => void): void => {
-            const button = parent.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': label } });
-            setIcon(button, icon);
-            button.addEventListener('click', onClick);
-        };
         const moveTo = (month: string): void => {
             this.month = month;
             plugin.app.workspace.requestSaveLayout();
             this.render();
         };
-        addButton(nav, 'chevron-left', t('meal.previousMonth'), () => moveTo(shiftMonth(this.month, -1)));
-        nav.createSpan({ cls: 'atoz-meal-month', text: this.month });
-        addButton(nav, 'chevron-right', t('meal.nextMonth'), () => moveTo(shiftMonth(this.month, 1)));
-        addButton(nav, 'rotate-ccw', t('meal.thisMonth'), () => moveTo(today.slice(0, 7)));
-        const actions = header.createDiv({ cls: 'atoz-meal-nav' });
-        addButton(actions, 'palette', t('meal.palette.title'), () => new PaletteModal(plugin).open());
+        renderPageHeader(container, {
+            label: formatMonthLabel(this.month),
+            previousLabel: t('meal.previousMonth'),
+            nextLabel: t('meal.nextMonth'),
+            onMove: (delta) => moveTo(shiftMonth(this.month, delta)),
+            isToday: this.month === today.slice(0, 7),
+            onToday: () => moveTo(today.slice(0, 7)),
+            menu: [{ title: t('meal.palette.title'), icon: 'palette', onClick: () => new PaletteModal(plugin).open() }],
+        });
 
         const legend = container.createDiv({ cls: 'atoz-meal-legend' });
         for (const item of plugin.settings.mealLegend) {
@@ -372,12 +369,15 @@ export class MealBoardPage {
                 const offset = (date.getHours() - startHour + 24) % 24 + date.getMinutes() / 60;
                 const shift: number = previous && offset - previous.offset < OVERLAP_HOURS ? previous.shift + 1 : 0;
                 previous = { offset, shift };
-                const marker = createMealMarker(track, plugin, record.food ? record : { icon: 'circle-help', color: record.color });
+                // 메뉴가 비어도 범례 아이콘 그대로 두고 점선으로 표시한다.
+                const marker = createMealMarker(track, plugin, record);
                 marker.addClass('is-placed');
+                marker.toggleClass('is-empty', !record.food);
                 // 표시가 제 시간 칸을 벗어나지 않도록 분은 칸 안의 20~80% 위치로만 반영한다.
                 const position = Math.floor(offset) + 0.2 + 0.6 * (offset % 1);
                 marker.style.left = `calc(${position / 24 * 100}% + ${shift} * var(--atoz-meal-shift))`;
-                setTooltip(marker, `${formatClock(record.time)} ${record.food || t('meal.unknownFood')}`);
+                const legend = plugin.settings.mealLegend.find((item) => item.icon === record.icon && item.color === record.color);
+                setTooltip(marker, `${formatClock(record.time)} ${record.food || `${legend?.label ?? t('record.meal')} · ${t('meal.unknownFood')}`}`);
             }
         }
     }

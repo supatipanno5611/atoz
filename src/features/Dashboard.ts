@@ -15,6 +15,8 @@ const HOUR = 60 * 60 * 1000;
 const LEGACY_VIEW_TYPES = ['atoz-daynight-dashboard', 'atoz-budget-view'];
 
 export type DashboardPageId = 'home' | 'daynight' | 'budget' | 'meal' | 'timeline' | 'plan';
+// 머리말 아래 탭의 순서
+const PAGES: DashboardPageId[] = ['home', 'daynight', 'meal', 'timeline', 'plan', 'budget'];
 // 계획 페이지는 타임라인 파일을 읽으므로 따로 알리지 않는다.
 type DashboardSource = Exclude<DashboardPageId, 'home' | 'plan'>;
 
@@ -33,6 +35,7 @@ class DashboardView extends ItemView {
     // Obsidian은 navigation이 켜진 뷰만 탐색 기록에 남긴다. 켜 두어야 뒤로/앞으로로 페이지를 오갈 수 있다.
     navigation = true;
     private page: DashboardPageId = 'home';
+    private tabsEl: HTMLElement;
     private homeEl: HTMLElement;
     private daynightEl: HTMLElement;
     private budgetEl: HTMLElement;
@@ -48,6 +51,8 @@ class DashboardView extends ItemView {
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
         this.contentEl.addClass('atoz-dashboard');
+        // Obsidian 머리말 제목은 페이지를 바꿔도 그대로라, 지금 페이지는 페이지 안 탭으로 보인다.
+        this.tabsEl = this.contentEl.createDiv({ cls: 'atoz-dashboard-tabs', attr: { role: 'tablist' } });
         this.homeEl = this.contentEl.createDiv({ cls: 'atoz-dashboard-home' });
         this.daynightEl = this.contentEl.createDiv();
         this.budgetEl = this.contentEl.createDiv();
@@ -65,12 +70,29 @@ class DashboardView extends ItemView {
     getIcon(): string { return 'layout-dashboard'; }
 
     getDisplayText(): string {
-        if (this.page === 'daynight') return t('daynight.viewName');
-        if (this.page === 'budget') return t('budget.viewName');
-        if (this.page === 'meal') return t('meal.viewName');
-        if (this.page === 'timeline') return t('timeline.viewName');
-        if (this.page === 'plan') return t('plan.viewName');
+        return this.pageName(this.page);
+    }
+
+    private pageName(page: DashboardPageId): string {
+        if (page === 'daynight') return t('daynight.viewName');
+        if (page === 'budget') return t('budget.viewName');
+        if (page === 'meal') return t('meal.viewName');
+        if (page === 'timeline') return t('timeline.viewName');
+        if (page === 'plan') return t('plan.viewName');
         return t('dashboard.viewName');
+    }
+
+    private renderTabs(): void {
+        this.tabsEl.empty();
+        for (const page of PAGES) {
+            const tab = this.tabsEl.createEl('button', {
+                cls: 'atoz-dashboard-tab',
+                text: page === 'home' ? t('dashboard.home') : this.pageName(page),
+                attr: { role: 'tab', 'aria-selected': String(page === this.page) },
+            });
+            tab.toggleClass('is-active', page === this.page);
+            tab.addEventListener('click', () => void this.leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, state: { page } }));
+        }
     }
 
     /** 보던 페이지와 가계부·식사보드·타임라인·계획 보기 설정은 워크스페이스에 저장해 다시 열 때 되살린다. */
@@ -118,6 +140,7 @@ class DashboardView extends ItemView {
     }
 
     private show(): void {
+        this.renderTabs();
         this.homeEl.toggle(this.page === 'home');
         this.daynightEl.toggle(this.page === 'daynight');
         this.budgetEl.toggle(this.page === 'budget');
