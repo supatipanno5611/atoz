@@ -24,6 +24,11 @@ export const MEAL_SPENDING_GAP = 60 * 1000;
 // 이보다 긴 깨어 있음·잠은 기록이 끊긴 것으로 본다.
 const WAKE_LIMIT = 20 * HOUR;
 const SLEEP_LIMIT = 18 * HOUR;
+// 평소 잘 시각 2시간 전부터 6시간 뒤까지는 수면 버튼을 채워 눈에 띄게 한다. 평소 잘 시각은 지난 7일의 3시간 넘는 잠으로 본다.
+const BEDTIME_BEFORE = 2 * HOUR;
+const BEDTIME_AFTER = 6 * HOUR;
+const BEDTIME_DAYS = 7;
+const MAIN_SLEEP = 3 * HOUR;
 type DaynightType = 'sleep' | 'wake';
 
 interface DaynightRecord {
@@ -279,6 +284,8 @@ export class DaynightView extends ItemView {
             cls: `atoz-daynight-toggle ${isAsleep ? 'is-asleep' : 'is-awake'}`,
             attr: { 'data-lock': 'sleep' },
         });
+        // 하루 두 번 쓰는 버튼이라 낮에는 테두리만 두고, 잘 무렵과 자는 중에만 채운다.
+        toggleButton.toggleClass('is-light', !isAsleep && !this.plugin.daynight.isBedtime(now));
         setIcon(toggleButton, isAsleep ? 'sun' : 'moon');
         toggleButton.createSpan({ text: isAsleep ? t('daynight.wakeNow') : t('daynight.sleepNow') });
         toggleButton.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
@@ -319,7 +326,7 @@ export class DaynightView extends ItemView {
             head.createSpan({ cls: 'atoz-daynight-dot' }),
             isAsleep ? SLEEP_COLOR : current ? this.plugin.timeline.colorOf(current.category) ?? ACCENT_COLOR : null,
         );
-        head.createSpan({
+        const status = head.createSpan({
             cls: 'atoz-record-status',
             text: isAsleep ? t('daynight.asleep')
                 : current ? t('record.doing', { activity: current.category })
@@ -348,16 +355,17 @@ export class DaynightView extends ItemView {
             const logs = this.plugin.timeline.logs.filter((log) => log.time <= now);
             const end = logs[logs.length - 1];
             const ended = logs[logs.length - 2];
+            // 활동이 없을 때 큰 숫자는 '끝난 지'나 '깬 지'라서 라벨을 그 뜻으로 바꾼다.
             if (end && (!last || end.time > last.time)) {
                 since = end.time;
-                sub = t('record.endedSince', {
+                status.setText(t('record.endedFor', {
                     activity: ended && ended.category !== END_CATEGORY ? ended.category : t('record.activity'),
-                    time: at(end.time),
-                });
+                }));
             } else if (last) {
                 since = last.time;
-                sub = t('record.awakeSince', { time: at(last.time) });
+                status.setText(t('record.awakeFor'));
             }
+            if (since !== undefined) sub = t('record.since', { time: at(since) });
         }
         hero.createDiv({ cls: 'atoz-daynight-hero-value', text: since === undefined ? '—' : formatElapsed(now - since) });
         if (sub) hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: sub });
@@ -1061,6 +1069,33 @@ export class DaynightFeature {
             ...extraEvents,
         ];
         return splitGaps(toSegments(this.records, now), events);
+    }
+
+    /** 지난 7일 잠든 시각의 평균(자정부터 ms). 자정 앞뒤의 시각을 함께 평균내려고 시계를 원으로 보고 더한다. */
+    usualBedtime(now: number): number | null {
+        let x = 0;
+        let y = 0;
+        this.records.forEach((record, index) => {
+            const next = this.records[index + 1];
+            if (record.type !== 'sleep' || record.time < now - BEDTIME_DAYS * DAY || !next || next.time - record.time < MAIN_SLEEP) return;
+            const date = new Date(record.time);
+            const angle = (date.getHours() * 60 + date.getMinutes()) / (24 * 60) * 2 * Math.PI;
+            x += Math.cos(angle);
+            y += Math.sin(angle);
+        });
+        if (x === 0 && y === 0) return null;
+        return (Math.atan2(y, x) / (2 * Math.PI) + 1) % 1 * DAY;
+    }
+
+    /** 평소 잘 시각 무렵인가. 평소 잘 시각을 모르면 아니라고 본다. */
+    isBedtime(now: number): boolean {
+        const bedtime = this.usualBedtime(now);
+        if (bedtime === null) return false;
+        const date = new Date(now);
+        let diff = (date.getHours() * 60 + date.getMinutes()) * 60 * 1000 - bedtime;
+        if (diff < -DAY / 2) diff += DAY;
+        else if (diff >= DAY / 2) diff -= DAY;
+        return diff >= -BEDTIME_BEFORE && diff < BEDTIME_AFTER;
     }
 
     async toggle(): Promise<boolean> {

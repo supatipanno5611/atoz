@@ -1,6 +1,6 @@
 import { Notice, setIcon } from 'obsidian';
 import type ATOZPlugin from '../main';
-import { t } from '../locales';
+import { isKorean, t } from '../locales';
 import { formatDuration, pad } from './Daynight';
 import { formatDayLabel, renderPageHeader } from './PageHeader';
 import { applyColor, dayRange, shiftDate, timelineToday, type BlockItem, type LaterItem } from './Timeline';
@@ -13,6 +13,8 @@ const STEP = 15;
 const PX_PER_MINUTE = 0.6;
 // 미리보기 블록이 이보다 낮으면 이름을 뺀다.
 const LABEL_MIN_HEIGHT = 14;
+// 이 폭보다 좁으면 트레이 → 목록 → 접힌 미리보기 순서로 쌓는다. styles.css의 container query와 같은 값이다.
+const NARROW_WIDTH = 560;
 // blocks.md의 반복 요일. 한국어와 영어 약어를 모두 받는다.
 const WEEKDAYS: Record<string, number> = {
     일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6,
@@ -55,23 +57,49 @@ function repeatsOn(block: BlockItem, weekday: number): boolean {
     return block.repeat.some((day) => WEEKDAYS[day.toLowerCase().slice(0, 3)] === weekday);
 }
 
+// 워크스페이스에 저장해 둔 초안은 믿기 전에 모양을 확인한다.
+function isSavedDraft(value: unknown): value is Omit<Draft, 'isDirty'> {
+    if (typeof value !== 'object' || value === null) return false;
+    const { start, items } = value as Record<string, unknown>;
+    return typeof start === 'number' && Array.isArray(items) && items.every((item: unknown) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const { name, minutes, pinned, memo, later } = item as Record<string, unknown>;
+        return typeof name === 'string' && typeof minutes === 'number' && typeof memo === 'string'
+            && (pinned === null || typeof pinned === 'number')
+            && (later === null || (typeof later === 'object' && typeof (later as Record<string, unknown>).line === 'string'));
+    });
+}
+
 export class PlanPage {
     private date = '';
-    // 날짜별로 고치는 중인 계획. 저장하기 전에 다른 날을 다녀와도 남는다.
+    // 날짜별로 고치는 중인 계획. 저장하기 전에 다른 날을 다녀와도, 앱을 껐다 켜도 남는다.
     private drafts = new Map<string, Draft>();
     private isFormShown = false;
     private notice = '';
+    // 좁은 화면에서 미리보기를 펼쳤는가. 넓은 화면에서는 늘 펼친다.
+    private isPreviewOpen = false;
 
     constructor(private plugin: ATOZPlugin, private container: HTMLElement) {
         container.addClass('atoz-plan');
     }
 
     getState(): Record<string, unknown> {
-        return { date: this.date };
+        // 저장하지 않은 오늘 이후의 초안만 남긴다. 지난 날은 고칠 수 없다.
+        const today = timelineToday(this.plugin);
+        const drafts: Record<string, Omit<Draft, 'isDirty'>> = {};
+        for (const [date, { start, items, isDirty }] of this.drafts) {
+            if (isDirty && date >= today) drafts[date] = { start, items };
+        }
+        return { date: this.date, drafts };
     }
 
     setState(state: Record<string, unknown>): void {
         if (typeof state.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(state.date)) this.date = state.date;
+        if (typeof state.drafts === 'object' && state.drafts !== null) {
+            for (const [date, draft] of Object.entries(state.drafts)) {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(date) && isSavedDraft(draft)) this.drafts.set(date, { ...draft, isDirty: true });
+            }
+        }
     }
 
     /** 파일이 바뀌어 다시 그릴 때, 입력 중이면 입력이 끊기지 않게 건너뛴다. */
@@ -151,6 +179,7 @@ export class PlanPage {
         update();
         draft.isDirty = true;
         this.notice = '';
+        this.plugin.app.workspace.requestSaveLayout();
         this.draw();
     }
 
@@ -178,7 +207,14 @@ export class PlanPage {
         const end = cursor;
 
         const body = container.createDiv({ cls: 'atoz-plan-body' });
-        const preview = body.createDiv({ cls: 'atoz-plan-preview' });
+        // 좁은 화면에서는 미리보기를 목록 아래로 내리고 접어 둔다(순서는 CSS).
+        const details = body.createEl('details', { cls: 'atoz-plan-preview' });
+        details.open = this.container.clientWidth >= NARROW_WIDTH || this.isPreviewOpen;
+        details.createEl('summary', { text: t('plan.preview') });
+        details.addEventListener('toggle', () => {
+            if (this.container.clientWidth < NARROW_WIDTH) this.isPreviewOpen = details.open;
+        });
+        const preview = details.createDiv();
         const main = body.createDiv({ cls: 'atoz-plan-main' });
 
         // 미리보기: 쌓은 블록이 있는 시간대만 앞뒤 1시간 여유를 두고 그린다.
@@ -273,7 +309,20 @@ export class PlanPage {
         const name = input(t('plan.blockName'), 'atoz-plan-form-name');
         const minutes = input(t('plan.minutes'), 'atoz-plan-form-minutes');
         minutes.inputMode = 'numeric';
-        const repeat = input(t('plan.repeat'), 'atoz-plan-form-repeat');
+        // 반복 요일은 월~일 토글로 고른다. 2024-01-01은 월요일이다.
+        const days = form.createDiv({ cls: 'atoz-plan-form-days', attr: { role: 'group', 'aria-label': t('plan.repeat') } });
+        const picked = new Set<string>();
+        const labels = Array.from({ length: 7 }, (_, i) =>
+            new Date(2024, 0, 1 + i).toLocaleDateString(isKorean ? 'ko-KR' : 'en-US', { weekday: 'short' }));
+        for (const label of labels) {
+            const day = days.createEl('button', { type: 'button', text: label, attr: { 'aria-pressed': 'false' } });
+            day.addEventListener('click', () => {
+                if (picked.has(label)) picked.delete(label);
+                else picked.add(label);
+                day.toggleClass('is-active', picked.has(label));
+                day.setAttr('aria-pressed', String(picked.has(label)));
+            });
+        }
         form.createEl('button', { cls: 'mod-cta', type: 'submit', text: t('plan.saveBlock') });
         form.addEventListener('submit', (event) => {
             event.preventDefault();
@@ -283,7 +332,7 @@ export class PlanPage {
             const length = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
             this.isFormShown = false;
             name.blur();
-            void this.plugin.timeline.addBlock(value, length, repeat.value.trim());
+            void this.plugin.timeline.addBlock(value, length, labels.filter((label) => picked.has(label)).join(','));
         });
         window.setTimeout(() => name.focus(), 0);
     }
@@ -351,6 +400,7 @@ export class PlanPage {
             memo.addEventListener('input', () => {
                 item.memo = memo.value.trim();
                 draft.isDirty = true;
+                plugin.app.workspace.requestSaveLayout();
             });
             memo.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' && !event.isComposing) memo.blur();
@@ -367,9 +417,12 @@ export class PlanPage {
             action('minus', t('plan.decrease'), () => this.change(draft, () => { item.minutes = Math.max(STEP, item.minutes - STEP); }));
             actions.createSpan({ cls: 'atoz-plan-length', text: formatLength(item.minutes) });
             action('plus', t('plan.increase'), () => this.change(draft, () => { item.minutes += STEP; }));
-            action('pin', item.pinned !== null ? t('plan.unpin') : t('plan.pin'), () =>
-                this.change(draft, () => { item.pinned = item.pinned !== null ? null : from; }))
-                .toggleClass('is-active', item.pinned !== null);
+            // 핀 아이콘만으로는 뜻을 알기 어려워 '시각 고정'을 함께 적는다.
+            const pin = action('pin', item.pinned !== null ? t('plan.unpin') : t('plan.pin'), () =>
+                this.change(draft, () => { item.pinned = item.pinned !== null ? null : from; }));
+            pin.addClass('atoz-plan-pin');
+            pin.toggleClass('is-active', item.pinned !== null);
+            pin.createSpan({ text: t('plan.pinLabel') });
             action('x', t('plan.remove'), () => this.change(draft, () => { draft.items.splice(index, 1); }));
         });
         if (draft.items.length === 0) section.createDiv({ cls: 'atoz-plan-empty', text: t('plan.empty') });
@@ -452,6 +505,7 @@ export class PlanPage {
         }
         // 저장한 계획을 파일에서 다시 만든다.
         this.drafts.delete(date);
+        this.plugin.app.workspace.requestSaveLayout();
         if (this.date === date) this.notice = t('plan.saved');
         this.draw();
     }

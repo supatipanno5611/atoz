@@ -253,13 +253,18 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 /* ── Daynight ── */
+/* 아침색: 깨어 있는 구간과 '지금 일어나기'. 기록 패널과 수면 페이지가 같이 쓴다. */
+.atoz-daynight,
+.atoz-daynight-dashboard {
+    --atoz-daynight-morning: var(--color-orange);
+}
+
 .workspace-leaf-content .view-content.atoz-daynight {
-    --atoz-daynight-night: #1f3a5f;
-    --atoz-daynight-night-hover: #284a78;
-    --atoz-daynight-on-night: #e6f1fb;
-    --atoz-daynight-morning: #f0a640;
-    --atoz-daynight-morning-hover: #f5b75e;
-    --atoz-daynight-on-morning: #412402;
+    --atoz-daynight-night: var(--interactive-accent);
+    --atoz-daynight-night-hover: var(--interactive-accent-hover);
+    --atoz-daynight-on-night: var(--text-on-accent);
+    --atoz-daynight-morning-hover: color-mix(in srgb, var(--atoz-daynight-morning) 85%, white);
+    --atoz-daynight-on-morning: color-mix(in srgb, var(--atoz-daynight-morning) 25%, black);
     --atoz-record-fill: color-mix(in srgb, var(--text-normal) 4%, transparent);
     display: flex;
     flex-direction: column;
@@ -303,7 +308,8 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-hero-value {
-    font-size: 28px;
+    /* Obsidian 글자 크기 설정을 따른다. 기본값에서 28px이다. */
+    font-size: calc(var(--font-ui-large) * 1.4);
     font-weight: var(--font-semibold);
     line-height: 1.2;
     letter-spacing: -0.01em;
@@ -362,12 +368,6 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 8px;
-}
-
-.atoz-daynight-empty-title {
-    font-size: var(--font-ui-large);
-    font-weight: var(--font-semibold);
-    color: var(--text-normal);
 }
 
 /* ── 구간 이동 ── */
@@ -936,15 +936,6 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     font-variant-numeric: tabular-nums;
 }
 
-.atoz-daynight-edit-message {
-    padding: 0 6px;
-    color: var(--text-error);
-}
-
-.atoz-daynight-edit-message:empty {
-    display: none;
-}
-
 /* 쓰는 중인 버튼은 눌린 모양으로 두고 다시 눌러도 무시한다. */
 .atoz-daynight [data-lock].is-pending {
     transform: scale(0.97);
@@ -963,6 +954,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 .atoz-daynight .atoz-record-toast-action:focus-visible,
 .atoz-daynight .atoz-daynight-toggle:focus-visible,
 .atoz-daynight-dashboard-ranges button:focus-visible,
+.atoz-plan-form-days button:focus-visible,
 .atoz-budget-month-label:focus-visible,
 .atoz-page-header-today:focus-visible,
 .atoz-meal-views button:focus-visible,
@@ -1040,6 +1032,21 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     background-color: var(--atoz-daynight-night-hover);
 }
 
+/* 낮에는 테두리만 둔다. 잘 무렵(평소 잘 시각 2시간 전부터)에 채운다. */
+.atoz-daynight .atoz-daynight-toggle.is-awake.is-light {
+    background-color: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.atoz-daynight .atoz-daynight-toggle.is-awake.is-light:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.atoz-daynight .atoz-daynight-toggle.is-light .svg-icon {
+    color: var(--interactive-accent);
+}
+
 .atoz-daynight .atoz-daynight-toggle.is-asleep {
     background-color: var(--atoz-daynight-morning);
     color: var(--atoz-daynight-on-morning);
@@ -1108,7 +1115,6 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 /* ── Daynight 대시보드 ── */
 .atoz-daynight-dashboard {
-    --atoz-daynight-morning: #f0a640;
     container-type: inline-size;
 }
 
@@ -1328,9 +1334,9 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     margin-bottom: 14px;
 }
 
+/* 경고는 왼쪽 색 띠 대신 아이콘 색으로 알린다. */
 .atoz-budget-warning {
     border: 1px solid var(--background-modifier-border);
-    border-left: 3px solid var(--text-warning);
     border-radius: var(--radius-s);
     padding: 8px 10px;
     background: var(--background-secondary);
@@ -2653,6 +2659,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
  * ------------------------------------------------------------------ */
 
 .atoz-plan {
+    container-type: inline-size;
     max-width: 1000px;
     margin: 0 auto;
     padding-bottom: 24px;
@@ -2679,6 +2686,14 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     font-size: var(--font-ui-smaller);
+}
+
+/* 넓은 화면에서는 늘 펼쳐 두므로 접기 줄을 숨긴다. */
+.atoz-plan-preview > summary {
+    display: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
 }
 
 .atoz-plan-lane {
@@ -2807,9 +2822,25 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     width: 64px;
 }
 
-.atoz-plan-form-repeat {
-    flex: 1 1 120px;
-    min-width: 0;
+.atoz-plan-form-days {
+    display: flex;
+    gap: 2px;
+}
+
+.atoz-plan-form-days button {
+    min-width: 32px;
+    padding: 0 6px;
+    background: transparent;
+    box-shadow: none;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-plan-form-days button.is-active {
+    border-color: var(--interactive-accent);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
 }
 
 /* 계획 목록 */
@@ -2877,10 +2908,13 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     border-color: var(--text-warning);
 }
 
+/* 손가락으로 잡기 쉽게 폭 32px */
 .atoz-plan-handle {
     align-self: stretch;
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 32px;
     color: var(--text-faint);
     cursor: grab;
     touch-action: none;
@@ -2964,6 +2998,12 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     color: var(--interactive-accent);
 }
 
+.atoz-plan-actions .atoz-plan-pin {
+    gap: 4px;
+    width: auto;
+    font-size: var(--font-ui-smaller);
+}
+
 .atoz-plan-length {
     min-width: 48px;
     text-align: center;
@@ -3009,10 +3049,25 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     font-variant-numeric: tabular-nums;
 }
 
-/* 좁은 화면: 미리보기를 넓히고 목록 줄의 버튼을 아래로 내린다 */
-@media (max-width: 560px) {
+/* 좁은 화면: 트레이 → 목록 → 접히는 미리보기 순서로 쌓고, 목록 줄의 버튼을 아래로 내린다 */
+@container (max-width: 560px) {
     .atoz-plan-preview {
+        order: 1;
+        flex-basis: 100%;
         max-width: none;
+        padding: 8px 12px;
+    }
+
+    .atoz-plan-preview > summary {
+        display: list-item;
+    }
+
+    .atoz-plan-preview[open] > summary {
+        margin-bottom: 8px;
+    }
+
+    .atoz-plan-preview > div {
+        padding-left: 22px;
     }
 
     .atoz-plan-row {
