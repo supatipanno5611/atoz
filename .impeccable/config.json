@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "styles.css"
+        ],
+        "createdAt": "2026-10-30T05:53:45.291Z",
+        "reason": "Claude: .atoz-plan-lane-block is a time-lane block in the plan preview, deliberately matching the existing Timeline log-lane blocks (.atoz-timeline-lane.is-log .atoz-timeline-block, same 3px left border) so plan and timeline read as one system. side-tab cannot be narrowed below a whole file; re-run detect --no-config after adding any new left/right stripe."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "mockup/ui-plan2/index.html"
+        ],
+        "createdAt": "2026-10-30T20:15:33.682Z",
+        "reason": "Claude: 2026-10-31 rendered check at 1600px and 375px in both themes showed slides (padding-block 64px + inline gutter), table cells (10px 14px), feed rows and tiles (vertically centered in 40-56px boxes) all have visible inset; the static scan reads wrappers as flush."
+      }
+    ]
+  }
+}
