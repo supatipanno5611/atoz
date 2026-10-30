@@ -946,6 +946,20 @@ export class DaynightView extends ItemView {
         );
     }
 
+    /** 명령에서 부른다. 패널 버튼처럼 잠그고 되돌리기 토스트를 띄운다. */
+    runToggleSleep(): Promise<void> {
+        return this.lock('sleep', () => this.toggleSleep());
+    }
+
+    runEndActivity(): Promise<void> {
+        const current = this.plugin.timeline.current();
+        if (!current) {
+            new Notice(t('record.noActivity'));
+            return Promise.resolve();
+        }
+        return this.lock(`activity:${current.category}`, () => this.toggleActivity(current.category));
+    }
+
     // 잠들면 하던 활동도 끝낸다.
     private async toggleSleep(): Promise<void> {
         const now = Date.now();
@@ -1075,6 +1089,18 @@ export class DaynightFeature {
             callback: () => void this.plugin.dashboard.open('daynight'),
         });
 
+        // 패널의 자주 쓰는 동작에 단축키를 걸 수 있게 한다. 패널을 열어 되돌리기 토스트가 보이게 한다.
+        this.plugin.addCommand({
+            id: 'toggle-sleep',
+            name: t('command.toggleSleep'),
+            callback: () => void this.withView((view) => view.runToggleSleep()),
+        });
+        this.plugin.addCommand({
+            id: 'end-activity',
+            name: t('command.endActivity'),
+            callback: () => void this.withView((view) => view.runEndActivity()),
+        });
+
         this.plugin.app.workspace.onLayoutReady(() => {
             const vault = this.plugin.app.vault;
             this.plugin.registerEvent(vault.on('create', (file) => this.onFileEvent(file)));
@@ -1098,6 +1124,12 @@ export class DaynightFeature {
     // 입력할 때마다 바뀌므로 잠시 기다렸다가 새 폴더를 읽는다.
     settingsChanged(): void {
         this.scheduleReload();
+    }
+
+    private async withView(run: (view: DaynightView) => Promise<void>): Promise<void> {
+        await this.activateView();
+        const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_DAYNIGHT)[0]?.view;
+        if (view instanceof DaynightView) await run(view);
     }
 
     async activateView(): Promise<void> {
