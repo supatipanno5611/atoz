@@ -81,6 +81,12 @@ export class PlanPage {
 
     constructor(private plugin: ATOZPlugin, private container: HTMLElement) {
         container.addClass('atoz-plan');
+        // 좁을 때 그려 접힌 미리보기가 넓어진 뒤에도 접혀 빈 상자로 남지 않게, 넓어지면 편다.
+        new ResizeObserver(() => {
+            if (container.clientWidth < NARROW_WIDTH) return;
+            const details = container.querySelector<HTMLDetailsElement>('.atoz-plan-preview');
+            if (details && !details.open) details.open = true;
+        }).observe(container);
     }
 
     getState(): Record<string, unknown> {

@@ -1082,13 +1082,18 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 /* ── 사이드바 바로가기 ── */
 /* ── 대시보드 탭과 페이지 공통 머리말 ── */
+/* 긴 페이지를 내려 읽다가도 다른 페이지로 갈 수 있게 탭을 위에 붙인다. */
 .atoz-dashboard-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: flex;
     gap: 4px;
     overflow-x: auto;
     scrollbar-width: none;
     margin-bottom: 12px;
     border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
 }
 
 .atoz-dashboard-tab {
@@ -2181,7 +2186,8 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 .atoz-meal-board {
     --atoz-meal-size: 20px;
-    --atoz-meal-shift: 8px;
+    /* 가까운 시각의 표시는 옆으로 비켜 그린다. 아이콘이 반 넘게 보이도록 크기의 60% 정도로. */
+    --atoz-meal-shift: 12px;
     container-type: inline-size;
 }
 
@@ -2340,6 +2346,14 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/* 오늘 줄로 내려가도 칸이 몇 시인지 보이게 시각 줄을 탭 아래에 붙인다. */
+.atoz-meal-row.is-header {
+    position: sticky;
+    top: var(--atoz-dashboard-tabs-height, 0);
+    z-index: 2;
+    background: var(--background-primary);
+}
+
 .atoz-meal-row.is-header .atoz-meal-cell {
     border: none;
     align-self: end;
@@ -2355,6 +2369,10 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 }
 
 .atoz-meal-week-head {
+    position: sticky;
+    top: var(--atoz-dashboard-tabs-height, 0);
+    z-index: 2;
+    background: var(--background-primary);
     padding-bottom: 4px;
     text-align: center;
     color: var(--text-muted);

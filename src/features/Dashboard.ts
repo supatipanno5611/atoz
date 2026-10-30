@@ -53,6 +53,12 @@ class DashboardView extends ItemView {
         this.contentEl.addClass('atoz-dashboard');
         // Obsidian 머리말 제목은 페이지를 바꿔도 그대로라, 지금 페이지는 페이지 안 탭으로 보인다.
         this.tabsEl = this.contentEl.createDiv({ cls: 'atoz-dashboard-tabs', attr: { role: 'tablist' } });
+        // 탭은 위에 붙어 있으므로, 페이지의 머리 줄(식사보드 시각 줄)이 탭 바로 아래에 붙도록 탭 높이를 알린다.
+        const observer = new ResizeObserver(() => {
+            this.contentEl.setCssProps({ '--atoz-dashboard-tabs-height': `${this.tabsEl.offsetHeight}px` });
+        });
+        observer.observe(this.tabsEl);
+        this.register(() => observer.disconnect());
         this.homeEl = this.contentEl.createDiv({ cls: 'atoz-dashboard-home' });
         this.daynightEl = this.contentEl.createDiv();
         this.budgetEl = this.contentEl.createDiv();
