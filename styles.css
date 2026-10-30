@@ -653,13 +653,15 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 /* 입력 칸은 기록 이름 앞(시각 칸 다음)에 맞춘다. */
 .atoz-record-editor {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     padding: 2px 6px 8px 52px;
 }
 
+/* 좁은 사이드바에서는 시각 칸 다음 줄로 내려가 폭을 지킨다. */
 .atoz-record-note-input {
-    flex: 1;
+    flex: 1 1 140px;
     min-width: 0;
     height: 28px;
     font-size: var(--font-ui-smaller);
@@ -967,7 +969,14 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 /* ── 되돌리기 토스트 ── */
 .atoz-record-toast {
-    flex-shrink: 0;
+    /* 알약 줄 위, 기록 목록 끝에 겹쳐 띄운다. 흐름에 두면 토스트가 사라질 때 알약이 밀려 내려와,
+       토스트를 누르려던 손가락이 알약을 누른다. */
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 2;
+    box-shadow: var(--shadow-s);
     display: flex;
     align-items: center;
     gap: 4px;

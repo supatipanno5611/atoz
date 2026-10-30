@@ -3,7 +3,7 @@ import type ATOZPlugin from '../main';
 import { isKorean, t } from '../locales';
 import { isRecord, makeClickable } from '../utils';
 import { BudgetPage, formatWon, type BudgetRecord, type BudgetSummary } from './Budget';
-import { DAY, entryTime as entryTimeOf, formatDuration, formatShortDate, formatTime as formatClock } from './Daynight';
+import { DAY, MEAL_SPENDING_GAP, entryTime as entryTimeOf, formatDuration, formatShortDate, formatTime as formatClock } from './Daynight';
 import { DaynightDashboardPage, daynightSummary } from './DaynightDashboard';
 import { MealBoardPage } from './Meal';
 import { PlanPage } from './Plan';
@@ -262,9 +262,14 @@ class DashboardView extends ItemView {
                 save: (value) => plugin.meal.replace(meal, meal.time, value),
             });
         }
+        // 식사 알약에서 함께 남긴 지출은 그 끼니의 돈이라 항목을 따로 묻지 않는다.
+        const isMealSpending = (time: number, category: string): boolean => plugin.meal.records.some((meal) =>
+            Math.abs(meal.time - time) <= MEAL_SPENDING_GAP
+            && plugin.settings.mealLegend.some((item) => item.label === category && item.icon === meal.icon && item.color === meal.color));
         for (const record of spending) {
             const { entry } = record;
             if (record.kind !== 'expense' || entry.title || entryTimeOf(entry) < since) continue;
+            if (isMealSpending(entryTimeOf(entry), entry.category)) continue;
             items.push({
                 time: entryTimeOf(entry),
                 label: `${entry.category || t('budget.uncategorized')} ${formatWon(entry.amount)}`,

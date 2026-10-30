@@ -40,14 +40,11 @@ interface DaynightRecord {
 
 export const pad = (value: number): string => String(value).padStart(2, '0');
 
+/** 1시간이 안 되면 '0시간 25분' 대신 '25분'처럼 분만 보인다. */
 export function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
+    if (minutes < 60) return t('record.minutes', { minutes });
     return t('daynight.duration', { hours: Math.floor(minutes / 60), minutes: minutes % 60, paddedMinutes: pad(minutes % 60) });
-}
-
-/** 패널의 경과 시간. 1시간이 안 되면 분만 보인다. */
-function formatElapsed(ms: number): string {
-    return ms < HOUR ? t('record.minutes', { minutes: Math.max(0, Math.floor(ms / 60000)) }) : formatDuration(ms);
 }
 
 export function formatShortDate(time: number): string {
@@ -209,8 +206,10 @@ export class DaynightView extends ItemView {
     getIcon(): string { return 'clock'; }
 
     async onOpen(): Promise<void> {
-        // 고치거나 금액을 넣는 중에는 다시 그리면 입력이 닫히므로 건너뛴다.
+        // 고치거나 금액을 넣는 중에는 다시 그리면 입력이 닫히고, 키보드로 초점을 옮기는 중에는 초점이 사라지므로 건너뛴다.
         this.registerInterval(window.setInterval(() => {
+            const focused = activeDocument.activeElement;
+            if (focused instanceof HTMLElement && this.containerEl.contains(focused) && focused.matches(':focus-visible')) return;
             if (this.editing === null && this.amountTarget === null) this.render();
         }, 60 * 1000));
         this.render();
@@ -229,6 +228,8 @@ export class DaynightView extends ItemView {
     render(): void {
         const container = this.containerEl.children[1] as HTMLElement;
         const previousScroll = container.scrollTop;
+        // 처음 그릴 때와 맨 아래(최신 기록)를 보고 있었을 때는 다시 그린 뒤에도 맨 아래를 보인다.
+        const wasAtEnd = !container.hasClass('atoz-daynight') || previousScroll + container.clientHeight >= container.scrollHeight - 4;
         container.empty();
         container.addClass('atoz-daynight');
 
@@ -291,11 +292,17 @@ export class DaynightView extends ItemView {
         toggleButton.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
         this.syncPending();
 
-        // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
+        // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했거나 맨 아래를 보고 있었으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
         if (open) {
-            container.scrollTop = open.getBoundingClientRect().top - container.getBoundingClientRect().top;
-        } else if (this.scrollToEnd) {
+            // 위에 붙은 어제 접기 줄과 아래에 붙은 버튼 묶음 사이에 보이게 한다.
+            container.scrollTop = previousScroll;
+            const viewTop = container.getBoundingClientRect().top + (list.querySelector<HTMLElement>('.atoz-record-fold')?.offsetHeight ?? 0);
+            const viewBottom = dock.getBoundingClientRect().top;
+            const { top, bottom } = open.getBoundingClientRect();
+            if (top < viewTop) container.scrollTop -= viewTop - top;
+            else if (bottom > viewBottom) container.scrollTop += bottom - viewBottom;
+        } else if (this.scrollToEnd || wasAtEnd) {
             container.scrollTop = container.scrollHeight;
             this.scrollToEnd = false;
         } else {
@@ -367,7 +374,7 @@ export class DaynightView extends ItemView {
             }
             if (since !== undefined) sub = t('record.since', { time: at(since) });
         }
-        hero.createDiv({ cls: 'atoz-daynight-hero-value', text: since === undefined ? '—' : formatElapsed(now - since) });
+        hero.createDiv({ cls: 'atoz-daynight-hero-value', text: since === undefined ? '—' : formatDuration(now - since) });
         if (sub) hero.createDiv({ cls: 'atoz-daynight-hero-sub', text: sub });
     }
 
@@ -713,7 +720,7 @@ export class DaynightView extends ItemView {
             button.toggleClass('is-active', isCurrent);
             button.setAttr('aria-pressed', String(isCurrent));
             if (current && isCurrent) {
-                button.createSpan({ cls: 'atoz-record-elapsed', text: formatElapsed(now - current.time) });
+                button.createSpan({ cls: 'atoz-record-elapsed', text: formatDuration(now - current.time) });
             }
         }
         const add = pills.createEl('button', { cls: 'atoz-record-pill', attr: { 'aria-label': t('record.addActivity') } });
@@ -888,7 +895,7 @@ export class DaynightView extends ItemView {
         if (!log) return;
         this.showToast(
             isEnd
-                ? t('record.toast.ended', { activity: name, duration: formatElapsed(now - current.time) })
+                ? t('record.toast.ended', { activity: name, duration: formatDuration(now - current.time) })
                 : t('record.toast.started', { activity: name, time: formatTime(now) }),
             [this.undoLogs([log])],
         );
