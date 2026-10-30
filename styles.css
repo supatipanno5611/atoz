@@ -770,104 +770,151 @@ body:not(.is-mobile) .atoz-record-dock {
     gap: 8px;
 }
 
-/* 묶음마다 한 줄. 넘치는 알약은 가로로 밀어 보고, 오른쪽 끝을 흐려 더 있음을 보인다. */
+/* 묶음마다 이름 줄(이름 · 오늘 합계)과 4칸 격자. 고를 것은 가로로 숨기지 않고 모두 보인다. */
 .atoz-record-section {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .atoz-record-section-title {
-    flex-shrink: 0;
-    min-width: 30px;
-    font-size: var(--font-ui-smaller);
-    color: var(--text-muted);
-}
-
-.atoz-record-pills {
-    flex: 1;
-    min-width: 0;
     display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-right: 24px;
-    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
-}
-
-.atoz-record-pills.is-scrolled {
-    mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
-}
-
-.atoz-record-pills::-webkit-scrollbar {
-    display: none;
-}
-
-.atoz-daynight .atoz-record-pill {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 40px;
-    padding: 0 14px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 20px;
-    background: var(--atoz-record-fill);
-    box-shadow: none;
-    color: var(--text-normal);
-    font-size: var(--font-ui-small);
-}
-
-.atoz-daynight .atoz-record-pill:hover {
-    background: var(--background-modifier-hover);
-}
-
-body.is-mobile .atoz-daynight .atoz-record-pill {
-    height: 44px;
-    border-radius: 22px;
-}
-
-/* 지금 하는 활동은 그 활동 색으로 채우고 테두리를 두른다. */
-.atoz-daynight .atoz-record-pill.is-active {
-    border-color: var(--atoz-record-color);
-    background: color-mix(in srgb, var(--atoz-record-color) 18%, transparent);
-}
-
-.atoz-daynight .atoz-record-pill.is-active .atoz-record-pill-icon {
-    color: var(--atoz-record-color);
-}
-
-/* 금액 칸을 여는 알약 표시 */
-.atoz-record-pill-won {
-    font-size: var(--font-ui-smaller);
-    color: var(--text-muted);
-}
-
-/* 금액 칸을 연 알약은 강조색 */
-.atoz-daynight .atoz-record-pill.is-open {
-    border-color: var(--interactive-accent);
-    background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
-}
-
-.atoz-record-elapsed {
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 2px;
     font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
 
-.atoz-record-pill-icon {
+.atoz-record-section-sum {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-record-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+/* 칸: 아이콘 위, 이름 아래 */
+.atoz-daynight .atoz-record-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    height: 46px;
+    padding: 0 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    background: var(--atoz-record-fill);
+    box-shadow: none;
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+    line-height: 1.15;
+}
+
+body.is-mobile .atoz-daynight .atoz-record-tile {
+    height: 52px;
+}
+
+.atoz-daynight .atoz-record-tile:hover {
+    background: var(--background-modifier-hover);
+}
+
+.atoz-record-tile-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atoz-record-tile-icon {
     display: flex;
     color: var(--atoz-record-color);
 }
 
 /* 색이 없는 지출 아이콘은 글자색보다 흐리게 */
-.atoz-record-pill:not([style*="--atoz-record-light"]) .atoz-record-pill-icon {
+.atoz-record-tile:not([style*="--atoz-record-light"]) .atoz-record-tile-icon {
     color: var(--text-muted);
 }
 
-.atoz-record-pill-icon svg {
-    width: 15px;
-    height: 15px;
+.atoz-record-tile-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* 금액 칸을 여는 칸 표시 */
+.atoz-record-tile-won {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--text-muted);
+}
+
+/* 금액 칸을 연 칸은 강조색 */
+.atoz-daynight .atoz-record-tile.is-open {
+    border-color: var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+
+/* 활동 칸은 이름이 길어 두 줄까지 쓴다. */
+.atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
+    height: 52px;
+}
+
+body.is-mobile .atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
+    height: 56px;
+}
+
+.atoz-record-tiles.is-activity .atoz-record-tile-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    word-break: keep-all;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.atoz-record-tiles.is-activity .atoz-record-dot {
+    width: 10px;
+    height: 10px;
+}
+
+.atoz-daynight .atoz-record-tile.is-add {
+    border-style: dashed;
+    color: var(--text-muted);
+}
+
+/* 지금 하는 활동은 그 활동 색으로 채우고 테두리를 두른다. 칸 크기는 그대로다. */
+.atoz-daynight .atoz-record-tile.is-active {
+    border-color: var(--atoz-record-color);
+    background: color-mix(in srgb, var(--atoz-record-color) 15%, transparent);
+    font-weight: var(--font-semibold);
+}
+
+.atoz-record-elapsed {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: var(--font-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-record-elapsed svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2.6;
 }
 
 .atoz-record-amount {
@@ -1032,7 +1079,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 /* box-shadow를 지운 버튼과 누를 수 있는 div도 키보드 초점은 보이게 한다. */
 .atoz-clickable:focus-visible,
 .atoz-plan-handle:focus-visible,
-.atoz-daynight .atoz-record-pill:focus-visible,
+.atoz-daynight .atoz-record-tile:focus-visible,
 .atoz-daynight .atoz-record-amount-chip:focus-visible,
 .atoz-daynight .atoz-record-amount-payment:focus-visible,
 .atoz-daynight .atoz-record-amount-submit:focus-visible,

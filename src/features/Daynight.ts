@@ -29,6 +29,8 @@ const BEDTIME_BEFORE = 2 * HOUR;
 const BEDTIME_AFTER = 6 * HOUR;
 const BEDTIME_DAYS = 7;
 const MAIN_SLEEP = 3 * HOUR;
+// 활동 칸은 두 줄(8칸)까지. 블록이 더 많으면 마지막 칸이 '전체'다.
+const MAX_ACTIVITY_TILES = 8;
 type DaynightType = 'sleep' | 'wake';
 
 interface DaynightRecord {
@@ -50,6 +52,12 @@ export function formatDuration(ms: number): string {
     const minutes = Math.max(0, Math.floor(ms / 60000));
     if (minutes < 60) return t('record.minutes', { minutes });
     return t('daynight.duration', { hours: Math.floor(minutes / 60), minutes: minutes % 60, paddedMinutes: pad(minutes % 60) });
+}
+
+/** 칸처럼 좁은 자리에 쓰는 '1:27' 꼴 길이 */
+function formatClockDuration(ms: number): string {
+    const minutes = Math.max(0, Math.floor(ms / 60000));
+    return `${Math.floor(minutes / 60)}:${pad(minutes % 60)}`;
 }
 
 export function formatShortDate(time: number): string {
@@ -201,8 +209,6 @@ export class DaynightView extends ItemView {
     private pending = new Set<string>();
     // 처음 열 때와 방금 기록했을 때만 맨 아래(최신 기록)로 스크롤한다. 그 밖에는 보던 자리를 지킨다.
     private scrollToEnd = true;
-    // 알약 줄마다 가로로 밀어 둔 자리(줄 이름 → scrollLeft)
-    private pillScroll = new Map<string, number>();
 
     constructor(leaf: WorkspaceLeaf, private plugin: ATOZPlugin) {
         super(leaf);
@@ -285,10 +291,9 @@ export class DaynightView extends ItemView {
         const controls = dock.createDiv({ cls: 'atoz-record-controls' });
         // 휴대폰에서는 금액 시트가 알약 줄을 대신해 키보드 바로 위에 붙는다.
         controls.toggleClass('has-sheet', this.amountTarget !== null);
-        this.renderSpending(controls);
-        this.renderMeals(controls);
-        this.renderActivities(controls, now);
-        this.restorePills(controls);
+        this.renderSpending(controls, todayStart);
+        this.renderMeals(controls, todayStart);
+        this.renderActivities(controls, todayStart, now);
 
         if (this.toast) this.renderToast(dock, this.toast);
 
@@ -692,68 +697,46 @@ export class DaynightView extends ItemView {
         return new Date(day.getFullYear(), day.getMonth(), day.getDate() + (hour < startHour ? 1 : 0), hour, minute).getTime();
     }
 
-    private pills(container: HTMLElement, title: string): HTMLElement {
+    // 묶음 하나: 이름 줄(왼쪽 이름, 오른쪽 오늘 합계)과 4칸 격자. 고를 것은 가로로 숨기지 않고 모두 보인다.
+    private tiles(container: HTMLElement, title: string, summary: string): HTMLElement {
         const section = container.createDiv({ cls: 'atoz-record-section' });
-        section.createDiv({ cls: 'atoz-record-section-title', text: title });
-        const pills = section.createDiv({ cls: 'atoz-record-pills', attr: { 'data-row': title } });
-        // 마우스 휠은 세로로만 돌아 가로 줄이 밀리지 않으므로, 넘칠 때만 가로로 바꾼다.
-        pills.addEventListener('wheel', (event) => {
-            if (event.deltaX !== 0 || pills.scrollWidth <= pills.clientWidth) return;
-            event.preventDefault();
-            pills.scrollLeft += event.deltaY;
-        }, { passive: false });
-        pills.addEventListener('scroll', () => {
-            this.pillScroll.set(title, pills.scrollLeft);
-            // 앞쪽이 밀려 가려졌으면 왼쪽 끝도 흐려 더 있음을 보인다.
-            pills.toggleClass('is-scrolled', pills.scrollLeft > 0);
-        });
-        return pills;
+        const cap = section.createDiv({ cls: 'atoz-record-section-title' });
+        cap.createSpan({ text: title });
+        if (summary) cap.createSpan({ cls: 'atoz-record-section-sum', text: summary });
+        return section.createDiv({ cls: 'atoz-record-tiles' });
     }
 
-    // 다시 그려도 줄마다 밀어 둔 자리를 지킨다. 처음에는 진행 중 활동 알약이 보이게 민다.
-    private restorePills(controls: HTMLElement): void {
-        controls.querySelectorAll<HTMLElement>('.atoz-record-pills').forEach((pills) => {
-            const saved = this.pillScroll.get(pills.dataset.row ?? '');
-            if (saved !== undefined) {
-                pills.scrollLeft = saved;
-                return;
-            }
-            const active = pills.querySelector<HTMLElement>('.atoz-record-pill.is-active');
-            if (!active) return;
-            const row = pills.getBoundingClientRect();
-            const { left, right } = active.getBoundingClientRect();
-            // 오른쪽 끝 흐림(24px)에 걸리지 않게 조금 더 민다.
-            if (right > row.right - 24) pills.scrollLeft += right - row.right + 24 + 8;
-            else if (left < row.left) pills.scrollLeft -= row.left - left;
-        });
-    }
-
-    // icon이 없으면 이름 앞에 색 점을 둔다.
-    private pill(
+    // 아이콘(없으면 색 점) 위, 이름 아래.
+    private tile(
         parent: HTMLElement,
         text: string,
         color: MealColor | null | undefined,
         icon: string | null,
         onClick: () => void,
     ): HTMLButtonElement {
-        const button = parent.createEl('button', { cls: 'atoz-record-pill' });
+        const button = parent.createEl('button', { cls: 'atoz-record-tile' });
         applyColor(button, color);
-        if (icon) setIcon(button.createSpan({ cls: 'atoz-record-pill-icon' }), icon);
+        if (icon) setIcon(button.createSpan({ cls: 'atoz-record-tile-icon' }), icon);
         else button.createSpan({ cls: 'atoz-record-dot' });
-        button.createSpan({ text });
+        button.createSpan({ cls: 'atoz-record-tile-name', text });
         button.addEventListener('click', onClick);
         return button;
     }
 
-    // 금액 칸은 그 칸을 연 알약 줄 바로 아래에 연다.
-    private renderSpending(container: HTMLElement): void {
+    // 금액 칸은 그 칸을 연 묶음 바로 아래에 연다.
+    private renderSpending(container: HTMLElement, todayStart: number): void {
         const categories = this.plugin.settings.budgetPanelCategories;
         if (categories.length === 0) return;
-        const pills = this.pills(container, t('record.spending'));
+        const spent = this.budgetRecords
+            .filter(({ kind, entry }) => kind === 'expense' && entryTime(entry) >= todayStart)
+            .reduce((sum, { entry }) => sum + entry.amount, 0);
+        const tiles = this.tiles(container, t('record.spending'), spent > 0 ? t('record.todaySpent', { amount: `−${formatAmount(spent)}` }) : '');
         for (const category of categories) {
-            const button = this.pill(pills, category, null, SPENDING_ICONS[category] ?? 'wallet', () => {
+            const button = this.tile(tiles, category, null, SPENDING_ICONS[category] ?? 'wallet', () => {
                 this.openAmount({ category, meal: null });
             });
+            // 금액 칸이 열린다는 표시
+            button.createSpan({ cls: 'atoz-record-tile-won', text: '₩' });
             const isOpen = this.amountTarget?.category === category && this.amountTarget.meal === null;
             button.toggleClass('is-open', isOpen);
             button.setAttr('aria-expanded', String(isOpen));
@@ -762,20 +745,21 @@ export class DaynightView extends ItemView {
     }
 
     // 첫 범례(집밥)는 바로 기록하고, 나머지(배달·외식·간식)는 금액 칸을 함께 연다.
-    private renderMeals(container: HTMLElement): void {
+    private renderMeals(container: HTMLElement, todayStart: number): void {
         const settings = this.plugin.settings;
         if (settings.mealLegend.length === 0) return;
-        const pills = this.pills(container, t('record.meal'));
+        const count = this.plugin.meal.records.filter((meal) => meal.time >= todayStart).length;
+        const tiles = this.tiles(container, t('record.meal'), count > 0 ? t('record.todayMeals', { count }) : '');
         for (const [index, item] of settings.mealLegend.entries()) {
             const hasAmount = index > 0;
             const key = `meal:${item.label}`;
-            const button = this.pill(pills, item.label, this.plugin.meal.colorOf(item.color), mealIcon(item.icon), () => {
+            const button = this.tile(tiles, item.label, this.plugin.meal.colorOf(item.color), mealIcon(item.icon), () => {
                 if (hasAmount) this.openAmount({ category: item.label, meal: item });
                 else void this.lock(key, () => this.recordMeal(item, null));
             });
             if (hasAmount) {
                 // 바로 기록하는 집밥과 달리 금액 칸이 열린다는 표시
-                button.createSpan({ cls: 'atoz-record-pill-won', text: '₩' });
+                button.createSpan({ cls: 'atoz-record-tile-won', text: '₩' });
                 button.setAttr('aria-expanded', String(this.amountTarget?.meal === item));
             } else {
                 button.dataset.lock = key;
@@ -785,28 +769,69 @@ export class DaynightView extends ItemView {
         if (this.amountTarget?.meal) this.renderAmountForm(container, this.amountTarget);
     }
 
-    // 활성 알약을 다시 누르면 그 활동이 끝난다. 맨 끝의 추가 알약은 메인 탭에 계획 페이지를 연다.
-    private renderActivities(container: HTMLElement, now: number): void {
-        const pills = this.pills(container, t('timeline.viewName'));
-        const current = this.plugin.timeline.current();
-        for (const name of this.plugin.timeline.blocks) {
+    // 진행 중 칸을 다시 누르면 그 활동이 끝난다. 맨 끝 '+ 블록' 칸은 메인 탭에 계획 페이지를 연다.
+    // 블록이 7개를 넘으면 오늘 계획에 있는 블록, 그다음 최근에 한 블록 순으로 7개만 두고 '전체' 칸에서 나머지를 고른다.
+    private renderActivities(container: HTMLElement, todayStart: number, now: number): void {
+        const timeline = this.plugin.timeline;
+        // 이름 줄에는 오늘 오래 한 활동 둘의 합계를 적는다.
+        const totals = new Map<string, number>();
+        for (const block of timeline.segments(now)) {
+            const length = Math.min(block.to, now) - Math.max(block.from, todayStart);
+            if (length > 0) totals.set(block.category, (totals.get(block.category) ?? 0) + length);
+        }
+        const summary = [...totals].sort((a, b) => b[1] - a[1]).slice(0, 2)
+            .map(([name, length]) => `${name} ${formatClockDuration(length)}`).join(' · ');
+        const tiles = this.tiles(container, t('timeline.viewName'), summary);
+        tiles.addClass('is-activity');
+
+        const current = timeline.current();
+        let shown = timeline.blocks;
+        let rest: string[] = [];
+        if (shown.length > MAX_ACTIVITY_TILES - 1) {
+            const planned = new Set(timeline.plans.filter((plan) => plan.to > todayStart && plan.from < todayStart + DAY).map((plan) => plan.category));
+            const recent = new Map<string, number>();
+            for (const log of timeline.logs) recent.set(log.category, log.time);
+            // 진행 중 활동은 늘 보이게 맨 앞에 둔다.
+            const rank = (name: string): number => (name === current?.category ? 4 * now : 0)
+                + (planned.has(name) ? 2 * now : 0) + (recent.get(name) ?? 0);
+            const order = [...shown].sort((a, b) => rank(b) - rank(a));
+            shown = order.slice(0, MAX_ACTIVITY_TILES - 1);
+            rest = order.slice(MAX_ACTIVITY_TILES - 1);
+        }
+        for (const name of shown) {
             const isCurrent = current?.category === name;
             const key = `activity:${name}`;
-            // 진행 중이면 색을 채우고 점 대신 체크를 둔다. 색이 없으면 강조색이다.
-            const color = this.plugin.timeline.colorOf(name) ?? (isCurrent ? ACCENT_COLOR : null);
-            const button = this.pill(pills, name, color, isCurrent ? 'check' : null, () => {
+            // 진행 중이면 색을 채우고 점 대신 체크와 경과를 둔다. 색이 없으면 강조색이다.
+            const color = timeline.colorOf(name) ?? (isCurrent ? ACCENT_COLOR : null);
+            const button = this.tile(tiles, name, color, null, () => {
                 void this.lock(key, () => this.toggleActivity(name));
             });
             button.dataset.lock = key;
             button.toggleClass('is-active', isCurrent);
             button.setAttr('aria-pressed', String(isCurrent));
             if (current && isCurrent) {
-                button.createSpan({ cls: 'atoz-record-elapsed', text: formatDuration(now - current.time) });
+                const elapsed = createSpan({ cls: 'atoz-record-elapsed' });
+                setIcon(elapsed.createSpan(), 'check');
+                elapsed.createSpan({ text: formatClockDuration(now - current.time) });
+                button.querySelector('.atoz-record-dot')?.replaceWith(elapsed);
             }
         }
-        const add = pills.createEl('button', { cls: 'atoz-record-pill', attr: { 'aria-label': t('record.addActivity') } });
-        setIcon(add.createSpan({ cls: 'atoz-record-pill-icon' }), 'plus');
-        add.addEventListener('click', () => void this.plugin.dashboard.open('plan'));
+        if (rest.length > 0) {
+            const all = this.tile(tiles, t('record.allActivities'), null, 'more-horizontal', () => undefined);
+            all.addEventListener('click', () => {
+                const menu = new Menu();
+                for (const name of rest) {
+                    menu.addItem((item) => item.setTitle(name).onClick(() => void this.lock(`activity:${name}`, () => this.toggleActivity(name))));
+                }
+                // 키보드로 눌러도 칸 옆에 뜨게 칸 위치에 띄운다.
+                const { left, top } = all.getBoundingClientRect();
+                menu.showAtPosition({ x: left, y: top });
+            });
+            return;
+        }
+        const add = this.tile(tiles, t('record.block'), null, 'plus', () => void this.plugin.dashboard.open('plan'));
+        add.addClass('is-add');
+        add.setAttr('aria-label', t('record.addActivity'));
     }
 
     private openAmount(target: AmountTarget): void {
