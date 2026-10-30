@@ -291,22 +291,16 @@ export class DaynightView extends ItemView {
         const controls = dock.createDiv({ cls: 'atoz-record-controls' });
         // 휴대폰에서는 금액 시트가 알약 줄을 대신해 키보드 바로 위에 붙는다.
         controls.toggleClass('has-sheet', this.amountTarget !== null);
+        // 평소 잘 시각 무렵에만 격자 위에 잠 띠를 띄운다. 시트가 열려 있으면 숨긴다.
+        if (this.amountTarget === null && this.lastSleep()?.type !== 'sleep' && this.plugin.daynight.isBedtime(now)) {
+            this.renderBedtime(controls, now);
+        }
         this.renderSpending(controls, todayStart);
         this.renderMeals(controls, todayStart);
         this.renderActivities(controls, todayStart, now);
 
         if (this.toast) this.renderToast(dock, this.toast);
 
-        const isAsleep = this.lastSleep()?.type === 'sleep';
-        const toggleButton = dock.createEl('button', {
-            cls: `atoz-daynight-toggle ${isAsleep ? 'is-asleep' : 'is-awake'}`,
-            attr: { 'data-lock': 'sleep' },
-        });
-        // 하루 두 번 쓰는 버튼이라 낮에는 테두리만 두고, 잘 무렵과 자는 중에만 채운다.
-        toggleButton.toggleClass('is-light', !isAsleep && !this.plugin.daynight.isBedtime(now));
-        setIcon(toggleButton, isAsleep ? 'sun' : 'moon');
-        toggleButton.createSpan({ text: isAsleep ? t('daynight.wakeNow') : t('daynight.sleepNow') });
-        toggleButton.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
         this.syncPending();
 
         // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했거나 맨 아래를 보고 있었으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
@@ -368,10 +362,21 @@ export class DaynightView extends ItemView {
         const actions = hero.createDiv({ cls: 'atoz-daynight-hero-actions' });
         if (current) {
             const key = `activity:${current.category}`;
-            const end = actions.createEl('button', { cls: 'atoz-daynight-hero-end', attr: { 'data-lock': key } });
+            const end = actions.createEl('button', { cls: 'atoz-daynight-hero-button', attr: { 'data-lock': key } });
             setIcon(end, 'square');
             end.createSpan({ text: t('record.end') });
             end.addEventListener('click', () => void this.lock(key, () => this.toggleActivity(current.category)));
+        }
+        // 잠 버튼은 맨 아래 큰 버튼이 아니라 여기 작은 버튼이다. 서랍 메뉴를 닫는 탭이 새어 눌리지 않게 위에 둔다.
+        // 금액 시트가 열려 있는 동안은 숨긴다.
+        if (this.amountTarget === null) {
+            const sleep = actions.createEl('button', {
+                cls: `atoz-daynight-hero-button atoz-daynight-hero-sleep ${isAsleep ? 'is-asleep' : 'is-awake'}`,
+                attr: { 'data-lock': 'sleep' },
+            });
+            setIcon(sleep, isAsleep ? 'sun' : 'moon');
+            sleep.createSpan({ text: isAsleep ? t('daynight.wakeShort') : t('daynight.sleepShort') });
+            sleep.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
         }
 
         const at = (time: number): string =>
@@ -695,6 +700,30 @@ export class DaynightView extends ItemView {
         const startHour = this.plugin.settings.timelineDayStartHour;
         const day = new Date(recordTime - startHour * HOUR);
         return new Date(day.getFullYear(), day.getMonth(), day.getDate() + (hour < startHour ? 1 : 0), hour, minute).getTime();
+    }
+
+    // '잘 시간이에요 · 평소 00:30 · 10분 남음 [지금 자기]'
+    private renderBedtime(container: HTMLElement, now: number): void {
+        const bedtime = this.plugin.daynight.usualBedtime(now);
+        if (bedtime === null) return;
+        const band = container.createDiv({ cls: 'atoz-record-bedtime' });
+        const text = band.createDiv({ cls: 'atoz-record-bedtime-text' });
+        text.createDiv({ cls: 'atoz-record-bedtime-title', text: t('record.bedtime') });
+        const date = new Date(now);
+        let diff = (date.getHours() * 60 + date.getMinutes()) * 60 * 1000 - bedtime;
+        if (diff < -DAY / 2) diff += DAY;
+        else if (diff >= DAY / 2) diff -= DAY;
+        const minutes = Math.round(bedtime / 60000);
+        text.createDiv({
+            text: t(diff < 0 ? 'record.bedtimeLeft' : 'record.bedtimePast', {
+                time: `${pad(Math.floor(minutes / 60) % 24)}:${pad(minutes % 60)}`,
+                duration: formatDuration(Math.abs(diff)),
+            }),
+        });
+        const button = band.createEl('button', { cls: 'atoz-record-bedtime-button', attr: { 'data-lock': 'sleep' } });
+        setIcon(button, 'moon');
+        button.createSpan({ text: t('daynight.sleepNow') });
+        button.addEventListener('click', () => void this.lock('sleep', () => this.toggleSleep()));
     }
 
     // 묶음 하나: 이름 줄(왼쪽 이름, 오른쪽 오늘 합계)과 4칸 격자. 고를 것은 가로로 숨기지 않고 모두 보인다.
