@@ -1,10 +1,12 @@
 import { Modal, Setting, TAbstractFile, TFile, getIcon, getIconIds, normalizePath, setIcon, setTooltip } from 'obsidian';
 import type ATOZPlugin from '../main';
-import { t } from '../locales';
+import { isKorean, t } from '../locales';
 import { makeClickable } from '../utils';
-import { formatMonthLabel, renderPageHeader } from './PageHeader';
+import { formatWon } from './Budget';
+import { formatMonthLabel, formatWeekLabel, renderPageHeader } from './PageHeader';
 import type { MealLegendItem, MealPick } from '../types';
-import { pad } from './Daynight';
+import { MEAL_SPENDING_GAP, entryTime, pad } from './Daynight';
+import { shiftDate } from './Timeline';
 
 const DEFAULT_FOLDER = 'meal';
 const TABLE_HEADER = '| Date | Time | Food | Icon | Color |\n| --- | --- | --- | --- | --- |\n';
@@ -288,20 +290,84 @@ class PaletteModal extends Modal {
     }
 }
 
-/** 통합 대시보드의 식사보드 페이지. 가로는 하루 시작 시각부터 24시간, 세로는 한 달의 날짜다. */
+type MealBoardView = 'week' | 'month';
+// 이 폭보다 좁으면 처음에 주 보기로 연다. styles.css의 container query와 같은 값이다.
+const NARROW_WIDTH = 560;
+
+/** 'YYYY-MM-DD'가 든 주의 월요일 */
+function weekStartOf(key: string): string {
+    const [year, month, day] = key.split('-').map(Number);
+    return shiftDate(key, -((new Date(year!, month! - 1, day).getDay() + 6) % 7));
+}
+
+function legendLabel(plugin: ATOZPlugin, record: MealRecord): string {
+    return plugin.settings.mealLegend.find((item) => samePick(item, record))?.label || t('record.meal');
+}
+
+/** 범례 목록. 항목마다 고치기, 맨 아래 새로 더하기. */
+class LegendListModal extends Modal {
+    constructor(private plugin: ATOZPlugin) {
+        super(plugin.app);
+    }
+
+    onOpen(): void {
+        const { contentEl } = this;
+        contentEl.addClass('atoz-meal-modal');
+        this.setTitle(t('meal.legend.edit'));
+        for (const item of this.plugin.settings.mealLegend) {
+            const setting = new Setting(contentEl).setName(item.label);
+            setting.nameEl.addClass('atoz-meal-legend-name');
+            setting.nameEl.prepend(createMealMarker(contentEl, this.plugin, item));
+            setting.addExtraButton((button) => button
+                .setIcon('pencil')
+                .setTooltip(t('meal.legend.editTitle'))
+                .onClick(() => {
+                    this.close();
+                    new LegendModal(this.plugin, item).open();
+                }));
+        }
+        new Setting(contentEl).addButton((button) => button
+            .setButtonText(t('meal.legend.addTitle'))
+            .setCta()
+            .onClick(() => {
+                this.close();
+                new LegendModal(this.plugin).open();
+            }));
+    }
+
+    onClose(): void {
+        this.contentEl.empty();
+    }
+}
+
+/**
+ * 통합 대시보드의 식사보드 페이지.
+ * 달 보기는 가로가 하루 시작 시각부터 24시간, 세로가 한 달의 날짜다. 주 보기는 가로가 7일, 세로가 24시간이다.
+ */
 export class MealBoardPage {
     private month = '';
+    // 주 보기의 첫날(월요일)
+    private week = '';
+    // 고르지 않았으면 폭으로 정한다.
+    private view: MealBoardView | null = null;
+    // 눌러서 내용을 보고 있는 식사
+    private selected: MealRecord | null = null;
+    private isEditing = false;
+    // 달 보기를 처음 열 때만 오늘 줄로 스크롤한다.
+    private scrolledMonth = '';
 
     constructor(private plugin: ATOZPlugin, private container: HTMLElement) {
         container.addClass('atoz-meal-board');
     }
 
     getState(): Record<string, unknown> {
-        return { month: this.month };
+        return { month: this.month, week: this.week, view: this.view };
     }
 
     setState(state: Record<string, unknown>): void {
         if (typeof state.month === 'string' && /^\d{4}-\d{2}$/.test(state.month)) this.month = state.month;
+        if (typeof state.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(state.week)) this.week = state.week;
+        if (state.view === 'week' || state.view === 'month') this.view = state.view;
     }
 
     render(): void {
@@ -309,44 +375,95 @@ export class MealBoardPage {
         const startHour = plugin.settings.mealDayStartHour;
         const today = toDateKey(new Date(Date.now() - startHour * HOUR));
         if (!this.month) this.month = today.slice(0, 7);
+        if (!this.week) this.week = weekStartOf(today);
         const container = this.container;
+        const width = container.clientWidth;
+        const view = this.view ?? (width > 0 && width < NARROW_WIDTH ? 'week' : 'month');
         container.empty();
 
-        const moveTo = (month: string): void => {
-            this.month = month;
+        const update = (): void => {
             plugin.app.workspace.requestSaveLayout();
             this.render();
         };
-        renderPageHeader(container, {
-            label: formatMonthLabel(this.month),
-            previousLabel: t('meal.previousMonth'),
-            nextLabel: t('meal.nextMonth'),
-            onMove: (delta) => moveTo(shiftMonth(this.month, delta)),
-            isToday: this.month === today.slice(0, 7),
-            onToday: () => moveTo(today.slice(0, 7)),
-            menu: [{ title: t('meal.palette.title'), icon: 'palette', onClick: () => new PaletteModal(plugin).open() }],
-        });
+        const menu = [
+            { title: t('meal.legend.edit'), icon: 'pencil', onClick: () => new LegendListModal(plugin).open() },
+            { title: t('meal.palette.title'), icon: 'palette', onClick: () => new PaletteModal(plugin).open() },
+        ];
+        if (view === 'week') {
+            renderPageHeader(container, {
+                label: formatWeekLabel(this.week, shiftDate(this.week, 6)),
+                previousLabel: t('meal.previousWeek'),
+                nextLabel: t('meal.nextWeek'),
+                onMove: (delta) => {
+                    this.week = shiftDate(this.week, delta * 7);
+                    update();
+                },
+                isToday: this.week === weekStartOf(today),
+                onToday: () => {
+                    this.week = weekStartOf(today);
+                    update();
+                },
+                menu,
+            });
+        } else {
+            renderPageHeader(container, {
+                label: formatMonthLabel(this.month),
+                previousLabel: t('meal.previousMonth'),
+                nextLabel: t('meal.nextMonth'),
+                onMove: (delta) => {
+                    this.month = shiftMonth(this.month, delta);
+                    update();
+                },
+                isToday: this.month === today.slice(0, 7),
+                onToday: () => {
+                    this.month = today.slice(0, 7);
+                    update();
+                },
+                menu,
+            });
+        }
 
+        // 범례는 설명만 한다. 고치기는 ⋯ 메뉴에 있다.
         const legend = container.createDiv({ cls: 'atoz-meal-legend' });
         for (const item of plugin.settings.mealLegend) {
             const chip = legend.createDiv({ cls: 'atoz-meal-chip' });
             createMealMarker(chip, plugin, item);
             chip.createSpan({ text: item.label });
-            makeClickable(chip, () => new LegendModal(plugin, item).open());
         }
-        const addChip = legend.createDiv({ cls: 'atoz-meal-chip', attr: { 'aria-label': t('meal.legend.addTitle') } });
-        setIcon(addChip, 'plus');
-        setTooltip(addChip, t('meal.legend.addTitle'));
-        makeClickable(addChip, () => new LegendModal(plugin).open());
+        const views = legend.createDiv({ cls: 'atoz-meal-views', attr: { role: 'group', 'aria-label': t('meal.view') } });
+        for (const option of ['week', 'month'] as const) {
+            const button = views.createEl('button', { text: t(option === 'week' ? 'meal.week' : 'meal.month') });
+            button.toggleClass('is-active', option === view);
+            button.setAttr('aria-pressed', String(option === view));
+            button.addEventListener('click', () => {
+                if (option === view) return;
+                this.view = option;
+                // 보던 때를 이어받는다. 주는 목요일이 든 달로, 달은 오늘이나 1일이 든 주로.
+                if (option === 'month') this.month = shiftDate(this.week, 3).slice(0, 7);
+                else this.week = weekStartOf(this.month === today.slice(0, 7) ? today : `${this.month}-01`);
+                update();
+            });
+        }
 
-        // 하루 시작 시각 전의 기록은 전날 줄에 그린다.
+        // 하루 시작 시각 전의 기록은 전날에 그린다.
         const byDay = new Map<string, MealRecord[]>();
         for (const record of plugin.meal.records) {
             const key = toDateKey(new Date(record.time - startHour * HOUR));
-            if (!key.startsWith(this.month)) continue;
             byDay.set(key, [...(byDay.get(key) ?? []), record]);
         }
+        // 다시 읽으면 기록 객체가 새로 생기므로 시각과 표시로 다시 찾는다.
+        const selected = this.selected;
+        this.selected = selected
+            ? plugin.meal.records.find((record) => record.time === selected.time && samePick(record, selected)) ?? null
+            : null;
 
+        if (view === 'week') this.renderWeek(container, byDay, today);
+        else this.renderMonth(container, byDay, today);
+        if (this.selected) this.renderDetail(container, this.selected);
+    }
+
+    private renderMonth(container: HTMLElement, byDay: Map<string, MealRecord[]>, today: string): void {
+        const startHour = this.plugin.settings.mealDayStartHour;
         const grid = container.createDiv({ cls: 'atoz-meal-grid' });
         const hours = grid.createDiv({ cls: 'atoz-meal-row is-header' });
         hours.createDiv({ cls: 'atoz-meal-day' });
@@ -358,28 +475,125 @@ export class MealBoardPage {
         for (let day = 1; day <= dayCount; day++) {
             const key = `${this.month}-${pad(day)}`;
             const row = grid.createDiv({ cls: 'atoz-meal-row' });
-            if (key === today) row.addClass('is-today');
+            if (key === today) {
+                row.addClass('is-today');
+                if (this.scrolledMonth !== this.month) {
+                    this.scrolledMonth = this.month;
+                    window.setTimeout(() => row.scrollIntoView({ block: 'center' }), 0);
+                }
+            }
             row.createDiv({ cls: 'atoz-meal-day', text: String(day) });
             const track = row.createDiv({ cls: 'atoz-meal-track' });
             for (let i = 0; i < 24; i++) track.createDiv({ cls: 'atoz-meal-cell' });
-
-            let previous: { offset: number; shift: number } | null = null;
-            for (const record of byDay.get(key) ?? []) {
-                const date = new Date(record.time);
-                const offset = (date.getHours() - startHour + 24) % 24 + date.getMinutes() / 60;
-                const shift: number = previous && offset - previous.offset < OVERLAP_HOURS ? previous.shift + 1 : 0;
-                previous = { offset, shift };
-                // 메뉴가 비어도 범례 아이콘 그대로 두고 점선으로 표시한다.
-                const marker = createMealMarker(track, plugin, record);
-                marker.addClass('is-placed');
-                marker.toggleClass('is-empty', !record.food);
-                // 표시가 제 시간 칸을 벗어나지 않도록 분은 칸 안의 20~80% 위치로만 반영한다.
-                const position = Math.floor(offset) + 0.2 + 0.6 * (offset % 1);
-                marker.style.left = `calc(${position / 24 * 100}% + ${shift} * var(--atoz-meal-shift))`;
-                const legend = plugin.settings.mealLegend.find((item) => item.icon === record.icon && item.color === record.color);
-                setTooltip(marker, `${formatClock(record.time)} ${record.food || `${legend?.label ?? t('record.meal')} · ${t('meal.unknownFood')}`}`);
-            }
+            this.placeMarkers(track, byDay.get(key) ?? [], (marker, at, shift) => {
+                marker.style.left = `calc(${at * 100}% + ${shift} * var(--atoz-meal-shift))`;
+            });
         }
+    }
+
+    private renderWeek(container: HTMLElement, byDay: Map<string, MealRecord[]>, today: string): void {
+        const startHour = this.plugin.settings.mealDayStartHour;
+        const grid = container.createDiv({ cls: 'atoz-meal-week' });
+        const days = Array.from({ length: 7 }, (_, i) => shiftDate(this.week, i));
+        grid.createDiv();
+        for (const key of days) {
+            const [year, month, day] = key.split('-').map(Number);
+            const head = grid.createDiv({ cls: 'atoz-meal-week-head' });
+            if (key === today) head.addClass('is-today');
+            head.createDiv({ text: new Date(year!, month! - 1, day).toLocaleDateString(isKorean ? 'ko-KR' : 'en-US', { weekday: 'short' }) });
+            head.createDiv({ cls: 'atoz-meal-week-date', text: String(day) });
+        }
+        const hours = grid.createDiv({ cls: 'atoz-meal-week-hours' });
+        for (let i = 0; i < 24; i++) hours.createDiv({ text: String((startHour + i) % 24) });
+        for (const key of days) {
+            const column = grid.createDiv({ cls: 'atoz-meal-week-day' });
+            if (key === today) column.addClass('is-today');
+            for (let i = 0; i < 24; i++) column.createDiv({ cls: 'atoz-meal-cell' });
+            this.placeMarkers(column, byDay.get(key) ?? [], (marker, at, shift) => {
+                marker.style.top = `${at * 100}%`;
+                marker.style.left = `calc(50% + ${shift} * var(--atoz-meal-shift))`;
+            });
+        }
+    }
+
+    /** 한 날의 식사 표시를 그린다. place는 하루 중 위치(0~1)와 밀어낼 칸 수를 받아 자리를 잡는다. */
+    private placeMarkers(
+        track: HTMLElement,
+        records: MealRecord[],
+        place: (marker: HTMLElement, at: number, shift: number) => void,
+    ): void {
+        const plugin = this.plugin;
+        const startHour = plugin.settings.mealDayStartHour;
+        let previous: { offset: number; shift: number } | null = null;
+        for (const record of records) {
+            const date = new Date(record.time);
+            const offset = (date.getHours() - startHour + 24) % 24 + date.getMinutes() / 60;
+            const shift: number = previous && offset - previous.offset < OVERLAP_HOURS ? previous.shift + 1 : 0;
+            previous = { offset, shift };
+            // 메뉴가 비어도 범례 아이콘 그대로 두고 점선으로 표시한다.
+            const marker = createMealMarker(track, plugin, record);
+            marker.addClass('is-placed');
+            marker.toggleClass('is-empty', !record.food);
+            marker.toggleClass('is-selected', record === this.selected);
+            // 표시가 제 시간 칸을 벗어나지 않도록 분은 칸 안의 20~80% 위치로만 반영한다.
+            place(marker, (Math.floor(offset) + 0.2 + 0.6 * (offset % 1)) / 24, shift);
+            setTooltip(marker, `${formatClock(record.time)} ${record.food || `${legendLabel(plugin, record)} · ${t('meal.unknownFood')}`}`);
+            // 터치 화면에는 툴팁이 없으므로 누르면 아래에 내용을 보인다.
+            makeClickable(marker, () => {
+                this.selected = record;
+                this.isEditing = false;
+                this.render();
+            });
+        }
+    }
+
+    /** 누른 식사의 내용: 시각, 범례, 메뉴, 함께 남긴 지출. 메뉴는 그 자리에서 고친다. */
+    private renderDetail(container: HTMLElement, record: MealRecord): void {
+        const plugin = this.plugin;
+        const sheet = container.createDiv({ cls: 'atoz-meal-detail' });
+        createMealMarker(sheet, plugin, record).toggleClass('is-empty', !record.food);
+        const body = sheet.createDiv({ cls: 'atoz-meal-detail-text' });
+        const label = legendLabel(plugin, record);
+        if (this.isEditing) {
+            body.createSpan({ text: `${formatClock(record.time)} ${label}` });
+            const input = body.createEl('input', { type: 'text', value: record.food, attr: { placeholder: t('meal.modal.foodPlaceholder') } });
+            let isDone = false;
+            const finish = async (save: boolean): Promise<void> => {
+                if (isDone) return;
+                isDone = true;
+                this.isEditing = false;
+                const food = input.value.trim();
+                if (save && food !== record.food) await plugin.meal.replace(record, record.time, food);
+                else this.render();
+            };
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') void finish(true);
+                else if (event.key === 'Escape') void finish(false);
+            });
+            input.addEventListener('blur', () => void finish(true));
+            window.setTimeout(() => input.focus(), 0);
+        } else {
+            body.createSpan({ text: `${formatClock(record.time)} ${label} · ${record.food || t('meal.unknownFood')}` });
+            const amount = body.createSpan({ cls: 'atoz-meal-detail-amount' });
+            // 식사 알약에서 금액과 함께 남긴 지출은 범례 이름과 같은 카테고리로 1분 안에 적힌다.
+            const date = new Date(record.time);
+            void plugin.budget.timedExpenses(`${date.getFullYear()}-${pad(date.getMonth() + 1)}`).then((entries) => {
+                const pair = entries.find((entry) => entry.category === label && Math.abs(entryTime(entry) - record.time) <= MEAL_SPENDING_GAP);
+                if (pair) amount.setText(` · ${formatWon(pair.amount)}`);
+            });
+            const edit = sheet.createEl('button', { text: t('meal.detail.edit') });
+            edit.addEventListener('click', () => {
+                this.isEditing = true;
+                this.render();
+            });
+        }
+        const close = sheet.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': t('meal.detail.close') } });
+        setIcon(close, 'x');
+        close.addEventListener('click', () => {
+            this.selected = null;
+            this.isEditing = false;
+            this.render();
+        });
     }
 }
 

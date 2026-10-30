@@ -1920,7 +1920,8 @@ export class BudgetPage {
     private sortKey: SortKey = 'date';
     private sortAsc = true;
     private dailyMode: DailyMode = 'bar';
-    private trendRange: TrendRange = 12;
+    // 고르지 않았으면 가계부가 있는 달만큼, 많아야 12개월
+    private trendRange: TrendRange | null = null;
 
     constructor(private plugin: ATOZPlugin, private contentEl: HTMLElement) {
         this.app = plugin.app;
@@ -1933,7 +1934,8 @@ export class BudgetPage {
             month: this.month,
             kindFilter: this.kindFilter,
             dailyMode: this.dailyMode,
-            trendRange: this.trendRange,
+            // 예전 기본값 12가 저장돼 있어 새 기본값이 묻히지 않도록 이름을 바꿨다.
+            trendChoice: this.trendRange,
             sortKey: this.sortKey,
             sortAsc: this.sortAsc,
         };
@@ -1944,7 +1946,7 @@ export class BudgetPage {
         const kind = state.kindFilter;
         if (kind === 'all' || kind === 'income' || kind === 'expense') this.kindFilter = kind;
         if (state.dailyMode === 'bar' || state.dailyMode === 'cumulative') this.dailyMode = state.dailyMode;
-        if (state.trendRange === 6 || state.trendRange === 12 || state.trendRange === 'all') this.trendRange = state.trendRange;
+        if (state.trendChoice === 6 || state.trendChoice === 12 || state.trendChoice === 'all') this.trendRange = state.trendChoice;
         if (state.sortKey === 'date' || state.sortKey === 'amount') this.sortKey = state.sortKey;
         if (typeof state.sortAsc === 'boolean') this.sortAsc = state.sortAsc;
     }
@@ -2176,7 +2178,7 @@ export class BudgetPage {
                 root,
                 t('budget.totalRatio'),
                 ratio,
-                formatAmount(stats.expense) + ' / ' + formatWon(budgetTotal) + ' · ' + (ratio * 100).toFixed(1) + '%',
+                formatWon(stats.expense) + ' / ' + formatWon(budgetTotal) + ' · ' + (ratio * 100).toFixed(1) + '%',
             );
         }
     }
@@ -2320,12 +2322,15 @@ export class BudgetPage {
 
     /** 보고 있는 달까지의 달 목록. 전체면 가장 오래된 가계부부터. */
     private trendMonths(): string[] {
-        let first = this.month;
-        if (this.trendRange === 'all') {
-            for (const ledger of this.ledgers) {
-                if (ledger.month < first) first = ledger.month;
-            }
-        } else {
+        let oldest = this.month;
+        for (const ledger of this.ledgers) {
+            if (ledger.month < oldest) oldest = ledger.month;
+        }
+        let first = oldest;
+        if (this.trendRange === null) {
+            const limit = shiftMonth(this.month, -11);
+            if (first < limit) first = limit;
+        } else if (this.trendRange !== 'all') {
             first = shiftMonth(this.month, -(this.trendRange - 1));
         }
         const months: string[] = [];
@@ -2362,13 +2367,15 @@ export class BudgetPage {
         head.createSpan({ text: t('budget.trend') });
         const toggle = head.createDiv({ cls: 'atoz-budget-segment' });
         const ranges: TrendRange[] = [6, 12, 'all'];
+        // 고르지 않았을 때는 지금 보이는 범위와 같은 버튼을 켠다.
+        const activeRange = this.trendRange ?? (months.length < 12 ? 'all' : 12);
         for (const range of ranges) {
             const button = toggle.createEl('button', {
                 cls: 'atoz-budget-segment-button',
                 text: range === 'all' ? t('budget.all') : t('budget.months', { count: range }),
             });
-            button.toggleClass('is-active', this.trendRange === range);
-            button.setAttr('aria-pressed', String(this.trendRange === range));
+            button.toggleClass('is-active', activeRange === range);
+            button.setAttr('aria-pressed', String(activeRange === range));
             button.addEventListener('click', () => {
                 this.trendRange = range;
                 this.app.workspace.requestSaveLayout();
@@ -3077,6 +3084,12 @@ export class BudgetFeature {
             }
         }
         return out;
+    }
+
+    /** 식사보드에서 식사와 함께 남긴 지출을 찾을, 그 달의 시각이 적힌 지출. */
+    async timedExpenses(month: string): Promise<Entry[]> {
+        const ledger = await this.store.load(KIND_EXPENSE, month);
+        return (ledger?.entries ?? []).filter((entry) => /^\d{2}:\d{2}$/.test(entry.time));
     }
 
     /** 기록 패널에서 지금 시각으로 한 건 남기고, 되돌릴 수 있게 그 내역을 돌려준다. 항목과 태그는 나중에 고친다. */

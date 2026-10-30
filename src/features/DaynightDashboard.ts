@@ -19,18 +19,15 @@ const AWAKE_BIN_COUNT = 7;
 const NIGHT_START_HOUR = 18;
 const NIGHT_END_HOUR = 6;
 
-// 24시간 차트 좌표계
+// 24시간 차트 좌표계. 지금 선이 띠 위아래로 4만큼 나온다.
 const DAY_CHART_WIDTH = 860;
-const BAR_TOP = 18;
+const BAR_TOP = 4;
 const BAR_HEIGHT = 32;
 // 시간대 차트 좌표계
-// 대시보드 최대 폭에 맞춰 글자가 거의 그대로의 크기로 보이게 한다.
 const WINDOW_CHART_WIDTH = 860;
-const WINDOW_CHART_HEIGHT = 80;
-// 액토그램 좌표계. 한 줄에 이틀(48시간)을 그린다.
-const ACTOGRAM_LABEL_WIDTH = 40;
+const WINDOW_CHART_HEIGHT = 66;
+// 액토그램 좌표계. 한 줄에 이틀(48시간)을 그린다. 폭만 화면에 맞춰 늘리고 줄 높이는 화면 픽셀 그대로다.
 const ACTOGRAM_PLOT_WIDTH = 820;
-const ACTOGRAM_AXIS_HEIGHT = 14;
 const ACTOGRAM_ROW_HEIGHT = 14;
 
 interface ClockWindow {
@@ -114,6 +111,15 @@ function regularityIndex(segments: DaynightSegment[], start: number, end: number
 }
 
 // 기록 없음 구간을 칠할 빗금. 같은 id를 여러 차트가 정의해도 모양이 같아 상관없다.
+/** 축 글자는 SVG 밖 HTML로 둔다. viewBox 안의 글자는 차트와 같이 줄어 휴대폰에서 4px까지 작아진다. */
+function addAxisMark(axis: HTMLElement, at: number, text: string): void {
+    const mark = axis.createSpan({ text });
+    mark.style.left = `${at * 100}%`;
+    // 양 끝 글자는 잘리지 않게 안쪽으로 붙인다.
+    if (at < 0.02) mark.addClass('is-first');
+    else if (at > 0.98) mark.addClass('is-last');
+}
+
 function addHatch(svg: SVGSVGElement): void {
     const pattern = svg.createSvg('defs').createSvg('pattern', {
         attr: { id: 'atoz-daynight-hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
@@ -285,10 +291,14 @@ export class DaynightDashboardPage {
         focused: DaynightSegment,
     ): void {
         const x = (time: number): number => (time - start) / (end - start) * DAY_CHART_WIDTH;
-        const svg = container.createSvg('svg', {
+        // 축 글자가 차트에 붙도록 한 칸에 묶는다.
+        const frame = container.createDiv();
+        const dates = frame.createDiv({ cls: 'atoz-daynight-axis' });
+        const svg = frame.createSvg('svg', {
             cls: 'atoz-daynight-chart',
-            attr: { viewBox: `0 0 ${DAY_CHART_WIDTH} ${BAR_TOP + BAR_HEIGHT + 16}` },
+            attr: { viewBox: `0 0 ${DAY_CHART_WIDTH} ${BAR_TOP + BAR_HEIGHT + 4}` },
         });
+        const hours = frame.createDiv({ cls: 'atoz-daynight-axis' });
         addHatch(svg);
         svg.createSvg('rect', {
             cls: 'atoz-daynight-track',
@@ -328,18 +338,8 @@ export class DaynightDashboardPage {
                 attr: { x1: tickX, y1: BAR_TOP, x2: tickX, y2: BAR_TOP + BAR_HEIGHT },
             });
             if (isMidnight) grid.addClass('atoz-daynight-midnight');
-            const label = svg.createSvg('text', {
-                cls: 'atoz-daynight-label',
-                attr: { x: Math.min(Math.max(tickX, 6), DAY_CHART_WIDTH - 6), y: BAR_TOP + BAR_HEIGHT + 13, 'text-anchor': 'middle' },
-            });
-            label.textContent = String(tick.getHours());
-            if (isMidnight) {
-                const dateLabel = svg.createSvg('text', {
-                    cls: 'atoz-daynight-label',
-                    attr: { x: Math.min(tickX, DAY_CHART_WIDTH - 30), y: 11 },
-                });
-                dateLabel.textContent = formatShortDate(tick.getTime());
-            }
+            addAxisMark(hours, tickX / DAY_CHART_WIDTH, String(tick.getHours()));
+            if (isMidnight) addAxisMark(dates, tickX / DAY_CHART_WIDTH, formatShortDate(tick.getTime()));
         }
 
         // 수면 구간과 깨어 있는 구간을 번갈아 칠하고, 기록 없음은 빗금으로 둔다.
@@ -401,9 +401,10 @@ export class DaynightDashboardPage {
     }
 
     private renderRatioChart(container: HTMLElement, ratios: (number | null)[], threshold: number): void {
-        const plotHeight = WINDOW_CHART_HEIGHT - 14;
+        const plotHeight = WINDOW_CHART_HEIGHT;
         const slotWidth = WINDOW_CHART_WIDTH / SLOT_COUNT;
-        const svg = container.createSvg('svg', {
+        const frame = container.createDiv();
+        const svg = frame.createSvg('svg', {
             cls: 'atoz-daynight-ratio-chart',
             attr: { viewBox: `0 0 ${WINDOW_CHART_WIDTH} ${WINDOW_CHART_HEIGHT}` },
         });
@@ -420,14 +421,8 @@ export class DaynightDashboardPage {
             cls: 'atoz-daynight-threshold-line',
             attr: { x1: 0, y1: thresholdY, x2: WINDOW_CHART_WIDTH, y2: thresholdY },
         });
-        for (let hour = 0; hour <= 24; hour += 3) {
-            const x = hour / 24 * WINDOW_CHART_WIDTH;
-            const label = svg.createSvg('text', {
-                cls: 'atoz-daynight-label',
-                attr: { x: Math.min(Math.max(x, 6), WINDOW_CHART_WIDTH - 6), y: WINDOW_CHART_HEIGHT - 2, 'text-anchor': 'middle' },
-            });
-            label.textContent = String(hour);
-        }
+        const axis = frame.createDiv({ cls: 'atoz-daynight-axis' });
+        for (let hour = 0; hour <= 24; hour += 3) addAxisMark(axis, hour / 24, String(hour));
     }
 
     private renderRegularity(card: HTMLElement, segments: DaynightSegment[], start: number, end: number): void {
@@ -483,26 +478,27 @@ export class DaynightDashboardPage {
         const days: Date[] = [];
         for (const day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) days.push(new Date(day));
 
-        const width = ACTOGRAM_LABEL_WIDTH + ACTOGRAM_PLOT_WIDTH;
-        const height = ACTOGRAM_AXIS_HEIGHT + days.length * ACTOGRAM_ROW_HEIGHT;
-        const svg = card.createSvg('svg', {
-            cls: 'atoz-daynight-actogram',
-            attr: { viewBox: `0 0 ${width} ${height}` },
+        // 왼쪽 날짜 칸과 위쪽 시각 줄은 HTML, 그림만 SVG다.
+        const height = days.length * ACTOGRAM_ROW_HEIGHT;
+        const frame = card.createDiv({ cls: 'atoz-daynight-actogram' });
+        frame.createDiv();
+        const axis = frame.createDiv({ cls: 'atoz-daynight-axis' });
+        const dates = frame.createDiv({ cls: 'atoz-daynight-actogram-dates' });
+        const svg = frame.createSvg('svg', {
+            cls: 'atoz-daynight-actogram-plot',
+            attr: { viewBox: `0 0 ${ACTOGRAM_PLOT_WIDTH} ${height}`, preserveAspectRatio: 'none' },
         });
+        svg.style.height = `${height}px`;
         addHatch(svg);
 
         for (let hour = 0; hour <= 48; hour += 6) {
-            const x = ACTOGRAM_LABEL_WIDTH + hour / 48 * ACTOGRAM_PLOT_WIDTH;
+            const x = hour / 48 * ACTOGRAM_PLOT_WIDTH;
             const grid = svg.createSvg('line', {
                 cls: 'atoz-daynight-grid',
-                attr: { x1: x, y1: ACTOGRAM_AXIS_HEIGHT, x2: x, y2: height },
+                attr: { x1: x, y1: 0, x2: x, y2: height },
             });
             if (hour % 24 === 0) grid.addClass('atoz-daynight-midnight');
-            const label = svg.createSvg('text', {
-                cls: 'atoz-daynight-label',
-                attr: { x: Math.min(x, width - 6), y: 10, 'text-anchor': 'middle' },
-            });
-            label.textContent = String(hour === 48 ? 24 : hour % 24);
+            addAxisMark(axis, hour / 48, String(hour === 48 ? 24 : hour % 24));
         }
 
         days.forEach((day, index) => {
@@ -510,14 +506,9 @@ export class DaynightDashboardPage {
             const rowEnd = new Date(day);
             rowEnd.setDate(rowEnd.getDate() + 2);
             const to = rowEnd.getTime();
-            const x = (time: number): number => ACTOGRAM_LABEL_WIDTH + (time - from) / (to - from) * ACTOGRAM_PLOT_WIDTH;
-            const y = ACTOGRAM_AXIS_HEIGHT + index * ACTOGRAM_ROW_HEIGHT;
-
-            const label = svg.createSvg('text', {
-                cls: 'atoz-daynight-label',
-                attr: { x: 0, y: y + ACTOGRAM_ROW_HEIGHT - 3 },
-            });
-            label.textContent = formatShortDate(from);
+            const x = (time: number): number => (time - from) / (to - from) * ACTOGRAM_PLOT_WIDTH;
+            const y = index * ACTOGRAM_ROW_HEIGHT;
+            dates.createDiv({ text: formatShortDate(from) });
 
             // 기록이 있는 부분만 바탕을 깔아 깨어 있던 시간과 기록이 없는 시간을 구분한다.
             const knownFrom = Math.max(from, start);

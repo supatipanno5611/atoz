@@ -20,7 +20,7 @@ const TOAST_DURATION = 6000;
 // 알약을 누른 뒤 쓰기가 끝나도 이만큼은 다시 눌러도 무시한다.
 const PILL_LOCK = 600;
 // 식사와 지출이 이만큼 가까우면 같은 끼니로 보고 한 줄로 합친다.
-const MEAL_SPENDING_GAP = 60 * 1000;
+export const MEAL_SPENDING_GAP = 60 * 1000;
 // 이보다 긴 깨어 있음·잠은 기록이 끊긴 것으로 본다.
 const WAKE_LIMIT = 20 * HOUR;
 const SLEEP_LIMIT = 18 * HOUR;

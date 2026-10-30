@@ -35,6 +35,15 @@ export function formatMonthLabel(key: string): string {
     return new Date(year!, month! - 1, 1).toLocaleDateString(LOCALE, { year: 'numeric', month: 'long' });
 }
 
+/** 'YYYY-MM-DD' 둘을 '10월 26일 – 11월 1일'처럼 */
+export function formatWeekLabel(start: string, end: string): string {
+    const format = (key: string): string => {
+        const [year, month, day] = key.split('-').map(Number);
+        return new Date(year!, month! - 1, day).toLocaleDateString(LOCALE, { month: 'long', day: 'numeric' });
+    };
+    return `${format(start)} – ${format(end)}`;
+}
+
 /** 대시보드 페이지 공통 머리말: ‹ 기간 › [오늘] … [⋯] */
 export function renderPageHeader(container: HTMLElement, options: PageHeaderOptions): HTMLElement {
     const header = container.createDiv({ cls: 'atoz-page-header' });
