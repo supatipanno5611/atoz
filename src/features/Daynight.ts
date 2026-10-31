@@ -162,10 +162,16 @@ function applyColor(el: HTMLElement, color: MealColor | null | undefined): void 
 interface PanelRecord {
     key: string;
     time: number;
-    // 줄 앞 표시. 활동은 점, 활동 끝은 빈 고리, 그 밖은 아이콘이다.
-    mark: 'dot' | 'ring' | { icon: string };
+    // 목록에서 줄이 놓이는 시각. 없으면 time이다. 잠은 깬 시각에 놓인다.
+    at?: number;
+    // 줄 앞 표시. 활동은 점, 그 밖은 아이콘이다.
+    mark: 'dot' | { icon: string };
     color: MealColor | null | undefined;
     text: string;
+    // 이름 뒤에 흐리게 붙는 설명('00:22부터'). 고치는 값이 아니다.
+    detail?: string;
+    // 아직 끝나지 않은 활동·잠. 줄을 칠하고 값은 흐리게 둔다.
+    isLive?: boolean;
     // 금액처럼 줄 끝에 붙는 값
     value: string;
     isIncome: boolean;
@@ -233,6 +239,8 @@ function shiftClock(value: string, minutes: number): string {
 interface ToastAction {
     label: string;
     run: () => Promise<unknown> | void;
+    // [고치기]가 여는 줄. 토스트가 떠 있는 동안 그 줄을 칠한다.
+    key?: string;
 }
 
 // 금액 칸을 연 알약. 식사 알약에서 열었으면 금액을 비워도 식사는 남긴다.
@@ -253,6 +261,8 @@ export class DaynightView extends ItemView {
     private amountError = '';
     // 방금 한 일과 되돌리기. 다시 그려도 사라지지 않게 여기에 둔다.
     private toast: { text: string; actions: ToastAction[] } | null = null;
+    // 토스트가 새 기록을 알리는가. 그 동안 목록 마지막 줄(방금 남긴 줄)을 칠한다.
+    private isToastFresh = false;
     private toastTimer: number | null = null;
     // 쓰는 중인 버튼(data-lock 값). 그동안 같은 버튼을 다시 눌러도 무시한다.
     private pending = new Set<string>();
@@ -297,6 +307,13 @@ export class DaynightView extends ItemView {
         const previousScroll = oldFeed?.scrollTop ?? 0;
         // 처음 그릴 때와 맨 아래(최신 기록)를 보고 있었을 때는 다시 그린 뒤에도 맨 아래를 보인다.
         const wasAtEnd = !oldFeed || previousScroll + oldFeed.clientHeight >= oldFeed.scrollHeight - 4;
+        // 다시 그려도 키보드 초점이 같은 줄·버튼에 남게, 초점이 있던 요소를 기억한다(고치기 안은 빼고).
+        const focused = activeDocument.activeElement;
+        let focusSelector: string | null = null;
+        if (focused instanceof HTMLElement && container.contains(focused) && !focused.closest('.atoz-record-editor')) {
+            if (focused.dataset.focus) focusSelector = `[data-focus="${CSS.escape(focused.dataset.focus)}"]`;
+            else if (focused.dataset.lock) focusSelector = `[data-lock="${CSS.escape(focused.dataset.lock)}"]`;
+        }
         // 초점이 있던 칸을 지울 때 나는 focusout은 고치기를 닫는 뜻이 아니다.
         this.isRendering = true;
         container.empty();
@@ -313,23 +330,27 @@ export class DaynightView extends ItemView {
         // 다시 읽은 기록으로 바꿔 끼우고, 사라진 기록이면 닫는다.
         const editingKey = this.editing?.record.key;
         const editingRecord = records.find((record) => record.key === editingKey);
-        this.editing = this.editing && editingRecord ? { ...this.editing, record: editingRecord } : null;
+        // 고치는 동안 활동이 끝났으면 비어 있던 끝 칸을 채운다.
+        this.editing = this.editing && editingRecord ? {
+            ...this.editing,
+            record: editingRecord,
+            end: this.editing.end || (editingRecord.end === undefined ? '' : formatTime(editingRecord.end)),
+        } : null;
 
         this.renderStatus(container, now);
 
         // 기록은 아래에서부터 쌓아 최신 기록이 아래 묶음 바로 위에 온다.
         const feed = container.createDiv({ cls: 'atoz-record-feed' });
         const list = feed.createDiv({ cls: 'atoz-record-list' });
-        const yesterday = records.filter((record) => record.time < todayStart);
-        const today = records.filter((record) => record.time >= todayStart);
+        const yesterday = records.filter((record) => (record.at ?? record.time) < todayStart);
+        const today = records.filter((record) => (record.at ?? record.time) >= todayStart);
         if (yesterday.length > 0) {
-            const fold = list.createDiv({ cls: 'atoz-record-fold', attr: { 'aria-expanded': String(this.isYesterdayShown) } });
+            const fold = list.createDiv({ cls: 'atoz-record-fold', attr: { 'aria-expanded': String(this.isYesterdayShown), 'data-focus': 'fold' } });
             setIcon(fold.createSpan(), this.isYesterdayShown ? 'chevron-down' : 'chevron-right');
             fold.createSpan({ text: t('record.yesterday', { count: yesterday.length }) });
             makeClickable(fold, () => {
                 this.isYesterdayShown = !this.isYesterdayShown;
                 this.render();
-                this.containerEl.querySelector<HTMLElement>('.atoz-record-fold')?.focus();
             });
             if (this.isYesterdayShown) {
                 yesterday.forEach((record) => this.renderRecord(list, record));
@@ -338,6 +359,14 @@ export class DaynightView extends ItemView {
         }
         if (today.length === 0) list.createDiv({ cls: 'atoz-record-empty', text: t('record.empty') });
         today.forEach((record) => this.renderRecord(list, record));
+        // 토스트는 목록 끝에 겹쳐 뜨므로 그만큼 아래를 비워 방금 남긴 줄이 토스트 위에 보이게 한다.
+        feed.toggleClass('has-toast', this.toast !== null);
+        // 방금 남긴 줄: [고치기]가 여는 줄, 없으면(지출·다시 시작) 맨 아래 줄
+        if (this.toast && this.isToastFresh && today.length > 0) {
+            const key = this.toast.actions.find((action) => action.key)?.key;
+            const fresh = key ? list.querySelector(`[data-focus="${CSS.escape(`row:${key}`)}"]`)?.parentElement : list.lastElementChild;
+            fresh?.addClass('is-fresh');
+        }
 
         // 알약과 수면 버튼은 아래에 고정되어 늘 보인다.
         const dock = container.createDiv({ cls: 'atoz-record-dock' });
@@ -359,12 +388,11 @@ export class DaynightView extends ItemView {
         // 펼친 기록이 있으면 그 줄이 보이게 하고, 방금 기록했거나 맨 아래를 보고 있었으면 맨 아래 최신 기록을, 아니면 보던 자리를 보인다.
         const open = list.querySelector('.atoz-record-row.is-open');
         if (open) {
-            // 위에 붙은 어제 접기 줄 아래, 목록 칸 안에 보이게 한다.
+            // 목록 칸 안에 보이게 한다.
             feed.scrollTop = previousScroll;
             const view = feed.getBoundingClientRect();
-            const viewTop = view.top + (list.querySelector<HTMLElement>('.atoz-record-fold')?.offsetHeight ?? 0);
             const { top, bottom } = open.getBoundingClientRect();
-            if (top < viewTop) feed.scrollTop -= viewTop - top;
+            if (top < view.top) feed.scrollTop -= view.top - top;
             else if (bottom > view.bottom) feed.scrollTop += bottom - view.bottom;
         } else if (this.scrollToEnd || wasAtEnd) {
             feed.scrollTop = feed.scrollHeight;
@@ -372,6 +400,7 @@ export class DaynightView extends ItemView {
         } else {
             feed.scrollTop = previousScroll;
         }
+        if (focusSelector) container.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
     }
 
     private refreshStatus(): void {
@@ -496,25 +525,68 @@ export class DaynightView extends ItemView {
 
         const sleeps = plugin.daynight.records;
         sleeps.forEach((record, index) => {
-            if (record.time < from) return;
             const previous = sleeps[index - 1];
             const next = sleeps[index + 1];
+            const last = sleeps[sleeps.length - 1];
+            // 잠과 그 뒤 기상은 깬 시각에 한 줄로 보인다. 기상은 잠 줄의 끝 시각으로 고친다.
+            if (record.type === 'wake' && previous?.type === 'sleep') return;
+            if (record.type === 'sleep') {
+                const wake = next?.type === 'wake' ? next : undefined;
+                const after = wake ? sleeps[index + 2] : undefined;
+                if ((wake?.time ?? record.time) < from) return;
+                const length = wake ? wake.time - record.time : 0;
+                out.push({
+                    key: sleepKey(record),
+                    time: record.time,
+                    at: wake?.time,
+                    mark: { icon: 'moon' },
+                    color: SLEEP_COLOR,
+                    text: t(wake && length <= MAIN_SLEEP ? 'record.nap' : 'record.sleepMain'),
+                    detail: wake ? t('record.sleepFrom', { time: formatTime(record.time) }) : undefined,
+                    value: wake ? formatDuration(length) : t('daynight.asleep'),
+                    isLive: !wake,
+                    isIncome: false,
+                    note: null,
+                    noteLabel: '',
+                    end: wake?.time,
+                    // 지우기는 마지막 기록이 들어 있는 줄만 해서 기록은 항상 취침과 기상이 번갈아 나온다.
+                    deletable: (wake ?? record) === last,
+                    save: async ({ time, end }) => {
+                        // 앞뒤 기록 사이여야 순서가 유지된다. 지금보다 뒤인지, 시작이 끝보다 앞인지는 commitEdit에서 본다.
+                        if (previous && time <= previous.time) {
+                            new Notice(t('daynight.editTooEarly', { time: formatShortDateTime(previous.time) }));
+                        } else if (after && end !== null && end >= after.time) {
+                            new Notice(t('daynight.editTooLate', { time: formatShortDateTime(after.time) }));
+                        } else {
+                            if (time !== record.time) await plugin.daynight.editRecord(record, time);
+                            if (wake && end !== null && end !== wake.time) await plugin.daynight.editRecord(wake, end);
+                        }
+                    },
+                    remove: async () => {
+                        if (wake) await plugin.daynight.deleteLast();
+                        await plugin.daynight.deleteLast();
+                    },
+                    restore: async () => {
+                        await plugin.daynight.restore(record);
+                        if (wake) await plugin.daynight.restore(wake);
+                    },
+                });
+                return;
+            }
+            // 잠 없이 남은 기상(처음 기록이나 끊긴 뒤 다시 시작)은 따로 한 줄이다.
+            if (record.time < from) return;
             out.push({
                 key: sleepKey(record),
                 time: record.time,
-                mark: { icon: record.type === 'sleep' ? 'moon' : 'sun' },
-                color: record.type === 'sleep' ? SLEEP_COLOR : WAKE_COLOR,
-                text: t(record.type === 'sleep' ? 'daynight.sleep' : 'daynight.wake'),
-                value: record.type === 'wake' && previous?.type === 'sleep'
-                    ? t('record.slept', { duration: formatDuration(record.time - previous.time) })
-                    : '',
+                mark: { icon: 'sun' },
+                color: WAKE_COLOR,
+                text: t('daynight.wake'),
+                value: '',
                 isIncome: false,
                 note: null,
                 noteLabel: '',
-                // 지우기는 마지막 기록만 해서 기록은 항상 취침과 기상이 번갈아 나온다.
-                deletable: index === sleeps.length - 1,
+                deletable: record === last,
                 save: async ({ time }) => {
-                    // 앞뒤 기록 사이여야 순서가 유지된다. 지금보다 뒤인지는 commitEdit에서 본다.
                     if (previous && time <= previous.time) {
                         new Notice(t('daynight.editTooEarly', { time: formatShortDateTime(previous.time) }));
                     } else if (next && time >= next.time) {
@@ -569,32 +641,39 @@ export class DaynightView extends ItemView {
         const blockChoices = (current: string): EditChoice[] => [...new Set([...plugin.timeline.blocks, current])]
             .map((name) => ({ label: name, icon: null, color: plugin.timeline.colorOf(name) }));
         logs.forEach((log, index) => {
-            if (log.time < from) return;
-            const isEnd = log.category === END_CATEGORY;
-            const previous = logs[index - 1];
+            // 끝 기록은 따로 그리지 않고 활동 줄의 끝 시각으로 고친다.
+            if (log.time < from || log.category === END_CATEGORY) return;
             const next = logs[index + 1];
-            const ended = previous && previous.category !== END_CATEGORY ? previous.category : null;
+            const ending = next?.category === END_CATEGORY ? next : undefined;
             out.push({
                 key: logKey(log),
                 time: log.time,
-                mark: isEnd ? 'ring' : 'dot',
-                color: plugin.timeline.colorOf(isEnd ? ended ?? '' : log.category),
-                text: !isEnd ? log.category : t('record.ended', { activity: ended ?? t('record.activity') }),
+                mark: 'dot',
+                color: plugin.timeline.colorOf(log.category),
+                text: log.category,
                 // 활동 줄에는 다음 기록까지의 길이를 붙여 빼기를 대신한다.
-                value: isEnd ? '' : next ? formatDuration(next.time - log.time) : t('record.ongoing'),
+                value: next ? formatDuration(next.time - log.time) : t('record.ongoing'),
+                isLive: !next,
                 isIncome: false,
-                note: isEnd ? null : log.memo,
+                note: log.memo,
                 noteLabel: t('record.memo'),
-                choices: isEnd ? undefined : { label: t('record.blockLabel'), value: log.category, options: blockChoices(log.category) },
-                // 끝 시각은 다음 기록(끝 줄이나 다음 활동)의 시각이다.
-                end: !isEnd && next ? next.time : undefined,
+                choices: { label: t('record.blockLabel'), value: log.category, options: blockChoices(log.category) },
+                // 끝 시각은 다음 기록(끝 기록이나 다음 활동)의 시각이다.
+                end: next?.time,
                 deletable: true,
                 save: async ({ time, note, choice, end }) => {
                     await plugin.timeline.replaceLog(log, time, note, choice || log.category);
                     if (next && end !== null && end !== next.time) await plugin.timeline.replaceLog(next, end, next.memo);
                 },
-                remove: () => plugin.timeline.replaceLog(log, null, ''),
-                restore: () => plugin.timeline.addLog(log.time, log.category, log.memo),
+                // 활동을 지우면 그 끝 기록도 함께 지운다.
+                remove: async () => {
+                    await plugin.timeline.replaceLog(log, null, '');
+                    if (ending) await plugin.timeline.replaceLog(ending, null, '');
+                },
+                restore: async () => {
+                    await plugin.timeline.addLog(log.time, log.category, log.memo);
+                    if (ending) await plugin.timeline.addLog(ending.time, END_CATEGORY);
+                },
             });
         });
 
@@ -676,7 +755,7 @@ export class DaynightView extends ItemView {
         }
 
         // 같은 시각이면 모은 순서(수면, 식사, 활동, 지출)를 지킨다.
-        return out.sort((a, b) => a.time - b.time);
+        return out.sort((a, b) => (a.at ?? a.time) - (b.at ?? b.time));
     }
 
     // 가계부는 달마다 파일이 따로라, 고친 시각이 다른 달로 넘어가면 옮기지 않고 알린다.
@@ -715,7 +794,7 @@ export class DaynightView extends ItemView {
     }
 
     private editAction(key: string, time: number): ToastAction {
-        return { label: t('record.toast.edit'), run: () => this.openEditor(key, time) };
+        return { label: t('record.toast.edit'), run: () => this.openEditor(key, time), key };
     }
 
     // 가계부는 다시 읽은 내역에서 같은 날짜·시각·카테고리·금액인 줄을 찾아 연다.
@@ -733,12 +812,16 @@ export class DaynightView extends ItemView {
 
     private renderRecord(list: HTMLElement, record: PanelRecord): void {
         const row = list.createDiv({ cls: 'atoz-record-row is-editable' });
-        row.toggleClass('is-end', record.mark === 'ring');
-        const head = row.createDiv({ cls: 'atoz-record-head' });
-        head.createSpan({ cls: 'atoz-record-time', text: formatTime(record.time) });
+        if (record.isLive) {
+            row.addClass('is-live');
+            applyColor(row, record.color);
+        }
+        const head = row.createDiv({ cls: 'atoz-record-head', attr: { 'data-focus': `row:${record.key}` } });
+        head.createSpan({ cls: 'atoz-record-time', text: formatTime(record.at ?? record.time) });
         this.renderMark(head, record);
         const text = head.createSpan({ cls: 'atoz-record-text', text: record.text });
-        if (record.note) text.createSpan({ cls: 'atoz-record-note', text: ` · ${record.note}` });
+        const detail = record.note || record.detail;
+        if (detail) text.createSpan({ cls: 'atoz-record-note', text: ` · ${detail}` });
         else if (record.notePrompt) head.createSpan({ cls: 'atoz-record-prompt', text: record.notePrompt });
         if (record.value) {
             const value = head.createSpan({ cls: 'atoz-record-value', text: record.value });
@@ -905,7 +988,7 @@ export class DaynightView extends ItemView {
                 this.editing = null;
                 void this.lock('delete', async () => {
                     await record.remove();
-                    this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())]);
+                    this.showToast(t('record.toast.deleted'), [this.undo(() => record.restore())], false);
                 });
             });
         }
@@ -1306,7 +1389,8 @@ export class DaynightView extends ItemView {
             isEnd
                 ? t('record.toast.ended', { activity: name, duration: formatDuration(now - current.time) })
                 : t('record.toast.started', { activity: name, time: formatTime(now) }),
-            [this.editAction(logKey(log), log.time), this.undoLogs([log])],
+            // 끝냈으면 [고치기]는 끝낸 활동 줄을 연다(끝 시각을 고친다).
+            [isEnd ? this.editAction(logKey(current), current.time) : this.editAction(logKey(log), log.time), this.undoLogs([log])],
         );
     }
 
@@ -1334,7 +1418,11 @@ export class DaynightView extends ItemView {
         const text = isAsleep ? t('record.toast.woke', { time: formatTime(now) })
             : current ? t('record.toast.sleptEnded', { activity: current.category })
                 : t('record.toast.slept', { time: formatTime(now) });
-        const record = this.lastSleep();
+        // 깨면 [고치기]는 잠과 기상을 함께 보인 잠 줄을 연다.
+        const records = this.plugin.daynight.records;
+        const last = records[records.length - 1];
+        const before = records[records.length - 2];
+        const record = last?.type === 'wake' && before?.type === 'sleep' ? before : last;
         this.showToast(text, record ? [this.editAction(sleepKey(record), record.time), this.undoSleep(ended)] : [this.undoSleep(ended)]);
     }
 
@@ -1364,10 +1452,11 @@ export class DaynightView extends ItemView {
         return { label: t('record.undo'), run };
     }
 
-    private showToast(text: string, actions: ToastAction[]): void {
+    private showToast(text: string, actions: ToastAction[], isFresh = true): void {
         if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
         this.scrollToEnd = true;
         this.toast = { text, actions };
+        this.isToastFresh = isFresh;
         this.toastTimer = window.setTimeout(() => {
             this.toastTimer = null;
             this.toast = null;
