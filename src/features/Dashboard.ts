@@ -361,11 +361,13 @@ class DashboardView extends ItemView {
         const totals = new Map<string, number>();
         let sleepTotal = 0;
         let napTotal = 0;
+        const sleeps: { from: number; to: number }[] = [];
         for (const segment of plugin.daynight.segments(now)) {
             if (segment.type === 'wake' || segment.to <= dayStart || segment.from >= dayEnd) continue;
             const seg = recordLane.createSpan({ cls: `atoz-home-seg ${segment.type === 'gap' ? 'is-gap' : 'is-sleep'}` });
             place(seg, segment.from, segment.to);
             if (segment.type === 'gap') continue;
+            sleeps.push(segment);
             const length = clip(segment.to) - clip(segment.from);
             const isNap = segment.to - segment.from <= 3 * HOUR;
             if (isNap) napTotal += length;
@@ -378,12 +380,21 @@ class DashboardView extends ItemView {
         }
         for (const block of plugin.timeline.segments(now)) {
             if (block.to <= dayStart || block.from >= dayEnd) continue;
-            const seg = recordLane.createSpan({ cls: 'atoz-home-seg is-activity' });
-            applyTimelineColor(seg, plugin, block.category);
-            place(seg, block.from, block.to);
-            const length = clip(block.to) - clip(block.from);
-            totals.set(block.category, (totals.get(block.category) ?? 0) + length);
-            labeled.push({ el: seg, full: block.category, short: block.category.split(' ')[0] ?? block.category, length });
+            totals.set(block.category, (totals.get(block.category) ?? 0) + clip(block.to) - clip(block.from));
+            // 잠과 겹친 활동은 잠 구간을 비우고 그린다. 잠이 늘 보이게.
+            let pieces = [{ from: clip(block.from), to: clip(block.to) }];
+            for (const sleep of sleeps) {
+                pieces = pieces.flatMap((piece) => [
+                    { from: piece.from, to: Math.min(piece.to, sleep.from) },
+                    { from: Math.max(piece.from, sleep.to), to: piece.to },
+                ]).filter((piece) => piece.to > piece.from);
+            }
+            for (const piece of pieces) {
+                const seg = recordLane.createSpan({ cls: 'atoz-home-seg is-activity' });
+                applyTimelineColor(seg, plugin, block.category);
+                place(seg, piece.from, piece.to);
+                labeled.push({ el: seg, full: block.category, short: block.category.split(' ')[0] ?? block.category, length: piece.to - piece.from });
+            }
         }
 
         const mealLane = lane(t('record.meal'), 'is-meal');
