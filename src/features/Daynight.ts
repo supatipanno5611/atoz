@@ -139,8 +139,7 @@ export function entryTime(entry: BudgetRecord['entry']): number {
     return new Date(year!, month! - 1, day, hour, minute).getTime();
 }
 
-const ACCENT_COLOR: MealColor = { light: 'var(--interactive-accent)', dark: 'var(--interactive-accent)' };
-const SLEEP_COLOR = ACCENT_COLOR;
+const SLEEP_COLOR: MealColor = { light: 'var(--atoz-sleep)', dark: 'var(--atoz-sleep)' };
 const WAKE_COLOR: MealColor = { light: 'var(--atoz-daynight-morning)', dark: 'var(--atoz-daynight-morning)' };
 
 // 지출 알약 아이콘. 표에 없는 카테고리는 지갑이다.
@@ -443,7 +442,7 @@ export class DaynightView extends ItemView {
         const head = hero.createDiv({ cls: 'atoz-daynight-hero-label' });
         applyColor(
             head.createSpan({ cls: 'atoz-daynight-dot' }),
-            isAsleep ? SLEEP_COLOR : current ? this.plugin.timeline.colorOf(current.category) ?? ACCENT_COLOR : null,
+            isAsleep ? SLEEP_COLOR : current ? this.plugin.timeline.colorOf(current.category) : null,
         );
         const status = head.createSpan({
             cls: 'atoz-record-status',
@@ -1200,8 +1199,8 @@ export class DaynightView extends ItemView {
         for (const name of shown) {
             const isCurrent = current?.category === name;
             const key = `activity:${name}`;
-            // 진행 중이면 색을 채우고 점 대신 체크와 경과를 둔다. 색이 없으면 강조색이다.
-            const color = timeline.colorOf(name) ?? (isCurrent ? ACCENT_COLOR : null);
+            // 진행 중이면 색을 채우고 점 대신 체크와 경과를 둔다. 색이 없으면 회색이다.
+            const color = timeline.colorOf(name);
             const button = this.tile(tiles, name, color, null, () => {
                 void this.lock(key, () => this.toggleActivity(name));
             });

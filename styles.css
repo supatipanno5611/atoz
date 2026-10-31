@@ -252,19 +252,60 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     margin-bottom: var(--size-4-3);
 }
 
+/* ── 뜻이 정해진 색 ──
+   잠·아침·활동 자동 색은 테마와 상관없이 플러그인이 정한다. 강조색은 누를 것·선택·링크에만 쓴다.
+   활동 색 6개는 이 순서로 밝은·어두운 바탕에서 색각 이상 검사를 통과했다. --atoz-on-*은 색 칸 안 글자색이다. */
+.theme-light {
+    --atoz-sleep: #33447a;
+    --atoz-on-sleep: #ffffff;
+    --atoz-morning: #f3e3bb;
+    --atoz-on-morning: #5e430d;
+    --atoz-cat-1: #2f6fbf;
+    --atoz-cat-2: #d4652a;
+    --atoz-cat-3: #1c9a74;
+    --atoz-cat-4: #c98f00;
+    --atoz-cat-5: #c9517f;
+    --atoz-cat-6: #6a55c8;
+    --atoz-on-cat-1: #ffffff;
+    --atoz-on-cat-2: #140c04;
+    --atoz-on-cat-3: #04251b;
+    --atoz-on-cat-4: #140c04;
+    --atoz-on-cat-5: #140c04;
+    --atoz-on-cat-6: #ffffff;
+}
+
+.theme-dark {
+    --atoz-sleep: #8e9ddb;
+    --atoz-on-sleep: #12162a;
+    --atoz-morning: #4a3c1d;
+    --atoz-on-morning: #f2dca8;
+    --atoz-cat-1: #4f85cf;
+    --atoz-cat-2: #cc6634;
+    --atoz-cat-3: #25987a;
+    --atoz-cat-4: #b8861c;
+    --atoz-cat-5: #c75a88;
+    --atoz-cat-6: #8576d8;
+    --atoz-on-cat-1: #0d1520;
+    --atoz-on-cat-2: #140c04;
+    --atoz-on-cat-3: #04251b;
+    --atoz-on-cat-4: #140c04;
+    --atoz-on-cat-5: #140c04;
+    --atoz-on-cat-6: #0d1520;
+}
+
 /* ── Daynight ── */
 /* 아침색: 깨어 있는 구간과 '지금 일어나기'. 기록 패널과 수면 페이지가 같이 쓴다. */
 .atoz-daynight,
 .atoz-daynight-dashboard {
-    --atoz-daynight-morning: var(--color-orange);
+    --atoz-daynight-morning: var(--atoz-morning);
 }
 
 .workspace-leaf-content .view-content.atoz-daynight {
-    --atoz-daynight-night: var(--interactive-accent);
-    --atoz-daynight-night-hover: var(--interactive-accent-hover);
-    --atoz-daynight-on-night: var(--text-on-accent);
-    --atoz-daynight-morning-hover: color-mix(in srgb, var(--atoz-daynight-morning) 85%, white);
-    --atoz-daynight-on-morning: color-mix(in srgb, var(--atoz-daynight-morning) 25%, black);
+    --atoz-daynight-night: var(--atoz-sleep);
+    --atoz-daynight-night-hover: color-mix(in srgb, var(--atoz-sleep) 85%, var(--text-normal));
+    --atoz-daynight-on-night: var(--atoz-on-sleep);
+    --atoz-daynight-morning-hover: color-mix(in srgb, var(--atoz-daynight-morning) 85%, var(--text-normal));
+    --atoz-daynight-on-morning: var(--atoz-on-morning);
     --atoz-record-fill: color-mix(in srgb, var(--text-normal) 4%, transparent);
     /* 패널 전체가 아니라 가운데 오늘 목록만 스크롤한다. 칸마다 좌우 여백을 따로 둔다. */
     display: flex;
@@ -560,7 +601,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-sleep {
-    fill: var(--interactive-accent);
+    fill: var(--atoz-sleep);
 }
 
 /* 기록 없음은 빗금 회색. 무늬는 차트마다 넣는 pattern(atoz-daynight-hatch)이다. */
@@ -604,7 +645,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-swatch.is-sleep {
-    background: var(--interactive-accent);
+    background: var(--atoz-sleep);
 }
 
 .atoz-daynight-swatch.is-wake {
@@ -621,7 +662,7 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
 }
 
 .atoz-daynight-now {
-    stroke: var(--color-red);
+    stroke: var(--text-normal);
     stroke-width: 1.5;
 }
 
@@ -2432,16 +2473,21 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 .atoz-home-seg.is-activity {
     background: var(--atoz-timeline-color);
-    color: #fff;
+    color: var(--atoz-timeline-on, #fff);
+}
+
+/* 7번째 활동부터는 회색 칸에 이름 */
+.atoz-home-seg.is-activity:not([style*="--atoz-timeline-light"]) {
+    color: var(--text-normal);
 }
 
 .atoz-home-seg.is-sleep {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
+    background: var(--atoz-sleep);
+    color: var(--atoz-on-sleep);
 }
 
 .atoz-home-seg.is-nap {
-    background: color-mix(in srgb, var(--interactive-accent) 70%, var(--background-primary));
+    background: color-mix(in srgb, var(--atoz-sleep) 70%, var(--background-primary));
 }
 
 /* 기록 없음은 빗금 */
@@ -2556,7 +2602,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 }
 
 .atoz-home-swatch.is-sleep {
-    background: var(--interactive-accent);
+    background: var(--atoz-sleep);
 }
 
 .atoz-home-swatch.is-activity {
@@ -2636,7 +2682,10 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     background: var(--atoz-bullet-color);
 }
 
-.atoz-home-bullet.is-sleep,
+.atoz-home-bullet.is-sleep {
+    --atoz-bullet-color: var(--atoz-sleep);
+}
+
 .atoz-home-bullet.is-plan {
     --atoz-bullet-color: var(--interactive-accent);
 }
@@ -3252,7 +3301,7 @@ body.is-mobile .atoz-dashboard-home {
     position: absolute;
     left: 22px;
     right: 0;
-    border-top: 2px solid var(--text-error);
+    border-top: 2px solid var(--text-normal);
     pointer-events: none;
 }
 
@@ -3262,7 +3311,7 @@ body.is-mobile .atoz-dashboard-home {
     top: -0.8em;
     padding: 0 2px;
     background-color: var(--background-primary);
-    color: var(--text-error);
+    color: var(--text-normal);
     font-variant-numeric: tabular-nums;
 }
 

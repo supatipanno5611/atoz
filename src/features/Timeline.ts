@@ -9,9 +9,9 @@ import { formatDuration, pad } from './Daynight';
 const DEFAULT_FOLDER = 'timeline';
 const FILE_NAME_PATTERN = /^((log|plan)-\d{4}-\d{2}|blocks|later)\.md$/;
 const BLOCKS_FILE = 'blocks.md';
-// 색을 정하지 않은 블록에 blocks.md 순서대로 돌려 쓰는 색. 테마 색 변수라 라이트·다크가 같다.
-const AUTO_COLORS: MealColor[] = ['blue', 'orange', 'green', 'purple', 'red', 'cyan', 'yellow', 'pink']
-    .map((name) => ({ light: `var(--color-${name})`, dark: `var(--color-${name})` }));
+// 색을 정하지 않은 블록에 blocks.md 순서대로 주는 색. 값은 styles.css의 --atoz-cat-N 토큰이 테마마다 정한다.
+// 7번째 블록부터는 색 없이 회색이다.
+const AUTO_COLOR_COUNT = 6;
 const LATER_FILE = 'later.md';
 const LOG_HEADER = '| Date | Time | Category | Memo |\n| --- | --- | --- | --- |\n';
 const PLAN_HEADER = '| Date | Start | End | Category | Memo |\n| --- | --- | --- | --- | --- |\n';
@@ -213,6 +213,8 @@ export function applyColor(el: HTMLElement, plugin: ATOZPlugin, category: string
         el.style.setProperty('--atoz-timeline-light', color.light);
         el.style.setProperty('--atoz-timeline-dark', color.dark);
     }
+    const ink = plugin.timeline.inkOf(category);
+    if (ink) el.style.setProperty('--atoz-timeline-on', ink);
 }
 
 export class TimelinePage {
@@ -419,10 +421,23 @@ export class TimelineFeature {
             .filter((segment) => segment.category !== END_CATEGORY);
     }
 
-    /** 정한 색이 없으면 blocks.md 순서로 자동 색을 준다. 저장하지 않고 읽을 때 계산한다. 블록이 아니면 없다. */
+    /** 정한 색이 없으면 blocks.md 순서로 자동 색을 준다. 저장하지 않고 읽을 때 계산한다. 블록이 아니거나 7번째부터면 없다. */
     colorOf(category: string): MealColor | undefined {
+        const custom = this.plugin.settings.timelineColors[category];
+        if (custom) return custom;
+        const n = this.autoColorNumber(category);
+        return n === null ? undefined : { light: `var(--atoz-cat-${n})`, dark: `var(--atoz-cat-${n})` };
+    }
+
+    /** 색 칸 안 글자색. 자동 색에만 있다. 직접 정한 색이면 없다. */
+    inkOf(category: string): string | undefined {
+        const n = this.plugin.settings.timelineColors[category] ? null : this.autoColorNumber(category);
+        return n === null ? undefined : `var(--atoz-on-cat-${n})`;
+    }
+
+    private autoColorNumber(category: string): number | null {
         const index = this.blocks.indexOf(category);
-        return this.plugin.settings.timelineColors[category] ?? (index === -1 ? undefined : AUTO_COLORS[index % AUTO_COLORS.length]);
+        return index === -1 || index >= AUTO_COLOR_COUNT ? null : index + 1;
     }
 
     /** 지금 진행 중인 기록. 마지막 기록이 끝 표시면 없다. */
