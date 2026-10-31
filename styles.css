@@ -1372,20 +1372,40 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     position: sticky;
     top: 0;
     z-index: 3;
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
-    scrollbar-width: none;
     margin-bottom: 12px;
     border-bottom: 1px solid var(--background-modifier-border);
     background: var(--background-primary);
+    /* 붙어 있을 때 위쪽 여백으로 아래 내용이 비치지 않게 같은 바탕으로 덮는다. */
+    box-shadow: 0 -32px 0 var(--background-primary);
 }
 
-.atoz-dashboard-tab {
+.atoz-dashboard-tabs-scroll {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+/* 다 들어가지 않으면 오른쪽 끝을 흐려 더 있다는 것을 보인다. */
+.atoz-dashboard-tabs.is-overflowing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, transparent, var(--background-primary));
+    pointer-events: none;
+}
+
+/* 글자와 밑줄만. Obsidian 버튼 모양을 이기도록 .atoz-dashboard를 앞에 둔다. */
+.atoz-dashboard .atoz-dashboard-tab {
     flex-shrink: 0;
-    padding: 6px 10px;
-    border-radius: 0;
+    height: auto;
+    padding: 8px 0 6px;
+    border: none;
     border-bottom: 2px solid transparent;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
     color: var(--text-muted);
@@ -1393,12 +1413,13 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     cursor: pointer;
 }
 
-.atoz-dashboard-tab:hover {
+.atoz-dashboard .atoz-dashboard-tab:hover {
+    background: transparent;
     color: var(--text-normal);
 }
 
-.atoz-dashboard-tab.is-active {
-    border-bottom-color: var(--interactive-accent);
+.atoz-dashboard .atoz-dashboard-tab.is-active {
+    border-bottom-color: var(--text-normal);
     color: var(--text-normal);
     font-weight: var(--font-semibold);
 }
@@ -2281,6 +2302,11 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     container-type: inline-size;
 }
 
+.atoz-dashboard-home > .atoz-page-header {
+    max-width: 900px;
+    margin: 0 auto 12px;
+}
+
 .atoz-dashboard-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2522,41 +2548,173 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     box-shadow: inset 0 0 0 1.5px var(--text-muted);
 }
 
-.atoz-dashboard-card-body.atoz-home-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-/* 나중에 채울 것 */
-.atoz-home-badge {
-    min-width: 20px;
-    padding: 0 6px;
-    border-radius: 10px;
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    font-size: var(--font-ui-smaller);
-    text-align: center;
-}
-
-.atoz-home-later-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.atoz-home-later-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* 홈 머리말 아래 한 줄: 하루가 언제 바뀌는지 */
+.atoz-home-sub {
+    max-width: 900px;
+    margin: -8px auto 12px;
+    color: var(--text-muted);
     font-size: var(--font-ui-small);
 }
 
-.atoz-home-later-row > .atoz-dashboard-muted {
-    flex-shrink: 0;
+/* 카드 제목: 왼쪽 이름, 오른쪽 흐린 설명 */
+.atoz-home-section-title {
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.atoz-home-section-title > .atoz-dashboard-muted {
+    font-size: var(--font-ui-small);
+    font-weight: var(--font-normal);
+}
+
+/* 비교 막대 셋: 좁으면 한 줄씩, 넓으면 3열 */
+.atoz-home-bullets {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+
+@container (min-width: 640px) {
+    .atoz-home-bullets {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+    }
+}
+
+.atoz-home-bullet {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    align-items: baseline;
+    min-width: 0;
+    --atoz-bullet-color: var(--text-muted);
+}
+
+.atoz-home-bullet-label {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-home-bullet-value {
+    font-size: 1.25em;
+    font-weight: var(--font-semibold);
     font-variant-numeric: tabular-nums;
 }
 
+.atoz-home-bullet-track {
+    position: relative;
+    grid-column: 1 / -1;
+    height: 10px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--atoz-bullet-color) 16%, transparent);
+}
+
+.atoz-home-bullet-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 5px;
+    background: var(--atoz-bullet-color);
+}
+
+.atoz-home-bullet.is-sleep,
+.atoz-home-bullet.is-plan {
+    --atoz-bullet-color: var(--interactive-accent);
+}
+
+/* 기준선: 막대 위·아래로 조금 나오는 2px 글자색 선 */
+.atoz-home-bullet-mark {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--text-normal);
+}
+
+.atoz-home-bullet-foot {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.atoz-home-bullet-foot.is-good {
+    color: var(--color-green);
+}
+
+.atoz-home-bullet-foot.is-warn {
+    color: var(--color-orange);
+}
+
+.atoz-home-bullet-icon {
+    display: flex;
+    padding-top: 2px;
+}
+
+.atoz-home-bullet-icon .svg-icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* 메뉴를 비워 둔 식사 */
+.atoz-home-later-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.atoz-home-later-row {
+    display: grid;
+    grid-template-columns: 88px 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    font-size: var(--font-ui-small);
+}
+
+.atoz-home-later-row + .atoz-home-later-row {
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.atoz-home-later-row > .atoz-dashboard-muted {
+    font-variant-numeric: tabular-nums;
+}
+
+.atoz-home-later-icon {
+    display: flex;
+    color: var(--atoz-record-light, var(--text-muted));
+}
+
+.theme-dark .atoz-home-later-icon {
+    color: var(--atoz-record-dark, var(--text-muted));
+}
+
+.atoz-home-later-icon .svg-icon {
+    width: 16px;
+    height: 16px;
+}
+
 .atoz-home-later-label {
-    flex-shrink: 0;
+    min-width: 0;
+    word-break: keep-all;
+}
+
+.atoz-dashboard .atoz-home-later-write {
+    height: 32px;
+    padding: 0 8px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-accent);
+    font-size: var(--font-ui-small);
+    font-weight: var(--font-semibold);
+    cursor: pointer;
+}
+
+.atoz-dashboard .atoz-home-later-write:hover {
+    background: var(--background-modifier-hover);
 }
 
 .atoz-dashboard .atoz-home-later-more {
@@ -2564,7 +2722,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     font-size: var(--font-ui-small);
 }
 
-/* 기능 목록 */
+/* 기능 목록: 이름 / 요약 두 줄 */
 .atoz-home-pages {
     gap: 0;
     padding: 4px 0;
@@ -2574,7 +2732,7 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 44px;
+    min-height: 52px;
     padding: 6px 16px;
     cursor: pointer;
 }
@@ -2585,22 +2743,27 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
 
 .atoz-home-page-icon {
     display: flex;
+    flex-shrink: 0;
     color: var(--text-muted);
 }
 
+.atoz-home-page-text {
+    flex: 1;
+    min-width: 0;
+}
+
 .atoz-home-page-name {
-    flex-shrink: 0;
     font-weight: var(--font-semibold);
 }
 
 .atoz-home-page-line {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     color: var(--text-muted);
     font-size: var(--font-ui-small);
+}
+
+/* 휴대폰: 마지막 줄이 Obsidian 아래 바에 가리지 않게 */
+body.is-mobile .atoz-dashboard-home {
+    padding-bottom: 96px;
 }
 
 .atoz-dashboard-card-title {
@@ -2619,21 +2782,6 @@ body.is-mobile .atoz-record-controls.has-sheet .atoz-record-section {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-}
-
-.atoz-dashboard-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    font-size: var(--font-ui-small);
-}
-
-.atoz-dashboard-value {
-    font-size: 1.4em;
-    font-weight: var(--font-semibold);
-    line-height: 1.2;
-    font-variant-numeric: tabular-nums;
 }
 
 .atoz-dashboard-muted {

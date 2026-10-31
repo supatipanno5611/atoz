@@ -218,7 +218,7 @@ interface Editing {
 }
 
 const sleepKey = (record: DaynightRecord): string => `sleep:${record.time}`;
-const mealKey = (meal: MealRecord): string => `meal:${meal.file.path}:${meal.line}`;
+export const mealKey = (meal: MealRecord): string => `meal:${meal.file.path}:${meal.line}`;
 const logKey = (log: LogRecord): string => `log:${log.file.path}:${log.line}`;
 const budgetKey = ({ kind, month, entry }: BudgetRecord): string => `budget:${kind}:${month}:${entry.lineIndex}:${entry.raw}`;
 
@@ -698,13 +698,20 @@ export class DaynightView extends ItemView {
         };
     }
 
-    /** 방금 남긴 기록의 고치기를 연다(토스트의 [고치기]). */
-    private openEditor(key: string, time: number): void {
-        const record = this.collect(time).find((item) => item.key === key);
+    /** 그 기록의 고치기를 연다(토스트의 [고치기], 홈의 [쓰기]). */
+    openEditor(key: string, time: number): void {
+        // 패널과 같은 범위(어제부터)로 모아야 조금 앞서 남긴 짝 지출도 함께 묶인다.
+        const startHour = this.plugin.settings.timelineDayStartHour;
+        const shifted = new Date(Date.now() - startHour * HOUR);
+        const todayStart = new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate(), startHour).getTime();
+        const record = this.collect(Math.min(time, todayStart - DAY)).find((item) => item.key === key);
         if (!record) return;
         this.commitEdit();
         this.editing = this.startEdit(record);
+        // 어제 기록이면 접힌 어제 묶음을 펼쳐야 고치기가 보인다.
+        if (record.time < todayStart) this.isYesterdayShown = true;
         this.render();
+        this.containerEl.querySelector('.atoz-record-editor')?.scrollIntoView({ block: 'nearest' });
     }
 
     private editAction(key: string, time: number): ToastAction {
@@ -1482,6 +1489,15 @@ export class DaynightFeature {
     // 입력할 때마다 바뀌므로 잠시 기다렸다가 새 폴더를 읽는다.
     settingsChanged(): void {
         this.scheduleReload();
+    }
+
+    /** 패널을 열고 그 기록의 고치기를 연다. */
+    async openEditor(key: string, time: number): Promise<void> {
+        // 막 연 패널은 가계부를 아직 읽지 않았을 수 있다. 짝 지출의 금액이 칸에 들어가도록 먼저 읽는다.
+        await this.withView(async (view) => {
+            await view.reloadBudget();
+            view.openEditor(key, time);
+        });
     }
 
     private async withView(run: (view: DaynightView) => Promise<void>): Promise<void> {
