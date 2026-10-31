@@ -31,6 +31,12 @@ const BEDTIME_DAYS = 7;
 const MAIN_SLEEP = 3 * HOUR;
 // 활동 칸은 두 줄(8칸)까지. 블록이 더 많으면 마지막 칸이 '전체'다.
 const MAX_ACTIVITY_TILES = 8;
+// aria-labelledby·aria-describedby로 이을 보이는 라벨의 id. Obsidian은 aria-label을 툴팁으로 띄워 아래 칸을 덮는다.
+let labelCount = 0;
+function labelId(el: HTMLElement): string {
+    if (!el.id) el.id = `atoz-record-label-${++labelCount}`;
+    return el.id;
+}
 type DaynightType = 'sleep' | 'wake';
 
 interface DaynightRecord {
@@ -257,6 +263,9 @@ export class DaynightView extends ItemView {
     private amountTarget: AmountTarget | null = null;
     private amountDraft = '';
     private amountPayment = '';
+    private amountTitle = '';
+    // 시트를 막 열었을 때만 금액 칸에 초점을 준다(최근 금액이 없을 때). 다시 그릴 때마다 키보드를 띄우지 않는다.
+    private shouldFocusAmount = false;
     // 금액 칸 바로 아래에 보이는 오류
     private amountError = '';
     // 방금 한 일과 되돌리기. 다시 그려도 사라지지 않게 여기에 둔다.
@@ -678,13 +687,6 @@ export class DaynightView extends ItemView {
         });
 
         // 그 카테고리에서 최근에 쓴 항목
-        const recentTitles = (category: string): string[] => {
-            const titles = this.budgetRecords
-                .filter(({ kind, entry }) => kind === 'expense' && entry.category === category && entry.title)
-                .sort((a, b) => entryTime(b.entry) - entryTime(a.entry))
-                .map(({ entry }) => entry.title);
-            return [...new Set(titles)].slice(0, 4);
-        };
         for (const record of this.budgetRecords) {
             const { entry } = record;
             const time = entryTime(entry);
@@ -737,7 +739,7 @@ export class DaynightView extends ItemView {
                     value: entry.category,
                     options: categories.map((category) => ({ label: category, icon: SPENDING_ICONS[category] ?? 'wallet', color: null })),
                 } : undefined,
-                recentNotes: record.kind === 'expense' ? recentTitles : undefined,
+                recentNotes: record.kind === 'expense' ? (category) => this.recentTitles(category) : undefined,
                 amount: { value: entry.amount, payment: entry.payment },
                 deletable: true,
                 save: async ({ time: newTime, note, choice, amount: newAmount, payment }) => {
@@ -871,6 +873,7 @@ export class DaynightView extends ItemView {
             el.createDiv({ cls: 'atoz-record-field-label', text: label });
             return el;
         };
+        const labelOf = (box: HTMLElement): string => labelId(box.querySelector<HTMLElement>('.atoz-record-field-label')!);
         const inputs: HTMLInputElement[] = [];
 
         const head = editor.createDiv({ cls: 'atoz-record-editor-head' });
@@ -886,7 +889,8 @@ export class DaynightView extends ItemView {
         });
 
         if (record.choices) {
-            const chips = field(record.choices.label).createDiv({ cls: 'atoz-record-chips', attr: { role: 'group', 'aria-label': record.choices.label } });
+            const box = field(record.choices.label);
+            const chips = box.createDiv({ cls: 'atoz-record-chips', attr: { role: 'group', 'aria-labelledby': labelOf(box) } });
             for (const option of record.choices.options) {
                 const chip = chips.createEl('button', { cls: 'atoz-record-chip' });
                 applyColor(chip, option.color);
@@ -939,7 +943,7 @@ export class DaynightView extends ItemView {
             inputs.push(amountInput);
             const payments = this.plugin.settings.budgetPayments;
             if (payments.length > 0) {
-                const group = box.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group', 'aria-label': t('budget.payment') } });
+                const group = box.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group', 'aria-labelledby': labelOf(box) } });
                 for (const name of payments) {
                     const button = group.createEl('button', { cls: 'atoz-record-amount-payment', text: name });
                     const sync = (): void => {
@@ -1233,12 +1237,15 @@ export class DaynightView extends ItemView {
         const isSame = this.amountTarget?.category === target.category && this.amountTarget.meal === target.meal;
         this.amountTarget = isSame ? null : target;
         this.amountDraft = '';
+        this.amountTitle = '';
         this.amountError = '';
         this.amountPayment = this.plugin.settings.budgetLastPayment;
+        this.shouldFocusAmount = true;
         this.render();
     }
 
-    // 금액 시트: 머리(아이콘·이름·닫기), 큰 금액 칸, 최근 금액, 결제 수단, 내용이 적힌 기록 버튼. 패널에서는 지출만 받는다.
+    // 금액 시트: 머리(아이콘·이름·지금·닫기), 큰 금액 칸, 최근 금액, 결제 수단, 항목(지출만), 내용이 적힌 기록 버튼.
+    // 휴대폰은 아래 묶음을 대신하는 시트, PC는 아래 묶음 위에 겹쳐 뜨는 카드라 목록 높이가 그대로다.
     private renderAmountForm(container: HTMLElement, target: AmountTarget): void {
         const settings = this.plugin.settings;
         const sheet = container.createDiv({ cls: 'atoz-record-amount' });
@@ -1246,6 +1253,8 @@ export class DaynightView extends ItemView {
         const icon = target.meal ? mealIcon(target.meal.icon) : SPENDING_ICONS[target.category] ?? 'wallet';
         setIcon(head.createSpan({ cls: 'atoz-record-amount-icon' }), icon);
         head.createSpan({ cls: 'atoz-record-amount-title', text: target.category });
+        // 시각은 늘 지금이다. 고치려면 남긴 뒤 [고치기].
+        head.createSpan({ cls: 'atoz-record-amount-now', text: t('record.amountNow', { time: formatTime(Date.now()) }) });
         this.addRecordAction(head, 'x', t('record.close'), () => {
             this.amountTarget = null;
             this.render();
@@ -1261,16 +1270,18 @@ export class DaynightView extends ItemView {
         const error = sheet.createDiv({ cls: 'atoz-record-amount-error', text: this.amountError, attr: { role: 'alert' } });
         input.toggleClass('is-invalid', this.amountError !== '');
 
-        // 그 카테고리에서 최근에 쓴 금액. 누르면 금액 칸에 들어간다.
+        // 그 카테고리에서 최근에 쓴 금액. 누르면 금액만 채우고 키보드는 띄우지 않는다. 기록은 아래 버튼으로 한다.
         const recent = this.recentAmounts(target.category);
         if (recent.length > 0) {
-            const chips = sheet.createDiv({ cls: 'atoz-record-amount-chips', attr: { 'aria-label': t('record.recentAmounts') } });
+            const chips = sheet.createDiv({ cls: 'atoz-record-chips' });
+            const label = chips.createSpan({ cls: 'atoz-record-field-label', text: t('record.recent') });
             for (const amount of recent) {
-                const chip = chips.createEl('button', { cls: 'atoz-record-amount-chip', text: formatWon(amount) });
+                const chip = chips.createEl('button', { cls: 'atoz-record-chip atoz-record-amount-chip', text: formatWon(amount) });
+                chip.dataset.amount = String(amount);
+                chip.setAttr('aria-describedby', labelId(label));
                 chip.addEventListener('click', () => {
                     input.value = String(amount);
                     sync();
-                    input.focus();
                 });
             }
         }
@@ -1278,14 +1289,15 @@ export class DaynightView extends ItemView {
         // 결제 수단은 이름이 보이는 분할 버튼이다. 기본은 지난번에 쓴 것이다.
         const payments = settings.budgetPayments;
         if (payments.length > 0) {
-            const group = sheet.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group', 'aria-label': t('budget.payment') } });
+            const group = sheet.createDiv({ cls: 'atoz-record-amount-payments', attr: { role: 'group' } });
             for (const name of payments) {
                 const button = group.createEl('button', { cls: 'atoz-record-amount-payment', text: name });
                 const isSelected = this.amountPayment === name;
                 button.toggleClass('is-active', isSelected);
                 button.setAttr('aria-pressed', String(isSelected));
+                // 고른 것을 다시 눌러도 풀리지 않는다.
                 button.addEventListener('click', () => {
-                    this.amountPayment = this.amountPayment === name ? '' : name;
+                    this.amountPayment = name;
                     group.querySelectorAll('button').forEach((el) => {
                         el.toggleClass('is-active', el.textContent === this.amountPayment);
                         el.setAttr('aria-pressed', String(el.textContent === this.amountPayment));
@@ -1294,12 +1306,47 @@ export class DaynightView extends ItemView {
             }
         }
 
+        // 항목은 비워도 된다. 최근 항목을 누르면 키보드 없이 들어간다. 식사의 메뉴는 남긴 뒤 [고치기]에서 쓴다.
+        const inputs = [input];
+        if (!target.meal) {
+            const field = sheet.createDiv({ cls: 'atoz-record-field' });
+            const label = field.createDiv({ cls: 'atoz-record-field-label', text: t('record.itemOptional') });
+            const titleInput = field.createEl('input', {
+                type: 'text',
+                cls: 'atoz-record-amount-title-input',
+                attr: { placeholder: t('record.itemPrompt'), 'aria-labelledby': labelId(label) },
+            });
+            titleInput.value = this.amountTitle;
+            inputs.push(titleInput);
+            const titles = this.recentTitles(target.category).slice(0, 3);
+            const chips = titles.length > 0 ? field.createDiv({ cls: 'atoz-record-chips' }) : null;
+            const syncTitle = (): void => {
+                chips?.querySelectorAll('.atoz-record-chip').forEach((el) => el.toggleClass('is-active', el.textContent === this.amountTitle));
+            };
+            titleInput.addEventListener('input', () => {
+                this.amountTitle = titleInput.value;
+                syncTitle();
+            });
+            for (const title of titles) {
+                const chip = chips!.createEl('button', { cls: 'atoz-record-chip', text: title });
+                chip.addEventListener('click', () => {
+                    this.amountTitle = title;
+                    titleInput.value = title;
+                    syncTitle();
+                });
+            }
+            syncTitle();
+        }
+
         const submit = sheet.createEl('button', { cls: 'mod-cta atoz-record-amount-submit' });
         submit.addEventListener('click', () => void this.submitAmount());
-        // 기록 버튼에 무엇이 남는지 적는다.
+        // 기록 버튼에 무엇이 남는지 적고, 같은 금액의 최근 칩을 고른 것으로 보인다.
         const sync = (): void => {
             this.amountDraft = input.value;
             const amount = parseAmount(input.value.trim());
+            sheet.querySelectorAll<HTMLElement>('.atoz-record-amount-chip').forEach((el) => {
+                el.toggleClass('is-active', amount !== null && el.dataset.amount === String(amount));
+            });
             submit.setText(amount !== null
                 ? t('record.submitAmount', { category: target.category, amount: formatWon(amount) })
                 : target.meal && input.value.trim() === '' ? t('record.mealOnly') : t('record.submit'));
@@ -1311,20 +1358,34 @@ export class DaynightView extends ItemView {
             input.removeClass('is-invalid');
             sync();
         });
-        input.addEventListener('keydown', (event) => {
-            if (event.isComposing) return;
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                void this.submitAmount();
-            } else if (event.key === 'Escape') {
-                this.amountTarget = null;
-                this.render();
-            }
-        });
+        for (const el of inputs) {
+            el.addEventListener('keydown', (event) => {
+                if (event.isComposing) return;
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void this.submitAmount();
+                } else if (event.key === 'Escape') {
+                    this.amountTarget = null;
+                    this.render();
+                }
+            });
+        }
+        // 최근 금액이 있으면 칩으로 고르게 하고 키보드를 띄우지 않는다.
+        const shouldFocus = this.shouldFocusAmount && recent.length === 0;
+        this.shouldFocusAmount = false;
         window.setTimeout(() => {
-            input.focus();
+            if (shouldFocus) input.focus();
             sheet.scrollIntoView({ block: 'nearest' });
         }, 0);
+    }
+
+    /** 그 카테고리에서 최근에 쓴 항목. 같은 항목은 한 번만, 최대 네 개. */
+    private recentTitles(category: string): string[] {
+        const titles = this.budgetRecords
+            .filter(({ kind, entry }) => kind === 'expense' && entry.category === category && entry.title)
+            .sort((a, b) => entryTime(b.entry) - entryTime(a.entry))
+            .map(({ entry }) => entry.title);
+        return [...new Set(titles)].slice(0, 4);
     }
 
     /** 그 카테고리의 최근 지출 금액. 같은 금액은 한 번만, 최대 세 개. */
@@ -1353,7 +1414,7 @@ export class DaynightView extends ItemView {
             await this.recordMeal(target.meal, amount);
             return;
         }
-        const spent = await this.plugin.budget.recordNow('expense', target.category, amount!, this.amountPayment);
+        const spent = await this.plugin.budget.recordNow('expense', target.category, amount!, this.amountPayment, this.amountTitle.trim());
         if (!spent) return;
         this.showToast(
             t('record.toast.spent', { category: target.category, amount: formatWon(amount!) }),

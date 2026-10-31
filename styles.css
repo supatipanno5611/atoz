@@ -881,8 +881,8 @@ body.is-mobile .atoz-record-head {
 }
 
 body.is-mobile .atoz-daynight .atoz-record-chip {
-    height: 40px;
-    border-radius: 20px;
+    height: 44px;
+    border-radius: 22px;
 }
 
 .atoz-daynight .atoz-record-chip.is-active {
@@ -1144,6 +1144,16 @@ body.is-mobile .atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
     background: var(--background-primary);
 }
 
+/* PC: 아래 묶음 위에 겹쳐 뜨는 카드. 묶음 자리를 차지하지 않아 오늘 목록 높이가 그대로다. */
+body:not(.is-mobile) .atoz-record-amount {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 32px;
+    z-index: 3;
+    box-shadow: var(--shadow-l);
+}
+
 .atoz-record-amount-head {
     display: flex;
     align-items: center;
@@ -1156,8 +1166,22 @@ body.is-mobile .atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
 }
 
 .atoz-record-amount-title {
-    flex: 1;
     font-weight: var(--font-semibold);
+}
+
+.atoz-record-amount-now {
+    flex: 1;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.atoz-record-chips > .atoz-record-field-label {
+    align-self: center;
+}
+
+.atoz-record-amount .atoz-record-amount-title-input {
+    width: 100%;
+    height: 40px;
 }
 
 .atoz-record-amount .atoz-budget-amount-input {
@@ -1189,12 +1213,6 @@ body.is-mobile .atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
     color: var(--text-error);
 }
 
-.atoz-record-amount-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
 /* 결제 수단 분할 버튼 */
 .atoz-record-amount-payments {
     display: flex;
@@ -1203,12 +1221,18 @@ body.is-mobile .atoz-daynight .atoz-record-tiles.is-activity .atoz-record-tile {
     overflow: hidden;
 }
 
-.atoz-daynight .atoz-record-amount-chip,
+.atoz-daynight .atoz-record-amount-chip {
+    font-variant-numeric: tabular-nums;
+}
+
 .atoz-daynight .atoz-record-amount-payment {
     height: 36px;
     box-shadow: none;
     font-size: var(--font-ui-small);
-    font-variant-numeric: tabular-nums;
+}
+
+body.is-mobile .atoz-daynight .atoz-record-amount-payment {
+    height: 44px;
 }
 
 .atoz-daynight .atoz-record-amount-payment {

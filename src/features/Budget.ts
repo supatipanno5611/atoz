@@ -3106,13 +3106,13 @@ export class BudgetFeature {
     }
 
     /** 기록 패널에서 지금 시각으로 한 건 남기고, 되돌릴 수 있게 그 내역을 돌려준다. 항목과 태그는 나중에 고친다. */
-    async recordNow(kind: LedgerKind, category: string, amount: number, payment: string): Promise<BudgetRecord | null> {
+    async recordNow(kind: LedgerKind, category: string, amount: number, payment: string, title = ''): Promise<BudgetRecord | null> {
         const now = new Date();
         const month = currentMonth();
         const draft: EntryDraft = {
             date: todayISO(),
             time: pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
-            title: '',
+            title,
             category,
             amount,
             payment,
@@ -3124,7 +3124,7 @@ export class BudgetFeature {
         const ledger = await this.store.load(kind, month);
         const entry = (ledger?.entries ?? [])
             .filter((item) => item.date === draft.date && item.time === draft.time && item.category === category
-                && item.amount === amount && item.title === '')
+                && item.amount === amount && item.title === title)
             .sort((a, b) => a.lineIndex - b.lineIndex)
             .pop();
         return entry ? { kind, month, entry } : null;
