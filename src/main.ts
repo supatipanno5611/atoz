@@ -1,14 +1,12 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, View, normalizePath } from 'obsidian';
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { CommandSlotFeature } from './features/CommandSlot';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { CutCopyFeature } from './features/CutCopy';
 import { ExecutesFeature } from './features/Executes';
 import { MobileFeature } from './features/Mobile';
 import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { PropertiesFeature, type TopicSource } from './features/Properties';
-import { QuickSlotFeature, toPathArray, fromPathArray } from './features/QuickSlot';
 import { SidebarTabCycleFeature } from './features/SidebarTabCycle';
 import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
@@ -45,8 +43,6 @@ export default class ATOZPlugin extends Plugin {
     mobile!: MobileFeature;
     moveCurrentFile!: MoveCurrentFileFeature;
     sidebarTabCycle!: SidebarTabCycleFeature;
-    quickSlot!: QuickSlotFeature;
-    commandSlot!: CommandSlotFeature;
     info!: InfoFeature;
     noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
@@ -70,8 +66,6 @@ export default class ATOZPlugin extends Plugin {
         this.mobile = new MobileFeature(this);
         this.moveCurrentFile = new MoveCurrentFileFeature(this);
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
-        this.quickSlot = new QuickSlotFeature(this);
-        this.commandSlot = new CommandSlotFeature(this);
         this.info = new InfoFeature(this);
         this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
@@ -173,6 +167,9 @@ export default class ATOZPlugin extends Plugin {
         delete data.moveLineTargetFolder;
         delete data.workTimestampFormat;
         delete data.moveLineSuffix;
+        delete data.quickSlots;
+        delete data.commandSlots;
+        delete data.commandSlotCount;
         for (const key of Object.keys(data)) {
             if (/^(budget|meal|timeline|daynightDashboard)[A-Z]/.test(key)) delete data[key];
         }
@@ -262,9 +259,6 @@ export default class ATOZPlugin extends Plugin {
         this.addRibbonIcon('lucide-file-pen', t('ribbon.openWorkFile'), () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-panel-bottom', t('ribbon.toggleMobileToolbar'), () => this.mobile.toggleMobileToolbarHidden());
         this.addRibbonIcon('lucide-bookmark-plus', t('ribbon.bookmarkActiveTab'), () => this.bookmarkActiveTab());
-        for (let i = 1; i <= 4; i++) {
-            this.addRibbonIcon(`lucide-dice-${i}`, t('ribbon.openQuickSlot', { slot: i }), () => void this.quickSlot.openSlot(i));
-        }
     }
 
     private bookmarkActiveTab(): void {
@@ -308,25 +302,6 @@ export default class ATOZPlugin extends Plugin {
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: t('command.previousRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: t('command.restartKoreanImeFix'), callback: () => { this._koIme_resetFeatureState(); } });
-
-        this.addCommand({ id: 'open-quick-slot-assigner', name: t('command.openQuickSlotAssigner'), callback: () => this.quickSlot.openAssignModal() });
-        this.addCommand({ id: 'open-quick-slot-selector', name: t('command.openQuickSlotSelector'), callback: () => this.quickSlot.openSelectModal() });
-        this.addCommand({ id: 'clear-all-slots', name: t('command.clearQuickSlots'), callback: async () => {
-            this.settings.quickSlots = [null, null, null, null];
-            await this.saveSettings();
-            new Notice(t('notice.quickSlotsCleared'));
-        }});
-        for (let i = 1; i <= 4; i++) {
-            this.addCommand({ id: `open-quick-slot-${i}`, name: t('command.openQuickSlot', { slot: i }), callback: () => void this.quickSlot.openSlot(i) });
-        }
-
-        this.addCommand({ id: 'open-action-slot-assigner', name: t('command.openCommandSlotAssigner'), callback: () => this.commandSlot.openAssignModal() });
-        this.addCommand({ id: 'open-action-slot-selector', name: t('command.openCommandSlotSelector'), callback: () => this.commandSlot.openSelectModal() });
-        this.addCommand({ id: 'clear-all-action-slots', name: t('command.clearCommandSlots'), callback: async () => {
-        	this.settings.commandSlots = [];
-        	await this.saveSettings();
-            new Notice(t('notice.commandSlotsCleared'));
-        }});
     }
 
     registerEvents() {
@@ -355,14 +330,6 @@ export default class ATOZPlugin extends Plugin {
                         		});
                         });
                     }
-        
-                    menu.addItem((item) => {
-                        item.setTitle(t('menu.openQuickSlotAssigner'))
-                        	.setIcon('lucide-square-dot')
-                            .onClick(() => this.quickSlot.openAssignModal());
-                    });
-
-
                     menu.addItem((item) => {
                         item.setTitle(t('menu.moveCurrentFile'))
                         	.setIcon('lucide-folder-input')
@@ -383,49 +350,6 @@ export default class ATOZPlugin extends Plugin {
         this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
             this.symbols.handleSmartBackspace(evt);
         }, true);
-
-        this.registerEvent(
-            this.app.vault.on('rename', async (file, oldPath) => {
-                let changed = false;
-                for (let i = 0; i < this.settings.quickSlots.length; i++) {
-                    const paths = toPathArray(this.settings.quickSlots[i]);
-                    if (paths.length === 0) continue;
-                    let slotChanged = false;
-                    const updated = paths.map((p) => {
-                    	if (p === oldPath) { slotChanged = true; return file.path; }
-                    	if (p.startsWith(oldPath + '/')) { slotChanged = true; return p.replace(oldPath, file.path); }
-                    	return p;
-                    });
-                    if (slotChanged) {
-                    	this.settings.quickSlots[i] = fromPathArray(updated);
-                    	changed = true;
-                    }
-                }
-                if (changed) {
-                	await this.saveSettings();
-                new Notice(t('notice.quickSlotPathUpdated'));
-                }
-            })
-        );
-
-        this.registerEvent(
-            this.app.vault.on('delete', async (file) => {
-                let changed = false;
-                for (let i = 0; i < this.settings.quickSlots.length; i++) {
-                    const paths = toPathArray(this.settings.quickSlots[i]);
-                    if (paths.length === 0) continue;
-                    const remaining = paths.filter((p) => p !== file.path && !p.startsWith(file.path + '/'));
-                    if (remaining.length !== paths.length) {
-                    	this.settings.quickSlots[i] = fromPathArray(remaining);
-                    	changed = true;
-                    }
-                }
-                if (changed) {
-                	await this.saveSettings();
-                new Notice(t('notice.quickSlotFileRemoved'));
-                }
-            })
-        );
 
         this.registerEvent(
             this.app.workspace.on('layout-change', () => this.mobile.checkSidebarState())

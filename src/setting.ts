@@ -465,17 +465,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                 ],
             },
             {
-            	type: 'group' as const,
-                heading: t('settings.commandSlots.heading'),
-            	items: [
-            		{
-                        name: t('settings.commandSlots.count.name'),
-                        desc: t('settings.commandSlots.count.desc'),
-            			control: { type: 'number' as const, key: 'commandSlotCount', min: 1 },
-            		},
-            	],
-            },
-            {
                 type: 'group' as const,
                 heading: t('settings.reset.heading'),
                 items: [

@@ -1,7 +1,4 @@
 export interface ATOZSettings {
-	quickSlots: (string | string[] | null)[];
-	commandSlots: (string | null)[];
-	commandSlotCount: number;
     isCursorCenterEnabled: boolean;
     isMobileStickyRibbonEnabled: boolean;
     snippetTrigger: string;
@@ -113,9 +110,6 @@ export function parseWritingTargetInput(query: string): { presets: WritingTarget
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
-	quickSlots: [null, null, null, null],
-	commandSlots: [],
-	commandSlotCount: 4,
     isCursorCenterEnabled: false,
     isMobileStickyRibbonEnabled: false,
     snippetTrigger: '@',

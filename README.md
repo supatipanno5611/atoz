@@ -20,7 +20,7 @@ It brings frequently used editing actions, note versions, frontmatter and topic 
 | Property management | Edit and clean up `topics`, `date`, and other supported properties |
 | Note info | Character counts for the note or selection, reading time, and per-note writing targets |
 | Input assistance | Insert reusable snippets and symbols, and delete matching symbol pairs together |
-| Navigation | Quick slots for files, command slots, and cycling through sidebar tabs |
+| Navigation | Cycle through sidebar tabs |
 | Sleep log | Record sleep and wake times with one button and view them as a 24-hour chart in the Daynight sidebar |
 
 The plugin automatically uses Korean UI text when Obsidian's interface language is Korean. All other interface languages use English.
@@ -88,7 +88,6 @@ After enabling the plugin, open **Settings → a to z** and configure only the f
 | Work note path | `work.md` | File opened by the **Open work note** command. |
 | Version note folder | Empty (next to the source note) | Folder where version notes are created. |
 | Sleep record folder | Empty (`sleep`) | Folder where monthly sleep records are saved. |
-| Number of slots | `4` | Number of slots shown in command slot modals. |
 
 Use **Reset all settings** to restore these defaults.
 
@@ -164,15 +163,9 @@ Type `~` followed by a symbol ID to open symbol suggestions. A symbol with a clo
 | **Note list: Refresh all** | Rebuilds the body of every note with `notelist: true`. |
 | **Daynight: Open sidebar** | Shows the sleep log in the right sidebar. |
 | **Left/Right sidebar: next/previous tab** | Cycles through the tabs of the left or right sidebar. |
-| **Quick slot: Add or remove current file** | Assigns the current file to a quick slot or clears a slot. |
-| **Quick slot: Choose and open** / **Quick slot: Open slot 1–4** | Opens a file assigned to a quick slot. |
-| **Quick slot: Clear all** | Clears every quick slot. |
-| **Command slot: Assign or clear command** | Assigns a command to a command slot. |
-| **Command slot: Choose and run** | Runs a command assigned to a command slot. |
-| **Command slot: Clear all** | Clears every command slot. |
 | **Restart input method fix** | Restarts the Korean input method fix. |
 
-Ribbon icons provide quick access to the work note, mobile toolbar, bookmarking the active tab, quick slots 1–4, note info, and the Daynight sidebar.
+Ribbon icons provide quick access to the work note, mobile toolbar, bookmarking the active tab, note info, and the Daynight sidebar.
 
 ## Documentation
 
@@ -196,7 +189,6 @@ Detailed feature documentation is available in Korean at [atoz-docs](https://ato
 | [daynight](https://atoz-docs.vercel.app/feature-15-daynight) | Daynight sleep log sidebar |
 | [versions](https://atoz-docs.vercel.app/feature-16-versions) | Saving, reverting, and comparing versions |
 | [note-list](https://atoz-docs.vercel.app/feature-17-note-list) | Auto-generated note lists |
-| [slots](https://atoz-docs.vercel.app/feature-18-slots) | Quick slots and command slots |
 | [others](https://atoz-docs.vercel.app/feature-19-others) | Sidebar tab cycling, standalone ribbon, file menu items, bookmarks, and the Korean input method fix |
 
 ## Credits
