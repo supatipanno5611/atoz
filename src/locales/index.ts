@@ -5,8 +5,7 @@ import { ko } from './ko';
 type TranslationVariables = Record<string, string | number>;
 
 const locale = getLanguage().toLowerCase().split('-')[0];
-export const isKorean = locale === 'ko';
-const translations: Record<TranslationKey, string> = isKorean ? ko : en;
+const translations: Record<TranslationKey, string> = locale === 'ko' ? ko : en;
 
 export function t(key: TranslationKey, variables: TranslationVariables = {}): string {
     let text = translations[key];

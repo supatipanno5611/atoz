@@ -6,11 +6,9 @@ import {
     isSameWritingTargetKey,
     isValidWritingTarget,
     SymbolItem,
-    type BudgetCarryOverMode,
     type WritingTargetPreset,
 } from './types';
 import { t } from './locales';
-import { CategorySuggest, formatAmount, parseAmount } from './features/Budget';
 
 // manifest.json의 fundingUrl과 같은 주소다. PluginManifest 타입에는 fundingUrl이 없다.
 const FUNDING_URL = 'https://buymeacoffee.com/supatipanno5611';
@@ -424,6 +422,17 @@ export class ATOZSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group' as const,
+                heading: 'Later',
+                items: [
+                    {
+                        name: t('settings.later.folder.name'),
+                        desc: t('settings.later.folder.desc'),
+                        control: { type: 'text' as const, key: 'moveLineTargetFolder', placeholder: t('settings.later.folder.placeholder') },
+                     },
+                ],
+            },
+            {
+                type: 'group' as const,
                 heading: t('settings.version.heading'),
                 items: [
                     {
@@ -442,198 +451,26 @@ export class ATOZSettingTab extends PluginSettingTab {
                         desc: t('settings.daynight.folder.desc'),
                         control: { type: 'text' as const, key: 'daynightFolder', placeholder: t('settings.daynight.folder.placeholder') },
                     },
-                ],
-            },
-            {
-                type: 'group' as const,
-                heading: 'Meal',
-                items: [
                     {
-                        name: t('settings.meal.folder.name'),
-                        desc: t('settings.meal.folder.desc'),
-                        control: { type: 'text' as const, key: 'mealFolder', placeholder: t('settings.meal.folder.placeholder') },
-                    },
-                    {
-                        name: t('settings.meal.dayStart.name'),
-                        desc: t('settings.meal.dayStart.desc'),
+                        name: t('settings.daynight.recentCount.name'),
+                        desc: t('settings.daynight.recentCount.desc'),
                         render: (setting: Setting) => {
-                            setting.addDropdown((dropdown) => {
-                                for (let hour = 0; hour < 24; hour++) dropdown.addOption(String(hour), `${hour}:00`);
-                                dropdown
-                                    .setValue(String(this.plugin.settings.mealDayStartHour))
-                                    .onChange(async (value) => {
-                                        this.plugin.settings.mealDayStartHour = Number(value);
-                                        await this.plugin.saveSettings();
-                                        this.plugin.meal.settingsChanged();
-                                    });
-                            });
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'group' as const,
-                heading: 'Timeline',
-                items: [
-                    {
-                        name: t('settings.timeline.folder.name'),
-                        desc: t('settings.timeline.folder.desc'),
-                        control: { type: 'text' as const, key: 'timelineFolder', placeholder: t('settings.timeline.folder.placeholder') },
-                    },
-                    {
-                        name: t('settings.timeline.dayStart.name'),
-                        desc: t('settings.timeline.dayStart.desc'),
-                        render: (setting: Setting) => {
-                            setting.addDropdown((dropdown) => {
-                                for (let hour = 0; hour < 24; hour++) dropdown.addOption(String(hour), `${hour}:00`);
-                                dropdown
-                                    .setValue(String(this.plugin.settings.timelineDayStartHour))
-                                    .onChange(async (value) => {
-                                        this.plugin.settings.timelineDayStartHour = Number(value);
-                                        await this.plugin.saveSettings();
-                                        this.plugin.timeline.settingsChanged();
-                                    });
-                            });
-                        },
-                    },
-                ],
-            },
-            {
-                type: 'group' as const,
-                heading: 'Budget',
-                items: [
-                    {
-                        name: t('settings.budget.folder.name'),
-                        desc: t('settings.budget.folder.desc'),
-                        control: { type: 'text' as const, key: 'budgetFolder', placeholder: t('settings.budget.folder.placeholder') },
-                    },
-                    {
-                        name: t('settings.budget.currencyPrefix.name'),
-                        desc: t('settings.budget.currencyPrefix.desc'),
-                        control: { type: 'text' as const, key: 'budgetCurrencyPrefix' },
-                    },
-                    {
-                        name: t('settings.budget.currencySuffix.name'),
-                        desc: t('settings.budget.currencySuffix.desc'),
-                        control: { type: 'text' as const, key: 'budgetCurrencySuffix' },
-                    },
-                    {
-                        name: t('settings.budget.carryOver.name'),
-                        desc: t('settings.budget.carryOver.desc'),
-                        render: (setting: Setting) => {
-                            setting.addDropdown((dropdown) => dropdown
-                                .addOption('ask', t('settings.budget.carryOver.ask'))
-                                .addOption('always', t('settings.budget.carryOver.always'))
-                                .addOption('never', t('settings.budget.carryOver.never'))
-                                .setValue(this.plugin.settings.budgetCarryOver)
-                                .onChange(async (value) => {
-                                    this.plugin.settings.budgetCarryOver = value as BudgetCarryOverMode;
-                                    await this.plugin.saveSettings();
-                                })
-                            );
-                        },
-                    },
-                    ...([
-                        { key: 'budgetExpenseCategories', name: 'settings.budget.expenseCategories.name', desc: 'settings.budget.categories.desc' },
-                        { key: 'budgetIncomeCategories', name: 'settings.budget.incomeCategories.name', desc: 'settings.budget.categories.desc' },
-                        { key: 'budgetPanelCategories', name: 'settings.budget.panelCategories.name', desc: 'settings.budget.panelCategories.desc' },
-                        { key: 'budgetPayments', name: 'settings.budget.payments.name', desc: 'settings.budget.payments.desc' },
-                    ] as const).map(({ key, name, desc }) => ({
-                        name: t(name),
-                        desc: t(desc),
-                        render: (setting: Setting) => {
-                            setting.settingEl.addClass('atoz-setting-vertical');
-                            setting.addTextArea((ta) => {
-                                ta.inputEl.addClass('atoz-setting-textarea');
-                                ta.setValue(this.plugin.settings[key].join('\n'));
-                                ta.inputEl.addEventListener('blur', () => {
-                                    this.plugin.settings[key] = ta.getValue()
-                                        .split('\n')
-                                        .map((line) => line.trim())
-                                        .filter((line) => line.length > 0);
+                            setting.addText((text) => {
+                                text.inputEl.type = 'number';
+                                text.inputEl.min = '1';
+                                text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                text.inputEl.addEventListener('blur', () => {
+                                    const value = Number(text.getValue());
+                                    if (!Number.isInteger(value) || value < 1) {
+                                        new Notice(t('settings.daynight.recentCount.invalid'));
+                                        text.setValue(this.plugin.settings.daynightRecentCount.toString());
+                                        return;
+                                    }
+                                    this.plugin.settings.daynightRecentCount = value;
                                     void this.plugin.saveSettings();
                                     this.plugin.daynight.settingsChanged();
                                 });
                             });
-                        },
-                    })),
-                    ...this.plugin.settings.budgetFixedExpenses.map((fixed, i) => ({
-                        name: t('settings.budget.fixed.item', { index: i + 1 }),
-                        render: (setting: Setting) => {
-                            const save = (): void => {
-                                this.plugin.debouncedSave();
-                                this.plugin.budget.settingsChanged();
-                            };
-                            setting.addDropdown((dropdown) => dropdown
-                                .addOption('expense', t('budget.expense'))
-                                .addOption('income', t('budget.income'))
-                                .setValue(fixed.kind ?? 'expense')
-                                .onChange((value) => {
-                                    fixed.kind = value === 'income' ? 'income' : 'expense';
-                                    save();
-                                })
-                            ).addText((text) => text
-                                .setPlaceholder(t('settings.budget.fixed.title'))
-                                .setValue(fixed.title)
-                                .onChange((value) => {
-                                    fixed.title = value;
-                                    save();
-                                })
-                            ).addText((text) => {
-                                text.setPlaceholder(t('settings.budget.fixed.category')).setValue(fixed.category);
-                                new CategorySuggest(this.app, text.inputEl, () => this.plugin.budget.categoriesFor('expense'));
-                                text.onChange((value) => {
-                                    fixed.category = value;
-                                    save();
-                                });
-                            }).addText((text) => {
-                                const shown = (): string => fixed.amount === null ? '' : formatAmount(fixed.amount);
-                                text.setPlaceholder(t('settings.budget.fixed.amount')).setValue(shown());
-                                text.inputEl.addEventListener('blur', () => {
-                                    const value = text.getValue().trim();
-                                    const amount = parseAmount(value);
-                                    // 숫자가 아닌 값을 조용히 변동 금액으로 저장하지 않는다.
-                                    if (value.length > 0 && amount === null) {
-                                        new Notice(t('settings.budget.fixed.amountInvalid'));
-                                        text.setValue(shown());
-                                        return;
-                                    }
-                                    fixed.amount = amount;
-                                    save();
-                                });
-                            }).addText((text) => {
-                                text.inputEl.addClass('atoz-budget-day-input');
-                                text.setPlaceholder(t('settings.budget.fixed.day')).setValue(String(fixed.day));
-                                text.onChange((value) => {
-                                    const day = Number(value);
-                                    fixed.day = isFinite(day) && day >= 1 && day <= 31 ? Math.floor(day) : 1;
-                                    save();
-                                });
-                            }).addExtraButton((button) => button
-                                .setIcon('lucide-trash-2')
-                                .setTooltip(t('settings.symbols.delete'))
-                                .onClick(async () => {
-                                    this.plugin.settings.budgetFixedExpenses.splice(i, 1);
-                                    await this.plugin.saveSettings();
-                                    this.plugin.budget.settingsChanged();
-                                    this.refreshSettings();
-                                })
-                            );
-                        },
-                    })),
-                    {
-                        name: t('settings.budget.fixed.name'),
-                        desc: t('settings.budget.fixed.desc'),
-                        render: (setting: Setting) => {
-                            setting.addButton((button) => button
-                                .setButtonText(t('settings.budget.fixed.add'))
-                                .onClick(async () => {
-                                    this.plugin.settings.budgetFixedExpenses.push({ title: '', category: '', amount: null, day: 1 });
-                                    await this.plugin.saveSettings();
-                                    this.plugin.budget.settingsChanged();
-                                    this.refreshSettings();
-                                })
-                            );
                         },
                     },
                 ],
@@ -665,9 +502,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                                     await this.plugin.saveSettings();
                                     this.plugin.info.settingsChanged();
                                     this.plugin.daynight.settingsChanged();
-                                    this.plugin.budget.settingsChanged();
-                                    this.plugin.meal.settingsChanged();
-                                    this.plugin.timeline.settingsChanged();
                                     new Notice(t('settings.reset.notice'));
                                     this.refreshSettings();
                                 })
@@ -682,9 +516,6 @@ export class ATOZSettingTab extends PluginSettingTab {
     async setControlValue(key: string, value: unknown): Promise<void> {
         await super.setControlValue(key, value);
         if (key === 'daynightFolder') this.plugin.daynight.settingsChanged();
-        if (key.startsWith('budget')) this.plugin.budget.settingsChanged();
-        if (key === 'mealFolder') this.plugin.meal.settingsChanged();
-        if (key === 'timelineFolder') this.plugin.timeline.settingsChanged();
     }
 
     private refreshSettings(): void {

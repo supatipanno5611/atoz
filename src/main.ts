@@ -16,15 +16,11 @@ import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS, isValidWritingTarget, type WritingTargetPreset } from './types';
 import { t } from './locales';
+import { LaterFeature, LaterView, VIEW_TYPE_LATER } from './features/Later';
 import { NoteListFeature } from './features/NoteList';
 import { InfoFeature } from './features/Info';
 import { VersionManagerFeature } from './features/VersionManager';
 import { DaynightFeature } from './features/Daynight';
-import { DASHBOARD_RANGES } from './features/DaynightDashboard';
-import { BudgetFeature } from './features/Budget';
-import { DashboardFeature } from './features/Dashboard';
-import { MealFeature, isHexColor } from './features/Meal';
-import { TimelineFeature } from './features/Timeline';
 import { isRecord } from './utils';
 
 interface PluginRegistry {
@@ -52,14 +48,13 @@ export default class ATOZPlugin extends Plugin {
     sidebarTabCycle!: SidebarTabCycleFeature;
     quickSlot!: QuickSlotFeature;
     commandSlot!: CommandSlotFeature;
+    later!: LaterFeature;
     info!: InfoFeature;
     noteList!: NoteListFeature;
     versionManager!: VersionManagerFeature;
     daynight!: DaynightFeature;
-    budget!: BudgetFeature;
-    dashboard!: DashboardFeature;
-    meal!: MealFeature;
-    timeline!: TimelineFeature;
+
+    activeSidebarMode: 'later' | null = null;
 
     private saveTimer: number | null = null;
     private _koIme_isComposingState: boolean = false;
@@ -81,14 +76,11 @@ export default class ATOZPlugin extends Plugin {
         this.sidebarTabCycle = new SidebarTabCycleFeature(this);
         this.quickSlot = new QuickSlotFeature(this);
         this.commandSlot = new CommandSlotFeature(this);
+        this.later = new LaterFeature(this);
         this.info = new InfoFeature(this);
         this.noteList = new NoteListFeature(this);
         this.versionManager = new VersionManagerFeature(this);
         this.daynight = new DaynightFeature(this);
-        this.budget = new BudgetFeature(this);
-        this.dashboard = new DashboardFeature(this);
-        this.meal = new MealFeature(this);
-        this.timeline = new TimelineFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -98,19 +90,17 @@ export default class ATOZPlugin extends Plugin {
         this.registerEditorSuggest(new SnippetsSuggestions(this));
         this.registerEditorSuggest(new SymbolSuggestions(this));
 
+        this.registerView(VIEW_TYPE_LATER, (leaf) => new LaterView(leaf, this));
+        this.later.install();
         this.info.install();
         this.noteList.install();
         this.versionManager.install();
         this.daynight.install();
-        this.budget.install();
-        this.dashboard.install();
-        this.meal.install();
-        this.timeline.install();
 
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
-            this.app.workspace.detachLeavesOfType('atoz-later-view');
             this.mobile.install();
+            this.later.captureCurrentRootFile();
             this.app.workspace.onLayoutReady(() => {
            		let _koIme_lastCheckedCount = -1;
            		let _koIme_stableTickCounter = 0;
@@ -173,12 +163,10 @@ export default class ATOZPlugin extends Plugin {
         }
         this._koIme_isFeatureActivated = false;
         this.mobile.uninstall();
+        this.later.uninstall();
         this.info.uninstall();
         this.versionManager.uninstall();
         this.daynight.uninstall();
-        this.budget.uninstall();
-        this.meal.uninstall();
-        this.timeline.uninstall();
     }
 
     async loadSettings() {
@@ -187,7 +175,6 @@ export default class ATOZPlugin extends Plugin {
             ? { ...loadedData }
             : {};
         delete data.laterFilePath;
-        delete data.moveLineTargetFolder;
         delete data.workTimestampFormat;
         delete data.moveLineSuffix;
         const hadFolderVisibilityData = 'isAllFoldersHidden' in data;
@@ -199,12 +186,6 @@ export default class ATOZPlugin extends Plugin {
         delete data.clipboardHistoryLimit;
         delete data.clipboardPreviewLength;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-        // 패널 지출 카테고리를 예전 기본값(8개) 그대로 쓰고 있으면 지금 기본값(4개)으로 줄인다.
-        const panelCategories = this.settings.budgetPanelCategories;
-        if (Array.isArray(panelCategories) && (panelCategories.join() === '장보기,카페,교통,생활,쇼핑,문화,건강,기타'
-            || panelCategories.join() === 'Groceries,Cafe,Transport,Living,Shopping,Culture,Health,Other')) {
-            this.settings.budgetPanelCategories = DEFAULT_SETTINGS.budgetPanelCategories;
-        }
         if (this.settings.readingTimeCharacterBasis !== 'with-spaces' &&
             this.settings.readingTimeCharacterBasis !== 'without-spaces') {
             this.settings.readingTimeCharacterBasis = DEFAULT_SETTINGS.readingTimeCharacterBasis;
@@ -213,48 +194,9 @@ export default class ATOZPlugin extends Plugin {
             this.settings.readingCharactersPerMinute < 1) {
             this.settings.readingCharactersPerMinute = DEFAULT_SETTINGS.readingCharactersPerMinute;
         }
-        if (!DASHBOARD_RANGES.includes(this.settings.daynightDashboardDays)) {
-            this.settings.daynightDashboardDays = DEFAULT_SETTINGS.daynightDashboardDays;
-        }
-        // 대시보드 슬라이더와 같은 10~90%, 10% 단위만 받는다.
-        const threshold = this.settings.daynightDashboardThreshold;
-        if (!Number.isInteger(threshold) || threshold < 10 || threshold > 90 || threshold % 10 !== 0) {
-            this.settings.daynightDashboardThreshold = DEFAULT_SETTINGS.daynightDashboardThreshold;
-        }
-        const hour = this.settings.mealDayStartHour;
-        if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
-            this.settings.mealDayStartHour = DEFAULT_SETTINGS.mealDayStartHour;
-        }
-        // 슬롯 수는 고정이다. 모자라거나 잘못된 슬롯은 기본 색으로 채운다.
-        const palette: unknown[] = Array.isArray(this.settings.mealPalette) ? this.settings.mealPalette : [];
-        this.settings.mealPalette = DEFAULT_SETTINGS.mealPalette.map((fallback, i) => {
-            const slot = palette[i];
-            return isRecord(slot) && isHexColor(slot.light) && isHexColor(slot.dark)
-                ? { light: slot.light, dark: slot.dark }
-                : { ...fallback };
-        });
-        const legend: unknown[] = Array.isArray(this.settings.mealLegend) ? this.settings.mealLegend : [];
-        this.settings.mealLegend = legend
-            .filter((item): item is Record<string, string> => isRecord(item) &&
-                typeof item.icon === 'string' && typeof item.color === 'string' && typeof item.label === 'string')
-            .map(({ icon, color, label }) => ({ icon: icon!, color: color!, label: label! }));
-        const pick = this.settings.mealLastPick;
-        if (!isRecord(pick) || typeof pick.icon !== 'string' || typeof pick.color !== 'string') {
-            this.settings.mealLastPick = null;
-        }
-        if (typeof this.settings.budgetLastPayment !== 'string') this.settings.budgetLastPayment = '';
-        const timelineHour = this.settings.timelineDayStartHour;
-        if (!Number.isInteger(timelineHour) || timelineHour < 0 || timelineHour > 23) {
-            this.settings.timelineDayStartHour = DEFAULT_SETTINGS.timelineDayStartHour;
-        }
-        const colors: unknown = this.settings.timelineColors;
-        this.settings.timelineColors = {};
-        if (isRecord(colors)) {
-            for (const [category, color] of Object.entries(colors)) {
-                if (isRecord(color) && isHexColor(color.light) && isHexColor(color.dark)) {
-                    this.settings.timelineColors[category] = { light: color.light, dark: color.dark };
-                }
-            }
+        if (!Number.isInteger(this.settings.daynightRecentCount) ||
+            this.settings.daynightRecentCount < 1) {
+            this.settings.daynightRecentCount = DEFAULT_SETTINGS.daynightRecentCount;
         }
         const presets: unknown[] = Array.isArray(this.settings.writingTargetPresets)
             ? this.settings.writingTargetPresets
@@ -287,9 +229,10 @@ export default class ATOZPlugin extends Plugin {
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const frontmatter: unknown = cache?.frontmatter;
+            const isLaterNote = isRecord(frontmatter) && frontmatter.later !== undefined;
             const isVersionNote = isRecord(frontmatter) && frontmatter.version !== undefined;
             const isExcludedCandidate = file.path === activeFile?.path ||
-                file.path === workFilePath || file.path === 'log.md' || isVersionNote;
+                file.path === workFilePath || file.path === 'log.md' || isLaterNote || isVersionNote;
 
             if (!isExcludedCandidate) {
                 candidates.push({
@@ -320,6 +263,7 @@ export default class ATOZPlugin extends Plugin {
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', t('ribbon.openWorkFile'), () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-panel-bottom', t('ribbon.toggleMobileToolbar'), () => this.mobile.toggleMobileToolbarHidden());
+        this.addRibbonIcon('lucide-archive-restore', t('ribbon.openLaterView'), () => void this.later.activateView());
         this.addRibbonIcon('lucide-bookmark-plus', t('ribbon.bookmarkActiveTab'), () => this.bookmarkActiveTab());
         for (let i = 1; i <= 4; i++) {
             this.addRibbonIcon(`lucide-dice-${i}`, t('ribbon.openQuickSlot', { slot: i }), () => void this.quickSlot.openSlot(i));
@@ -360,12 +304,18 @@ export default class ATOZPlugin extends Plugin {
 
         this.addCommand({ id: 'open-work-file', name: t('command.openWorkFile'), callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'close-all-tabs', name: t('command.closeAllTabs'), callback: () => void this.work.cleanupTabs() });
+        this.addCommand({ id: 'clipboard-select-prev', name: t('command.selectPreviousSidebarItem'), callback: () => this.selectSidebarItem('prev') });
+        this.addCommand({ id: 'clipboard-select-next', name: t('command.selectNextSidebarItem'), callback: () => this.selectSidebarItem('next') });
+        this.addCommand({ id: 'paste-clipboard-selected', name: t('command.takeSelectedSidebarItem'), icon: 'lucide-clipboard-check', callback: () => void this.takeSidebarItem() });
+        this.addCommand({ id: 'open-later-view', name: t('command.openLaterView'), callback: () => void this.later.activateView() });
+        this.addCommand({ id: 'resolve-later-links', name: t('command.resolveLaterLinks'), callback: () => void this.later.resolveDuplicateLinks() });
 
         this.addCommand({ id: 'cycle-left-sidebar-next', name: t('command.nextLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', 1) });
         this.addCommand({ id: 'cycle-left-sidebar-prev', name: t('command.previousLeftSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('left', -1) });
         this.addCommand({ id: 'cycle-right-sidebar-next', name: t('command.nextRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', 1) });
         this.addCommand({ id: 'cycle-right-sidebar-prev', name: t('command.previousRightSidebarTab'), callback: () => this.sidebarTabCycle.cycleTab('right', -1) });
 
+        this.addCommand({ id: 'move-line-to-target', name: t('command.moveSelectionToLater'), icon: 'lucide-archive-restore', editorCallback: (editor, view) => void this.later.moveSelectionToLater(editor, view.file) });
         this.addCommand({ id: 'ko-ime-fix-reset-runtime-status', name: t('command.restartKoreanImeFix'), callback: () => { this._koIme_resetFeatureState(); } });
 
         this.addCommand({ id: 'open-quick-slot-assigner', name: t('command.openQuickSlotAssigner'), callback: () => this.quickSlot.openAssignModal() });
@@ -386,6 +336,25 @@ export default class ATOZPlugin extends Plugin {
         	await this.saveSettings();
             new Notice(t('notice.commandSlotsCleared'));
         }});
+    }
+
+    private selectSidebarItem(direction: 'prev' | 'next'): void {
+        if (this.activeSidebarMode === 'later' && this.app.workspace.getLeavesOfType(VIEW_TYPE_LATER).length > 0) {
+            if (direction === 'prev') this.later.selectPrev();
+            else this.later.selectNext();
+            return;
+        }
+
+        new Notice(t('notice.selectLaterSidebarTab'));
+    }
+
+    private async takeSidebarItem(): Promise<void> {
+        if (this.activeSidebarMode === 'later' && this.app.workspace.getLeavesOfType(VIEW_TYPE_LATER).length > 0) {
+            await this.later.takeSelected();
+            return;
+        }
+
+        new Notice(t('notice.selectLaterSidebarTab'));
     }
 
     registerEvents() {

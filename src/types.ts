@@ -1,5 +1,3 @@
-import { isKorean } from './locales';
-
 export interface ATOZSettings {
 	quickSlots: (string | string[] | null)[];
 	commandSlots: (string | null)[];
@@ -15,31 +13,10 @@ export interface ATOZSettings {
     symbols: SymbolItem[];
     recentSymbols: Record<string, number>;
     workFilePath: string;
+    moveLineTargetFolder: string;
     versionFolder: string;
     daynightFolder: string;
-    daynightDashboardDays: number;
-    daynightDashboardThreshold: number;
-    budgetFolder: string;
-    budgetCurrencyPrefix: string;
-    budgetCurrencySuffix: string;
-    budgetExpenseCategories: string[];
-    budgetIncomeCategories: string[];
-    // 기록 패널에 지출 알약으로 띄울 지출 카테고리와 그 순서.
-    budgetPanelCategories: string[];
-    budgetPayments: string[];
-    // 다음 입력에서 기본으로 고를 결제 수단.
-    budgetLastPayment: string;
-    budgetFixedExpenses: BudgetFixedExpense[];
-    budgetCarryOver: BudgetCarryOverMode;
-    mealFolder: string;
-    mealDayStartHour: number;
-    mealPalette: MealColor[];
-    mealLegend: MealLegendItem[];
-    mealLastPick: MealPick | null;
-    timelineFolder: string;
-    timelineDayStartHour: number;
-    // 카테고리 이름별 색. 정해지지 않은 카테고리는 회색으로 그린다.
-    timelineColors: Record<string, MealColor>;
+    daynightRecentCount: number;
     isSupportCollapsed: boolean;
     readingTimeCharacterBasis: 'with-spaces' | 'without-spaces';
     readingCharactersPerMinute: number;
@@ -54,35 +31,6 @@ export interface SymbolItem {
     id: string;
     symbol: string;
     closing?: string;
-}
-
-export type BudgetCarryOverMode = 'ask' | 'always' | 'never';
-
-/** 식사 표시 색. 슬롯 하나에 라이트·다크 테마 색을 따로 둔다. */
-export interface MealColor {
-    light: string;
-    dark: string;
-}
-
-/** 식사 표시. color는 팔레트 슬롯 이름(c-1 …)이다. */
-export interface MealPick {
-    icon: string;
-    color: string;
-}
-
-export interface MealLegendItem extends MealPick {
-    label: string;
-}
-
-export interface BudgetFixedExpense {
-    // 없으면 지출이다(반복 수입을 넣기 전 설정).
-    kind?: 'income' | 'expense';
-    title: string;
-    category: string;
-    // 금액이 매달 다른 항목(전기·가스 등)은 null로 두고 입력할 때 받는다.
-    amount: number | null;
-    // 예정일. 1~31.
-    day: number;
 }
 
 export type WritingTargetPreset =
@@ -192,62 +140,10 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     ],
     recentSymbols: {},
     workFilePath: 'work.md',
+    moveLineTargetFolder: '',
     versionFolder: '',
     daynightFolder: '',
-    daynightDashboardDays: 30,
-    daynightDashboardThreshold: 50,
-    budgetFolder: '',
-    budgetCurrencyPrefix: '',
-    budgetCurrencySuffix: isKorean ? '원' : '',
-    // 변동비, 식사에서 넘어오는 지출(식사 범례 이름과 같다), 고정·가끔 쓰는 지출 순서.
-    budgetExpenseCategories: isKorean
-        ? ['장보기', '카페', '교통', '생활', '쇼핑', '문화', '건강', '기타', '외식', '배달', '간식', '주거·공과금', '통신', '경조사', '교육']
-        : ['Groceries', 'Cafe', 'Transport', 'Living', 'Shopping', 'Culture', 'Health', 'Other', 'Eating out', 'Delivery', 'Snack', 'Housing & utilities', 'Phone & internet', 'Gifts & events', 'Education'],
-    budgetIncomeCategories: isKorean
-        ? ['급여', '부수입', '용돈', '이자·배당', '환급', '기타']
-        : ['Salary', 'Side income', 'Allowance', 'Interest & dividends', 'Refunds', 'Other'],
-    budgetPanelCategories: isKorean
-        ? ['장보기', '카페', '교통', '생활']
-        : ['Groceries', 'Cafe', 'Transport', 'Living'],
-    budgetPayments: isKorean ? ['현금', '체크카드', '신용카드'] : ['Cash', 'Debit card', 'Credit card'],
-    budgetLastPayment: '',
-    budgetFixedExpenses: [],
-    budgetCarryOver: 'ask',
-    mealFolder: '',
-    mealDayStartHour: 5,
-    // Color Hunt 인기 팔레트에서 고른 색. 라이트는 흰 배경, 다크는 어두운 배경에서 잘 보이는 색이다.
-    mealPalette: [
-        { light: '#ff0000', dark: '#ff9494' },
-        { light: '#df7861', dark: '#dba39a' },
-        { light: '#ad8b73', dark: '#ceab93' },
-        { light: '#aa8b56', dark: '#e3caa5' },
-        { light: '#8a8635', dark: '#eae7b1' },
-        { light: '#5f8d4e', dark: '#a7ff83' },
-        { light: '#508d4e', dark: '#c6ebc5' },
-        { light: '#3d8361', dark: '#bcead5' },
-        { light: '#43766c', dark: '#1fab89' },
-        { light: '#0d7377', dark: '#71c9ce' },
-        { light: '#6096b4', dark: '#6096b4' },
-        { light: '#3f72af', dark: '#769fcd' },
-        { light: '#535c91', dark: '#a6b1e1' },
-        { light: '#9290c3', dark: '#9896f1' },
-        { light: '#5c469c', dark: '#beadfa' },
-        { light: '#bc6ff1', dark: '#cca8e9' },
-        { light: '#a367b1', dark: '#e5beec' },
-        { light: '#b0578d', dark: '#ffabe1' },
-        { light: '#be5985', dark: '#e8a0bf' },
-        { light: '#ff2e63', dark: '#e6a4b4' },
-    ],
-    mealLegend: [
-        { icon: 'house', color: 'c-7', label: isKorean ? '집밥' : 'Home-cooked' },
-        { icon: 'bike', color: 'c-2', label: isKorean ? '배달' : 'Delivery' },
-        { icon: 'store', color: 'c-12', label: isKorean ? '외식' : 'Eating out' },
-        { icon: 'cookie', color: 'c-19', label: isKorean ? '간식' : 'Snack' },
-    ],
-    mealLastPick: null,
-    timelineFolder: '',
-    timelineDayStartHour: 5,
-    timelineColors: {},
+    daynightRecentCount: 4,
     isSupportCollapsed: false,
     readingTimeCharacterBasis: 'without-spaces',
     readingCharactersPerMinute: 500,

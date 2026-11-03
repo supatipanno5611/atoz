@@ -103,6 +103,6 @@ export class NoteListFeature {
     private isGeneratedNote(file: TFile): boolean {
         const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
         if (!isRecord(frontmatter)) return false;
-        return frontmatter.version !== undefined;
+        return frontmatter.later !== undefined || frontmatter.version !== undefined;
     }
 }

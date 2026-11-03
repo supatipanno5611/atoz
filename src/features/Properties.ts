@@ -80,6 +80,7 @@ const ALLOWED_PROPERTIES = new Set([
     'cssclasses',
     'aliases',
     'tags',
+    'later',
     'target-characters',
     'target-tolerance',
     'min-characters',
