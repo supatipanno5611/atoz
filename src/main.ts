@@ -93,6 +93,9 @@ export default class ATOZPlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => {
             this.app.workspace.detachLeavesOfType('atoz-clipboard-view');
             this.app.workspace.detachLeavesOfType('atoz-later-view');
+            this.app.workspace.detachLeavesOfType('atoz-budget-view');
+            this.app.workspace.detachLeavesOfType('atoz-dashboard');
+            this.app.workspace.detachLeavesOfType('atoz-daynight-dashboard');
             this.mobile.install();
             this.app.workspace.onLayoutReady(() => {
            		let _koIme_lastCheckedCount = -1;
@@ -170,6 +173,9 @@ export default class ATOZPlugin extends Plugin {
         delete data.moveLineTargetFolder;
         delete data.workTimestampFormat;
         delete data.moveLineSuffix;
+        for (const key of Object.keys(data)) {
+            if (/^(budget|meal|timeline|daynightDashboard)[A-Z]/.test(key)) delete data[key];
+        }
         const hadFolderVisibilityData = 'isAllFoldersHidden' in data;
         delete data.isAllFoldersHidden;
         const hadClipboardData = 'clipboardHistory' in data

@@ -13,6 +13,12 @@ const RELOAD_DELAY = 100;
 // 차트 배경을 어둡게 칠하는 밤 시간대
 const NIGHT_START_HOUR = 18;
 const NIGHT_END_HOUR = 6;
+// 규칙성은 최근 이 기간을 이 간격마다 지금과 24시간 뒤의 상태로 견준다.
+const REGULARITY_DAYS = 30;
+const REGULARITY_STEP = 5 * 60 * 1000;
+// 이보다 긴 구간은 버튼을 깜빡한 것으로 보고 규칙성에서 뺀다.
+const WAKE_LIMIT = 20 * HOUR;
+const SLEEP_LIMIT = 18 * HOUR;
 
 // 차트 좌표계
 const CHART_WIDTH = 300;
@@ -76,6 +82,29 @@ function sleptBetween(segments: DaynightSegment[], start: number, end: number): 
         total += Math.max(0, Math.min(to, end) - Math.max(from, start));
     }
     return total;
+}
+
+function isKnown({ from, to, type }: DaynightSegment): boolean {
+    return to - from <= (type === 'sleep' ? SLEEP_LIMIT : WAKE_LIMIT);
+}
+
+// 수면 규칙성 지수(SRI). 24시간 간격의 두 시점이 같은 상태일 확률을 -100~100으로 옮긴다.
+// 100은 매일 똑같고 0은 무작위 수준이다. 둘 중 하나라도 믿기 어려운 구간이면 그 시점은 세지 않는다.
+function regularityIndex(segments: DaynightSegment[], now: number): number | null {
+    const first = segments[0];
+    if (!first) return null;
+    let same = 0;
+    let count = 0;
+    let a = 0;
+    let b = 0;
+    for (let time = Math.max(now - REGULARITY_DAYS * DAY, first.from); time + DAY < now; time += REGULARITY_STEP) {
+        while (segments[a]!.to <= time) a++;
+        while (segments[b]!.to <= time + DAY) b++;
+        if (!isKnown(segments[a]!) || !isKnown(segments[b]!)) continue;
+        count++;
+        if (segments[a]!.type === segments[b]!.type) same++;
+    }
+    return count > 0 ? Math.round(200 * same / count - 100) : null;
 }
 
 export class DaynightView extends ItemView {
@@ -180,6 +209,14 @@ export class DaynightView extends ItemView {
             // 고른 구간이 없으면 진행 중인 마지막 구간을 진하게 둔다.
             const focused = selected ?? segments[segments.length - 1]!;
             this.renderChart(body, segments, start, end, end === now ? now : null, focused);
+            const regularity = regularityIndex(segments, now);
+            if (regularity !== null) {
+                body.createDiv({
+                    cls: 'atoz-daynight-regularity',
+                    text: t('daynight.regularity', { days: REGULARITY_DAYS, score: regularity }),
+                    attr: { 'aria-label': t('daynight.regularityHint') },
+                });
+            }
             this.renderRecent(body, records);
         }
 

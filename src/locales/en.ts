@@ -274,6 +274,8 @@ export const en = {
     'daynight.wokeAt': 'Woke at {{time}}',
     'daynight.sleptAt': 'Fell asleep at {{time}}',
     'daynight.last24h': 'Slept {{duration}} in last 24h',
+    'daynight.regularity': 'Regularity over {{days}} days: {{score}}',
+    'daynight.regularityHint': 'Chance of being in the same state 24 hours later, from 0 (random) to 100 (identical every day).',
     'daynight.sleepOn': 'Sleep on {{date}}',
     'daynight.awakeOn': 'Awake on {{date}}',
     'daynight.duration': '{{hours}}h {{paddedMinutes}}m',

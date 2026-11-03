@@ -330,6 +330,12 @@ body.plugin-tablet-sticky-ribbon.is-left-sidebar-closed .workspace {
     font-variant-numeric: tabular-nums;
 }
 
+.atoz-daynight-regularity {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
 .atoz-daynight-empty-title {
     font-size: var(--font-ui-large);
     font-weight: var(--font-semibold);

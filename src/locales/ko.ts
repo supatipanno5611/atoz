@@ -264,6 +264,8 @@ export const ko: Record<TranslationKey, string> = {
     'daynight.wokeAt': '{{time}}에 일어남',
     'daynight.sleptAt': '{{time}}에 잠듦',
     'daynight.last24h': '지난 24시간 수면 {{duration}}',
+    'daynight.regularity': '최근 {{days}}일 규칙성 {{score}}점',
+    'daynight.regularityHint': '24시간 뒤에도 같은 상태일 가능성이에요. 100은 매일 같고 0은 무작위 수준이에요.',
     'daynight.sleepOn': '{{date}} 수면',
     'daynight.awakeOn': '{{date}} 깨어 있음',
     'daynight.duration': '{{hours}}시간 {{minutes}}분',
